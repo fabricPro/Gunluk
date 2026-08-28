@@ -102,23 +102,15 @@ kor       #C4462B / #F08A3C   yalnızca yakılan sayfada
 
 ---
 
-## 5. Karar günlüğü — neden böyle değil
+## 5. Karar günlüğü
 
-Bunlar denendi ve **bilerek** kaldırıldı. Geri gelmek isterlerse sebebi burada.
+Bu bölüm `KARARLAR.md` dosyasına taşındı. Denenip bilerek kaldırılmış
+yaklaşımlar (kuvvet ağı, tema çizelgesi, haftalık AI yorumu, sonsuz kaydırma
+vb.) ve her birinin kaldırılma sebebi orada. Mimari kararlar da oraya
+yazılıyor.
 
-| Denenen | Neden kaldırıldı |
-|---|---|
-| **Dokuma deseni** (çözgü/atkı ızgarası) | Güzeldi ama kişisel değil, teknikti. |
-| **d3 kuvvet ağı** (nöron/perk ağacı) | Etkileyici ama okunmuyor. Düğüm yeri fizikten geliyor, veriden değil; sürekli süzüldüğü için zihinsel harita kurulamıyor; zaman ekseni yok. Klasik saç yumağı. |
-| **Tema zaman çizelgesi** (satır=tema, sütun=ay) | Okunabilirdi ama Excel gibi duruyordu ve uygulamanın sıcak diliyle çelişiyordu. |
-| **Zihin ekranı** (keşif kartları) | Bir açılma sebebi yoktu. Kartlar bir kez okunur, ertesi hafta aynıdır. Üstelik Ayna zaten aynı işi yapıyordu. |
-| **Ayna ekranı** (haftalık AI yorumu) | İkinci aydan sonra açılmaz, bildirim gürültüsüne döner. Karşılıksız gelen içgörü değersizdir. Maliyet sorunu değil, ilgi sorunu. |
-| **Tema çipleri / mercek** | Arşivde gereksiz görsel yük. Soru metninde tema adı zaten yakalanıyor. |
-| **Sonsuz kaydırma** | Veritabanı görünümü, kitap değil. Defteri defter yapan şey sayfaların bitmesi. |
-| **Sertlik ayarı** (AI ne kadar sert olsun) | Verilirse herkes ilk hafta kapatır, geriye yalaka kalır. |
-| **Mod/duygu skoru grafikleri** | Uygulamayı ölçüm aletine çevirir. Teşhis çağrışımı yasak. |
-
-**Genel kural:** grafik ana olay değil. Bir görselleştirme eklerken sorulacak soru "güzel mi" değil, **"kullanıcı bunu ikinci kez neden açsın"**.
+**Genel kural:** grafik ana olay değil. Bir görselleştirme eklerken sorulacak
+soru "güzel mi" değil, **"kullanıcı bunu ikinci kez neden açsın"**.
 
 ---
 

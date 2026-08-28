@@ -1,0 +1,125 @@
+# Karar günlüğü
+
+Bu dosya zamanla deponun en değerli parçası olacak. Her büyük karar buraya
+yazılır: ne seçildi, neden, ve reddedilen alternatifin neden reddedildiği.
+Bir kararı geri almak isteyen (biz dahil) önce buradaki gerekçeyi çürütmek
+zorunda.
+
+Yeni karar en üste eklenir.
+
+---
+
+## 2026-08-28 · Mimari kararlar (K-001 … K-006)
+
+Kavram aşaması bitti, üretim geliştirmesi başlıyor. Altı karar alındı.
+
+### K-001 · Platform: Capacitor + web arayüz, iki iş için native modül
+
+Seçenekler: PWA+Capacitor, React Native, tamamen native.
+
+**Seçim: Capacitor.** Bu ürünün en değerli varlığı, `kavram/defter.html`
+içinde CSS'te yaşayan görsel kimlik — parşömen dokusu, saate bağlı masa
+ışığı, soldan menteşelenen sayfa çevirme. React Native bunların hepsini
+sıfırdan yazdırır ve büyük kısmını daha kötü yapar. Tamamen native ise
+aynı tasarımı iki kez uygulamak demek; tek kişilik geliştirmede yayın
+tarihini ikiye katlar.
+
+Şifreleme bu kararda kısıt değil: Keychain ve Android Keystore'a native
+eklentiyle erişiliyor, maliyeti düşük.
+
+**Kabul edilen taviz:** el yazısı yüzeyi webview'in DOM akışına gömülemez.
+Mürekkep, tam ekran açılan native bir yazma sayfası olacak (PencilKit /
+S Pen); kapanınca çizim ve görünmez döküm geri dönecek. Bu bir tasarım
+tavizidir, bilerek kabul edildi.
+
+**Açık risk — kararın tek geri döndürülebilir noktası:** iOS'ta Türkçe el
+yazısı dökümü. Android'de ML Kit Digital Ink cihaz üstünde Türkçe
+destekliyor. Apple Vision / Scribble dil listesinde Türkçe göründüğü
+kadarıyla yok. Faz 1.3'e girmeden önce bir günlük doğrulama deneyi
+yapılacak. Sonuç olumsuzsa iki yol var: MyScript iink (ticari, cihaz üstü,
+Türkçe destekli) veya ilk sürümde iOS'ta aramanın yalnızca klavyeyle
+yazılmış kayıtlarda çalışması. Üçüncü ihtimalde iOS tarafı native'e kayar.
+
+### K-002 · Veri: SQLite + SQLCipher + FTS5
+
+Seçenekler: IndexedDB + alan bazlı WebCrypto, SQLite şifresiz, SQLCipher.
+
+**Seçim: SQLCipher.** Belirleyici sebep hız değil, şifreleme ile aramanın
+çakışması. Alan bazlı şifrelemede şifreli alan indekslenemez; aramayı elle
+kurmak gerekir ve on yıllık arşivde bu başlı başına ayrı bir ürün olur.
+SQLCipher dosyanın tamamını şifreler, FTS5 indeksi de o şifreli dosyanın
+*içinde* durur — arama ve şifreleme aynı anda çalışır.
+
+Yan kazançlar: Faz 3'teki embedding araması aynı dosyaya sqlite-vec ile
+eklenebilir; yedek tek dosya olur.
+
+`PRAGMA secure_delete = ON` — silinen kayıt sayfada iz bırakmasın.
+
+### K-003 · Yedekleme: mühürlü yedek + açık dışa aktarma, ikisi de kullanıcı eylemiyle
+
+On yıllık bir günlük tek cihaza emanet edilemez, ama sessizce buluta da
+yüklenemez (ilke 2.3). İki ayrı şey yapılacak, ikisi de yalnızca
+kullanıcının açık eylemiyle:
+
+1. **Mühürlü yedek** — şifreli tek dosya. Anahtar cihaz anahtarından değil,
+   kullanıcının yazıp sakladığı bir **kurtarma cümlesinden** türetilir
+   (Argon2id). Sebep: telefon kaybolduğunda yedek de ölmemeli. Kullanıcı
+   dosyayı kendi iCloud/Drive'ına koyar. Bizim sunucumuz yok.
+2. **Açık dışa aktarma** — Markdown + JSON, şifresiz. Sebep: on yıl sonra bu
+   uygulama var olmayabilir. Günlüğün okunabilirliği uygulamanın ömrüne
+   bağlanamaz.
+
+Reddedilen: yalnızca mühürlü yedek (uygulama kapanırsa veri de kapanır — bir
+günlük için kötü bir söz); yalnızca açık dışa aktarma (kullanıcı şifresiz
+dosyayı buluta koyar, ilke 2.3'ü fiilen delen biz oluruz).
+
+### K-004 · Yığın: TypeScript + Vite, UI framework yok
+
+Durum küçük, tasarım CSS'te yaşıyor; React buraya az şey katıp demonun
+sadeliğini alır. Sayfa çevirme, odak modu ve mürekkep gibi imperatif
+animasyonlarda framework sürekli engel olur.
+
+Asıl kazanç framework tercihinde değil, şu bölünmede: saf mantık
+(`sayfalariKur`, Türkçe ek yardımcıları, `soruCoz` retrieval'ı) DOM'dan
+ayrılıp tarayıcısız test edilebilir hale gelir. Kural: `cekirdek/` hiçbir
+zaman `veri/` veya `ekran/` import etmez.
+
+### K-005 · Başlık ve kenar notu artık kayıt kimliğine bağlanıyor
+
+Demoda `BASLIKLAR` ve `KENAR` `'tarih|ki'` ile anahtarlanıyor. Başlığın
+sayfa numarasına değil içeriğe bağlanması doğru karardı ve korunuyor — ama
+bu anahtar bir kayıt silinince veya sırası değişince kayar. Üretimde ikisi
+de kalıcı `kayit.id` ile bağlanır. İlke aynı, kırılganlık gider.
+
+### K-006 · Kapanan cilt dondurulur, sayfa akışı yalnızca açık ciltte hesaplanır
+
+Demoda cilt sayfa indeksinden hesaplanıyor (`floor(i/45)`). Eski bir kayıt
+düzeltilip uzayınca sonraki bütün sayfalar kayar — yani kapanmış bir cildin
+içeriği sonradan değişir. Bu, cilt kapanma töreninin (Faz 1.4) anlamını yok
+eder: kapattığın şey kapanmamış olur.
+
+Üretimde cilt kapandığında kayıt aralığı dondurulur; sayfalar yalnızca açık
+cilt içinde yeniden hesaplanır. Şeması Milestone 1'de atılıyor, töreni
+Faz 1.4'te geliyor.
+
+---
+
+## Daha önce denenmiş ve bilerek kaldırılmış yaklaşımlar
+
+Bunlar kavram aşamasında denendi ve çıkarıldı. Geri önerilecekse önce
+buradaki gerekçe çürütülmeli.
+
+| Denenen | Neden kaldırıldı |
+|---|---|
+| **Dokuma deseni** (çözgü/atkı ızgarası) | Güzeldi ama kişisel değil, teknikti. |
+| **d3 kuvvet ağı** (nöron/perk ağacı) | Etkileyici ama okunmuyor. Düğüm yeri fizikten geliyor, veriden değil; sürekli süzüldüğü için zihinsel harita kurulamıyor; zaman ekseni yok. Klasik saç yumağı. |
+| **Tema zaman çizelgesi** (satır=tema, sütun=ay) | Okunabilirdi ama Excel gibi duruyordu ve uygulamanın sıcak diliyle çelişiyordu. |
+| **Zihin ekranı** (keşif kartları) | Bir açılma sebebi yoktu. Kartlar bir kez okunur, ertesi hafta aynıdır. Üstelik Ayna zaten aynı işi yapıyordu. |
+| **Ayna ekranı** (haftalık AI yorumu) | İkinci aydan sonra açılmaz, bildirim gürültüsüne döner. Karşılıksız gelen içgörü değersizdir. Maliyet sorunu değil, ilgi sorunu. |
+| **Tema çipleri / mercek** | Arşivde gereksiz görsel yük. Soru metninde tema adı zaten yakalanıyor. |
+| **Sonsuz kaydırma** | Veritabanı görünümü, kitap değil. Defteri defter yapan şey sayfaların bitmesi. |
+| **Sertlik ayarı** (AI ne kadar sert olsun) | Verilirse herkes ilk hafta kapatır, geriye yalaka kalır. |
+| **Mod/duygu skoru grafikleri** | Uygulamayı ölçüm aletine çevirir. Teşhis çağrışımı yasak. |
+
+**Genel kural:** grafik ana olay değil. Bir görselleştirme eklerken sorulacak
+soru "güzel mi" değil, **"kullanıcı bunu ikinci kez neden açsın"**.
