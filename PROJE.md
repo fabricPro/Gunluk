@@ -119,10 +119,9 @@ soru "güzel mi" değil, **"kullanıcı bunu ikinci kez neden açsın"**.
 Sıra önemli. Her adım bir öncekine yaslanıyor.
 
 ### Faz 1 — Temel (önce bunlar)
-1. **Kalıcılık.** IndexedDB + cihazda şifreleme. Şu an sayfa yenilenince her şey gidiyor.
+1. **Kalıcılık.** SQLite + SQLCipher, cihazda şifreli (KARARLAR.md · K-002). Şu an sayfa yenilenince her şey gidiyor.
 2. **Boş defter / onboarding.** En zor ekran ve hiç tasarlanmadı. Demo 437 kayıtla açılıyor, gerçek kullanıcı sıfırla açacak. İlk 7 gün yönlendirilmiş sorular olmalı.
-3. **El yazısı.** Tabletin tüm gerekçesi bu. Mürekkep olduğu gibi kalır, altında görünmez döküm tutulur, arama onun üstünde çalışır. (PencilKit + Vision / Scribble)
-4. **Cilt kapanma töreni.** Ürünün en duygusal anı ve şu an tamamen boş. Cilt dolunca: ad ver, kapak seç, "bu cildi kapatıyor musun", kapanınca cildin özeti.
+3. **Cilt kapanma töreni.** Ürünün en duygusal anı ve şu an tamamen boş. Cilt dolunca: ad ver, kapak seç, "bu cildi kapatıyor musun", kapanınca cildin özeti.
 
 ### Faz 2 — Defterin geri kalanı
 5. Fotoğraf ve ek ekleme (bilet, ekran görüntüsü).
@@ -148,6 +147,7 @@ Sıra önemli. Her adım bir öncekine yaslanıyor.
 - Sayfa akışı: kayıtlar karakter maliyetine göre sayfalara akıtılıyor (`sayfalariKur()`). Kayıt eklendiğinde sayfalar yeniden hesaplanıyor.
 - Türkçe ek uyumu için yardımcılar var (`ayEk`, `sayiEk`, `bas`). Tema/kişi adları kullanıcıdan geleceği için ilgi hâli (`tamlayan`) de gerekecek — demoda vardı, sonraki sürümde düştü, geri gelmeli.
 - Sesli yazma: Web Speech API `tr-TR`. Native'de platformun kendi dikte servisi.
+- El yazısı desteği kapsam dışı bırakıldı (KARARLAR.md · K-007). Kayıt metni düz metin.
 - Arşiv cevabı üretimi (`soruCoz`) iki hata yaptı ve düzeltildi, tekrar etmesin:
   - Tema adı geçtiğinde havuz o temaya kilitlenmeli, yoksa alakasız kayıtlar sızıyor ("kerem hakkında ne yazdım" → "yazdım" kelimesi tez kayıtlarını topluyordu).
   - Dönem sorusunda (`şubatta…`) o ayın tamamı geçerli sayılmalı, yoksa hiç sonuç dönmüyor.

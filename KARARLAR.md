@@ -9,6 +9,36 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-28 · K-007 · El yazısı kapsam dışı
+
+Yol haritasının Faz 1.3'ü (el yazısı: PencilKit / S Pen, görünmez döküm,
+döküm üstünde arama) **çıkarıldı.**
+
+Sebep: maliyeti getirisini karşılamıyor. İki ayrı problem demekti — çizim
+yüzeyi ve yazıyı metne çevirme — ve ikincisi iOS'ta Türkçe için birinci
+taraf çözümü olmayan, ticari SDK'ya bağlanan açık bir risk taşıyordu.
+
+**Neyi değiştiriyor:**
+
+- Capacitor kararı (K-001) güçleniyor. Native tarafta kalan tek ihtiyaç
+  güvenli anahtar deposu (Keychain / Android Keystore). Webview'in içine
+  native görünüm gömme problemi tamamen ortadan kalkıyor; K-001'de kabul
+  edilen "tam ekran native yazma sayfası" tavizi de gereksizleşiyor.
+- Ürün tablet-öncelikli olmaktan çıkıp telefon-öncelikli oluyor. PROJE.md
+  §6'da tabletin gerekçesi el yazısıydı; artık tablet yalnızca desteklenen
+  bir ekran boyutu.
+- Kayıt metni tek biçimde duruyor: düz metin. Şemada mürekkep BLOB'una,
+  döküm/mürekkep ayrımına ve "görünmez döküm" senkron problemine gerek yok.
+  Arama doğrudan yazılanın üstünde çalışıyor.
+- Faz 1 üç adıma iniyor: kalıcılık, boş defter/onboarding, cilt kapanma
+  töreni.
+
+Geri gelmek isterse: yukarıdaki maliyet tablosu değişmiş olmalı — yani
+iOS'ta Türkçe el yazısı dökümü için birinci taraf, cihaz üstü bir çözüm
+çıkmış olmalı.
+
+---
+
 ## 2026-08-28 · Mimari kararlar (K-001 … K-006)
 
 Kavram aşaması bitti, üretim geliştirmesi başlıyor. Altı karar alındı.
