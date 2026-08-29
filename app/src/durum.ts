@@ -1,4 +1,4 @@
-import { VARSAYILAN_OLCU, ciltleriKur, sayfalariKur } from './cekirdek/sayfa.js'
+import { CILT_SAYFA, VARSAYILAN_OLCU, ciltleriKur, sayfalariKur } from './cekirdek/sayfa.js'
 import type { SayfaOlcu } from './cekirdek/sayfa.js'
 import type { TemaTanim } from './cekirdek/sorgu.js'
 import type { Cilt, DefterBilgi, Gun, KenarNotu, Sayfa } from './cekirdek/tipler.js'
@@ -41,6 +41,26 @@ export class Durum {
 
   get bos(): boolean {
     return this.sayfalar.length === 0
+  }
+
+  /** Defterin kendi sayfa sınırı; defter yoksa demo değeri. */
+  get sayfaSiniri(): number {
+    return this.aktifDefter?.sayfaSiniri ?? CILT_SAYFA
+  }
+
+  /** Sayfa sınırına gelindi mi — gelindiyse yazma durur, tören açılır. */
+  get dolu(): boolean {
+    return this.sayfalar.length >= this.sayfaSiniri
+  }
+
+  /** Kapanmış deftere yeni kayıt yazılamaz, eski kayıt düzeltilemez. */
+  get kapali(): boolean {
+    return this.aktifDefter?.kapandi ?? false
+  }
+
+  /** Yazmaya izin var mı. */
+  get yazilabilir(): boolean {
+    return !this.kapali && !this.dolu
   }
 
   get sonSayfa(): number {

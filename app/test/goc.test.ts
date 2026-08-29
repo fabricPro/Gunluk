@@ -37,7 +37,7 @@ describe('002 — kitaplık göçü', () => {
     await db.calistir("INSERT INTO cilt (no, ad) VALUES (1, 'Son yıl')")
 
     expect((await db.tek<{ n: number }>('SELECT count(*) AS n FROM kayit'))!.n).toBe(120)
-    expect(await gocleriUygula(db)).toBe(1)
+    expect(await gocleriUygula(db)).toBe(GOCLER.filter((g) => g.surum > 1).length)
     expect((await db.tek<{ n: number }>('SELECT count(*) AS n FROM kayit'))!.n).toBe(120)
     expect((await db.tek<{ user_version: number }>('PRAGMA user_version'))?.user_version).toBe(
       SON_SURUM,

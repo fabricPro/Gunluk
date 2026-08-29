@@ -85,7 +85,10 @@
 <div id="fihrist"><div class="fih-kagit">
   <h3>Fihrist</h3><div class="alt" id="fihAlt"></div>
   <div id="fihListe"></div>
-  <button class="fih-kapat" id="fihKapat">kapat</button>
+  <div class="fih-alt-arac">
+    <button id="defteriBitir">bu defteri kapat</button>
+    <button class="fih-kapat" id="fihKapat">kapat</button>
+  </div>
 </div></div>
 
 <div id="yak">
@@ -101,6 +104,50 @@
   <div class="altlik" id="yakAltlik"><button id="yakVaz">vazgeç</button><button id="yakBas">YAK</button></div>
 </div>
 <div id="korlar"></div>
+
+<div id="toren">
+  <div class="tor-kagit">
+    <div id="torSoru">
+      <div class="tor-et" id="torBaslikEt">bu defter doldu</div>
+      <h2 id="torBaslik"></h2>
+      <p class="tor-giris" id="torGiris"></p>
+      <label class="tor-alan">
+        <span>defterin adı</span>
+        <input id="torAd" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="tor-alan">
+        <span>kapağı</span>
+        <div class="tor-kapaklar" id="torKapaklar"></div>
+      </label>
+      <div class="tor-dugmeler">
+        <button id="torUzat">biraz daha uzat</button>
+        <button class="birincil" id="torKapatDefter">bu defteri kapat</button>
+      </div>
+      <div class="tor-uzat" id="torUzatAlan">
+        <span>kaç sayfa eklensin</span>
+        <button data-ek="5">5</button>
+        <button data-ek="10">10</button>
+        <button data-ek="20">20</button>
+        <button data-ek="45">45</button>
+        <button id="torUzatVaz">vazgeç</button>
+      </div>
+    </div>
+
+    <div id="torOzet">
+      <div class="tor-et">kapandı</div>
+      <h2 id="ozBaslik"></h2>
+      <div class="oz-aralik" id="ozAralik"></div>
+      <div class="oz-sayilar" id="ozSayilar"></div>
+      <div class="oz-bolum" id="ozTemalar"></div>
+      <div class="oz-bolum" id="ozBasliklar"></div>
+      <div class="oz-uclar" id="ozUclar"></div>
+      <div class="tor-dugmeler">
+        <button id="ozKitaplik">kitaplığa koy</button>
+        <button class="birincil" id="ozYeniCilt"></button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div id="kitaplik">
   <div class="kit-ust">
@@ -118,6 +165,10 @@
     <input id="ydAd" placeholder="deftere bir ad ver…" autocomplete="off" spellcheck="false">
     <div class="yd-uyari" id="ydUyari"></div>
     <div class="yd-kapaklar" id="ydKapaklar"></div>
+    <div class="yd-sinir">
+      <span>kaç sayfa olsun</span>
+      <div id="ydSinirlar"></div>
+    </div>
     <div class="yd-dugmeler">
       <button id="ydVaz">vazgeç</button>
       <button class="birincil" id="ydAc">defteri aç</button>

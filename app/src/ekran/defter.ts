@@ -1,4 +1,4 @@
-import { CILT_SAYFA, SAYFA_HACIM } from '../cekirdek/sayfa.js'
+import { SAYFA_HACIM } from '../cekirdek/sayfa.js'
 import type { Sayfa } from '../cekirdek/tipler.js'
 import { romen, saatSayi, tamTarih } from '../cekirdek/tr.js'
 import type { Durum } from '../durum.js'
@@ -10,7 +10,11 @@ export interface DefterArayuz {
   sayfayaGit: (i: number, anim?: boolean) => void
 }
 
-export function defteriBagla(durum: Durum, depo: Depo): DefterArayuz {
+export function defteriBagla(
+  durum: Durum,
+  depo: Depo,
+  toreniAc: () => void,
+): DefterArayuz {
   const sayfaIsik = () => {
     const s = durum.sayfalar[durum.aktifSayfa]
     if (!s) return isikAyarla(new Date().getHours())
@@ -29,13 +33,27 @@ export function defteriBagla(durum: Durum, depo: Depo): DefterArayuz {
     return g.replace(new RegExp('(' + kacan + ')', 'gi'), '<mark>$1</mark>')
   }
 
+  /**
+   * Son sayfanın altı: yazma alanı, ya da defter dolduysa törene çağrı,
+   * ya da defter kapandıysa sessiz bir not.
+   */
+  const altHtml = (): string => {
+    if (durum.kapali)
+      return `<div class="dolu-cagri"><p>Bu defter kapandı. Buraya bir daha yazılmaz.</p>
+        <button id="ozetGor">cildin özetini gör</button></div>`
+    if (durum.dolu)
+      return `<div class="dolu-cagri"><p>Bu defter doldu.</p>
+        <button id="torenAc">defteri kapat ya da uzat</button></div>`
+    return `<div id="yazma"><div class="bosluk"></div><textarea id="kalem" placeholder="yaz…"></textarea></div>`
+  }
+
   /* Faz 1.2'nin ekranı değil — yalnızca sıfır kayıtta çıplak kalmasın. */
   const bosSayfaHtml = (): string => `<div class="kagit"><div class="kagit-ic">
       <div class="bos-sayfa">
         <p>Defter boş. İlk sayfa aşağıda başlıyor.</p>
         <small>yaz, sonra bırak</small>
       </div>
-      <div id="yazma"><div class="bosluk"></div><textarea id="kalem" placeholder="yaz…"></textarea></div>
+      ${altHtml()}
     </div><div class="kagit-alt">1</div></div>`
 
   const sayfaHtml = (i: number): string => {
@@ -54,16 +72,16 @@ export function defteriBagla(durum: Durum, depo: Depo): DefterArayuz {
         /* Sayfaya düşen parça yazılır, kaydın tamamı değil (K-014).
            Saat ve düzelt düğmesi yalnızca kaydın başladığı parçada. */
         const bas = o.parcaNo === 0
+        const duzeltilebilir = bas && !durum.kapali
         const iz = bas && b.kayit.duzenlendi ? ' <span class="duz">· düzeltildi</span>' : ''
         ic += `<div class="satir${bas ? '' : ' devam'}" data-id="${o.kayitId}">
           <time>${bas ? b.kayit.saat : ''}</time><p>${vurgu(o.metin)}${o.sonParca ? iz : ''}</p>
-          ${bas ? '<button class="kalem-btn">düzelt</button>' : ''}</div>`
+          ${duzeltilebilir ? '<button class="kalem-btn">düzelt</button>' : ''}</div>`
       } else {
         ic += `<div class="kenar">${kacir(o.metin)}<span>kenar notu · ${kacir(o.tarih)}</span></div>`
       }
     }
-    if (i === durum.sonSayfa)
-      ic += `<div id="yazma"><div class="bosluk"></div><textarea id="kalem" placeholder="yaz…"></textarea></div>`
+    if (i === durum.sonSayfa) ic += altHtml()
     return `<div class="kagit"><div class="kagit-ic">${ic}</div>
       <div class="kagit-alt">${s.ciltSayfa}</div></div>`
   }
@@ -78,16 +96,17 @@ export function defteriBagla(durum: Durum, depo: Depo): DefterArayuz {
       ? d.ad + (d.cilt > 1 ? ` · Cilt ${romen(d.cilt)}` : '')
       : (c?.ad ?? 'Defter')
     $('#sayfaNo').textContent = s
-      ? `sayfa ${s.ciltSayfa}/${CILT_SAYFA}${d?.kapandi ? ' · kapalı defter' : ''}`
-      : `sayfa 1/${CILT_SAYFA}`
+      ? `sayfa ${s.no}/${durum.sayfaSiniri}${d?.kapandi ? ' · kapalı defter' : ''}`
+      : `sayfa 1/${durum.sayfaSiniri}`
 
-    const sonCilt = durum.ciltler[durum.ciltler.length - 1]
-    const kalan = sonCilt ? CILT_SAYFA - sonCilt.sayfa : CILT_SAYFA
+    const kalan = durum.sayfaSiniri - durum.sayfalar.length
     $('#kalanYazi').textContent =
       durum.aktifSayfa === durum.sonSayfa
-        ? kalan > 0
-          ? `bu defterde ${kalan} sayfa kaldı`
-          : 'bu defter doldu'
+        ? kalan > 3
+          ? ''
+          : kalan > 0
+            ? `bu defterde ${kalan} sayfa kaldı`
+            : 'bu defter doldu'
         : ''
 
     $('#kagit-kap').innerHTML = sayfaHtml(durum.aktifSayfa)
@@ -106,6 +125,11 @@ export function defteriBagla(durum: Durum, depo: Depo): DefterArayuz {
         const el = (e.target as HTMLElement).closest<HTMLElement>('.satir')
         if (el?.dataset.id) duzelt(el.dataset.id)
       }
+    const torenBtn = document.getElementById('torenAc')
+    if (torenBtn) torenBtn.onclick = () => toreniAc()
+    const ozetBtn = document.getElementById('ozetGor')
+    if (ozetBtn) ozetBtn.onclick = () => toreniAc()
+
     kesitCiz()
     sayfaIsik()
   }
@@ -206,6 +230,8 @@ export function defteriBagla(durum: Durum, depo: Depo): DefterArayuz {
   }
 
   const birak = async (): Promise<void> => {
+    /* Kapanmış ya da dolmuş deftere yazılmaz. */
+    if (!durum.yazilabilir) return
     const kalem = $<HTMLTextAreaElement>('#kalem')
     if (!kalem) return
     const m = kalem.value.trim()

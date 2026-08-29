@@ -148,7 +148,7 @@ export class Depo {
    * (K-016). Dönen değerde `cilt` kaçıncı cilt olduğunu söyler; arayüz
    * bunu kullanıcıya önceden bildirir.
    */
-  async defterAc(ad: string, kapak: string): Promise<DefterBilgi> {
+  async defterAc(ad: string, kapak: string, sayfaSiniri = 45): Promise<DefterBilgi> {
     const temiz = ad.trim() || 'Defter'
     const id = kimlik()
     const t = simdi()
@@ -163,12 +163,24 @@ export class Depo {
     const sonSira =
       (await this.db.tek<{ s: number | null }>('SELECT max(sira) AS s FROM defter WHERE raf = 0'))
         ?.s ?? -1
+    const sinir = Math.max(5, Math.round(sayfaSiniri))
     await this.db.calistir(
-      `INSERT INTO defter (id, ad, cilt, kapak, raf, sira, olusturma, kapandi)
-       VALUES (?, ?, ?, ?, 0, ?, ?, 0)`,
-      [id, temiz, cilt, kapak, sonSira + 1, t],
+      `INSERT INTO defter (id, ad, cilt, kapak, raf, sira, olusturma, kapandi, sayfa_siniri)
+       VALUES (?, ?, ?, ?, 0, ?, ?, 0, ?)`,
+      [id, temiz, cilt, kapak, sonSira + 1, t, sinir],
     )
-    return { id, ad: temiz, cilt, kapak, raf: 0, sira: sonSira + 1, kapandi: false, kayitSayisi: 0 }
+    return {
+      id,
+      ad: temiz,
+      cilt,
+      kapak,
+      raf: 0,
+      sira: sonSira + 1,
+      sayfaSiniri: sinir,
+      kapandi: false,
+      kapanma: null,
+      kayitSayisi: 0,
+    }
   }
 
   /** Bu adda kaçıncı cilt açılacağını önden söyler; 1 ise yeni bir seri. */
@@ -193,10 +205,12 @@ export class Depo {
       kapak: string
       raf: number
       sira: number
+      sayfa_siniri: number
       kapandi: number
+      kapanma: number | null
       kayit_sayisi: number
     }>(
-      `SELECT d.id, d.ad, d.cilt, d.kapak, d.raf, d.sira, d.kapandi,
+      `SELECT d.id, d.ad, d.cilt, d.kapak, d.raf, d.sira, d.sayfa_siniri, d.kapandi, d.kapanma,
               (SELECT count(*) FROM kayit k WHERE k.defter_id = d.id) AS kayit_sayisi
        FROM defter d ORDER BY d.raf, d.sira, d.cilt`,
     )
@@ -207,7 +221,9 @@ export class Depo {
       kapak: r.kapak,
       raf: r.raf,
       sira: r.sira,
+      sayfaSiniri: r.sayfa_siniri,
       kapandi: r.kapandi === 1,
+      kapanma: r.kapanma,
       kayitSayisi: r.kayit_sayisi,
     }))
   }
@@ -236,7 +252,15 @@ export class Depo {
     })
   }
 
-  /** Defter dolunca kapanır; töreni Faz 1.4, mekanizması burada. */
+  /** Defteri uzatır: yeni sayfa sınırı mevcut sayfa sayısından küçük olamaz. */
+  async sayfaSiniriYaz(id: string, sinir: number): Promise<void> {
+    await this.db.calistir('UPDATE defter SET sayfa_siniri = ? WHERE id = ?', [
+      Math.max(5, Math.round(sinir)),
+      id,
+    ])
+  }
+
+  /** Defter kapanır — kapandıktan sonra yeni kayıt yazılamaz. */
   async defterKapat(id: string): Promise<void> {
     await this.db.calistir('UPDATE defter SET kapandi = 1, kapanma = ? WHERE id = ?', [simdi(), id])
   }

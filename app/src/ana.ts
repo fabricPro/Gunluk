@@ -6,6 +6,7 @@ import { kapsuleBagla } from './ekran/kapsul.js'
 import { kilidiBagla } from './ekran/kilit.js'
 import { kitapligiBagla } from './ekran/kitaplik.js'
 import { sayfaOlc } from './ekran/olcum.js'
+import { toreniBagla } from './ekran/toren.js'
 import { yakmayiBagla } from './ekran/yak.js'
 import { defteriAc } from './veri/db.js'
 import { Depo } from './veri/depo.js'
@@ -67,11 +68,16 @@ async function baslat(): Promise<void> {
   await durum.yenile()
   durum.aktifSayfa = durum.sonSayfa
 
-  const defter = defteriBagla(durum, depo)
+  let toren: { ac: () => void } | null = null
+  const defter = defteriBagla(durum, depo, () => toren?.ac())
   const arsiv = arsiviBagla(durum, defter.sayfayaGit)
   const kapsul = kapsuleBagla(depo)
-  fihristiBagla(durum, depo, defter.sayfayaGit)
+  fihristiBagla(durum, depo, defter.sayfayaGit, () => toren?.ac())
   const kitaplik = kitapligiBagla(durum, depo, () => {
+    defter.ciz()
+    arsiv.gecenYilCiz()
+  })
+  toren = toreniBagla(durum, depo, () => {
     defter.ciz()
     arsiv.gecenYilCiz()
   })

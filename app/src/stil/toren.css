@@ -1,0 +1,81 @@
+/* ══════ CİLT KAPANMA TÖRENİ ══════
+   Ürünün en duygusal anı: defter doluyor, kullanıcı ya uzatıyor ya
+   kapatıyor. Kapanınca defterin özeti — yorum değil, olgu (K-018). */
+
+#toren{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;
+  padding:20px;background:rgba(8,6,4,.86);backdrop-filter:blur(3px)}
+#toren.acik{display:flex;animation:torGel .8s ease both}
+@keyframes torGel{from{opacity:0}to{opacity:1}}
+
+.tor-kagit{width:100%;max-width:520px;max-height:92vh;overflow-y:auto;border-radius:3px;
+  padding:30px 30px 24px;color:var(--murekkep);
+  background:
+    radial-gradient(ellipse 120% 80% at 88% 6%,rgba(255,255,255,.3),transparent 55%),
+    linear-gradient(158deg,var(--kagit) 0%,var(--kagit2) 62%,var(--kagit3) 100%);
+  box-shadow:0 50px 110px -34px rgba(0,0,0,.96);
+  animation:torYuksel .9s cubic-bezier(.2,.8,.3,1) both}
+@keyframes torYuksel{from{transform:translateY(22px) scale(.985);opacity:0}to{transform:none;opacity:1}}
+
+#torOzet{display:none}
+#toren.ozet #torSoru{display:none}
+#toren.ozet #torOzet{display:block}
+
+.tor-et{font-family:var(--ui);font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--soluk);margin-bottom:9px}
+.tor-kagit h2{margin:0 0 6px;font-size:29px;font-weight:300;font-style:italic;letter-spacing:-.01em}
+.tor-giris{margin:0 0 20px;font-size:17px;line-height:1.72;font-weight:300;color:var(--murekkep2)}
+
+.tor-alan{display:block;margin-bottom:15px}
+.tor-alan>span{display:block;font-family:var(--ui);font-size:10.5px;letter-spacing:.06em;
+  color:var(--soluk);margin-bottom:6px}
+.tor-alan input{width:100%;background:rgba(44,33,24,.06);border:1px solid rgba(44,33,24,.22);
+  border-radius:2px;outline:none;font-family:var(--yazi);font-size:21px;font-style:italic;
+  color:var(--murekkep);padding:9px 11px}
+.tor-kapaklar{display:flex;flex-wrap:wrap;gap:8px}
+.tor-kapaklar button{width:34px;height:47px;border-radius:2px 3px 3px 2px;border:none;cursor:pointer;
+  box-shadow:inset -2px 0 5px -2px rgba(0,0,0,.7)}
+.tor-kapaklar button[aria-pressed="true"]{outline:2px solid var(--altin);outline-offset:2px}
+
+.tor-dugmeler{display:flex;gap:9px;justify-content:flex-end;margin-top:22px;flex-wrap:wrap}
+.tor-dugmeler button{font-family:var(--ui);font-size:12px;color:var(--murekkep2);
+  border:1px solid rgba(44,33,24,.25);border-radius:100px;padding:8px 16px;transition:.2s}
+.tor-dugmeler button:hover{border-color:rgba(44,33,24,.5);color:var(--murekkep)}
+.tor-dugmeler .birincil{background:var(--murekkep);color:var(--kagit);border-color:var(--murekkep)}
+.tor-dugmeler .birincil:hover{background:#1B140D;color:var(--kagit)}
+
+.tor-uzat{display:none;align-items:center;gap:7px;flex-wrap:wrap;margin-top:14px;
+  padding-top:14px;border-top:1px solid var(--cizgi)}
+.tor-uzat.acik{display:flex}
+.tor-uzat>span{font-family:var(--ui);font-size:11px;color:var(--soluk);margin-right:2px}
+.tor-uzat button{font-family:var(--ui);font-size:12px;color:var(--murekkep2);
+  border:1px solid rgba(44,33,24,.25);border-radius:100px;padding:6px 14px}
+.tor-uzat button:hover{border-color:var(--altin);color:var(--murekkep)}
+
+/* ── özet ── */
+.oz-aralik{font-size:18px;font-style:italic;color:var(--murekkep2);margin-bottom:16px}
+.oz-sayilar{display:flex;flex-wrap:wrap;gap:20px;padding-bottom:16px;margin-bottom:16px;
+  border-bottom:1px solid var(--cizgi)}
+.oz-sayilar div{font-family:var(--ui)}
+.oz-sayilar b{display:block;font-family:var(--yazi);font-size:27px;font-weight:300;
+  color:var(--murekkep);line-height:1.1}
+.oz-sayilar span{font-size:10px;letter-spacing:.06em;color:var(--soluk)}
+.oz-bolum{margin-bottom:15px;font-size:15.5px;line-height:1.75;color:var(--murekkep2)}
+.oz-bolum .et{font-family:var(--ui);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--soluk);display:block;margin-bottom:5px}
+.oz-bolum b{font-weight:400;color:var(--murekkep)}
+.oz-liste{margin:0;padding:0;list-style:none}
+.oz-liste li{display:flex;gap:8px;align-items:baseline;font-style:italic}
+.oz-liste .nokta{flex:1;border-bottom:1px dotted rgba(44,33,24,.3);transform:translateY(-3px)}
+.oz-liste .no{font-family:var(--ui);font-size:10.5px;font-style:normal;color:var(--soluk)}
+.oz-uclar{display:grid;gap:12px;padding-top:15px;border-top:1px solid var(--cizgi)}
+.oz-uc{font-size:16px;line-height:1.7;font-weight:300}
+.oz-uc time{display:block;font-family:var(--ui);font-size:9.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--soluk);margin-bottom:3px}
+
+/* defter dolduğunda yazma alanının yerine geçen çağrı */
+.dolu-cagri{display:flex;flex-direction:column;align-items:flex-start;gap:10px;
+  padding:18px 0 26px;margin-left:48px}
+.dolu-cagri p{margin:0;font-size:16.5px;font-style:italic;color:var(--soluk);line-height:1.7}
+.dolu-cagri button{font-family:var(--ui);font-size:12px;color:var(--murekkep2);
+  border:1px solid rgba(44,33,24,.3);border-radius:100px;padding:8px 16px;transition:.2s}
+.dolu-cagri button:hover{background:var(--murekkep);color:var(--kagit);border-color:var(--murekkep)}

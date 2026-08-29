@@ -22,6 +22,9 @@ export function kitapligiBagla(
 ): { ac: () => Promise<void> } {
   let defterler: DefterBilgi[] = []
   let secilenKapak = VARSAYILAN_KAPAK
+  /* Defterin ölçüsü kullanıcıya ait: kısa bir defter de olur, uzun da. */
+  const SINIRLAR = [20, 45, 90, 180]
+  let secilenSinir = 45
 
   const kapat = () => $('#kitaplik').classList.remove('acik')
 
@@ -201,6 +204,17 @@ export function kitapligiBagla(
         for (const x of $$('#ydKapaklar .yd-kapak'))
           x.setAttribute('aria-pressed', String(x === b))
       }
+    secilenSinir = 45
+    $('#ydSinirlar').innerHTML = SINIRLAR.map(
+      (n) =>
+        `<button data-sinir="${n}" aria-pressed="${n === secilenSinir}">${n} sayfa</button>`,
+    ).join('')
+    for (const b of $$<HTMLButtonElement>('#ydSinirlar button'))
+      b.onclick = () => {
+        secilenSinir = Number(b.dataset.sinir)
+        for (const x of $$('#ydSinirlar button'))
+          x.setAttribute('aria-pressed', String(x === b))
+      }
     $('#yeniDefter').classList.add('acik')
     setTimeout(() => ad.focus(), 60)
   }
@@ -219,7 +233,7 @@ export function kitapligiBagla(
   const yeniyiKaydet = async (): Promise<void> => {
     const ad = $<HTMLInputElement>('#ydAd').value.trim()
     if (!ad) return
-    const d = await depo.defterAc(ad, secilenKapak)
+    const d = await depo.defterAc(ad, secilenKapak, secilenSinir)
     $('#yeniDefter').classList.remove('acik')
     defterler = await depo.defterler()
     await defteriSec(d.id)

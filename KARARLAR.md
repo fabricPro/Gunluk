@@ -9,6 +9,64 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · K-017 · Defterin ölçüsü kullanıcıya ait
+
+Sayfa sayısı tek bir sabit değil artık; her defterin kendi sınırı var. Yeni
+defter açarken seçiliyor (20 / 45 / 90 / 180, varsayılan 45) ve dolunca
+törende uzatılabiliyor. Böylece "bu kısa bir defter olsun" ile "bu uzun
+sürsün" ayrı ayrı söylenebiliyor — gerçek defterler gibi.
+
+**Sınıra gelince yazma durur.** Yazma alanının yerine törene çağrı geçer.
+Uyarıp yazmaya devam ettirmek denenebilirdi ama o zaman sınırın anlamı
+kalmıyor ve defter yine sonsuz bir akışa dönüyor; "dolduğunda biten defter"
+ürünün ilk cümlesi. Son üç sayfada üst şeritte geri sayım beliriyor, bitiş
+ani gelmiyor.
+
+**Not:** Göç, var olan defterlere 45 sayfa sınırı veriyor. Halihazırda daha
+uzun bir defteri olan biri uygulamayı açtığında defteri "dolu" görecek — ama
+tören onu karşılıyor ve tek dokunuşla uzatabiliyor. Göç sırasında sayfa
+sayısı hesaplanamıyor: sayfa akışı ekran ölçüsüne bağlı (K-014), SQL
+içinden bilinemez.
+
+---
+
+## 2026-08-29 · K-018 · Cilt kapanma töreni
+
+PROJE.md Faz 1.4 tamamlandı — ürünün en duygusal anı olarak tarif edilen ve
+tamamen boş duran yer.
+
+Defter dolunca (ya da kullanıcı fihristten "bu defteri kapat" deyince) tören
+açılıyor: defterin adı ve kapağı son kez düzenlenebiliyor, sonra iki yol var
+— **biraz daha uzat** ya da **bu defteri kapat**. Dolmamış bir defteri
+kapatırken "uzat" gösterilmiyor; oradaki soru zaten "burada bitiriyor musun".
+
+Kapatınca **cildin özeti** geliyor: tarih aralığı, kaç sayfa / kaç kayıt /
+kaç gün yazıldığı / kaç gün sürdüğü, en sık geçen temalar, kullanıcının ad
+verdiği sayfalar, ve ilk ile son kaydın kendisi. Sonra aynı adla bir sonraki
+cildi açmayı öneriyor.
+
+**Özet yorum yapmaz.** Yalnızca kullanıcının kendi kayıtlarından çıkan
+olgular; skor, grafik ve teşhis PROJE.md §5 ile kapalı. Bir test özet
+nesnesinin alan listesini sabitliyor ki ileride oraya bir "yorum" alanı
+sızmasın. En çok anlamı taşıyan kısım sayılar değil, ilk ve son cümlenin yan
+yana durması: aradaki mesafeyi hiçbir sayı o kadar iyi anlatmıyor.
+
+**Kapanan defter:** yeni kayıt yazılamaz, eski kayıt düzeltilemez. Kapattığın
+şey kapanır. Kenar notu düşülebilir — PROJE.md'de kenar notu zaten "eski bir
+kayda sonradan düşülen not", yıllar sonra dönüp bir şey eklemek bu ürünün
+kendi fikri. (Kenar notu arayüzü Faz 2.6; veri katmanı hazır.)
+
+Kapanmış bir defteri açınca tören doğrudan özeti gösteriyor, soruyu değil.
+
+**K-006 tekrar değerlendirildi.** Kapanan cildin sayfalarını piksel düzeyinde
+dondurmak artık hem gereksiz hem imkânsız: gereksiz, çünkü kapalı defter salt
+okunur — düzeltmeyle sayfalar kayamaz; imkânsız, çünkü sayfa akışı ekran
+ölçüsüne bağlı (K-014), bir ekranda dondurulan düzen başka ekranda taşar.
+İçerik donuyor, dizgi ekrana uyuyor. `donmusSayfalar` mekanizması duruyor ama
+kullanılmıyor.
+
+---
+
 ## 2026-08-29 · K-014 · Sayfa akışının atomu kayıt değil, parça
 
 Uzun bir kayıt kitaba yayılmıyordu. Akışın atomu *kayıt* olduğu için bir

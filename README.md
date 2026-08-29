@@ -13,7 +13,7 @@ kavram/           dondurulmuş kavram demosu (tek dosya, referans)
 app/              üretim uygulaması
   src/cekirdek/   saf mantık: sayfa akışı, Türkçe ekler, arşiv retrieval'ı
   src/veri/       şema, göçler, depo, şifreleme, sürücüler
-  src/ekran/      defter · kitaplık · arşiv · kapsül · fihrist · yakılan sayfa
+  src/ekran/      defter · kitaplık · tören · arşiv · kapsül · fihrist · yakılan sayfa
   src/stil/       tasarım dili, PROJE.md §4 sırasıyla bölünmüş
   src/yazitipi/   gömülü woff2 dosyaları + OFL lisansları
   test/           birim ve regresyon testleri
@@ -87,7 +87,7 @@ uyarı yazar. Telefonda gerçek kalıcılığı denemek için Capacitor kabuğuy
 ### Derleme ve testler
 
 ```sh
-npm test               # 104 test
+npm test               # 111 test
 npm run build          # dist/ üretir
 npm run onizle         # derlenmiş sürümü 4173 portunda sunar
 ```
@@ -121,5 +121,6 @@ karşılığı var:
 
 ## Durum
 
-Faz 1.1 (kalıcılık) tamam, yazı tipleri gömüldü, kitaplık çalışıyor. Sırada Faz 1.2 (boş defter / onboarding) —
+Faz 1.1 (kalıcılık) ve Faz 1.4 (cilt kapanma töreni) tamam, yazı tipleri
+gömüldü, kitaplık çalışıyor. Sırada Faz 1.2 — boş defter / onboarding. Sırada Faz 1.2 (boş defter / onboarding) —
 şu an yalnızca çökmeyen bir yer tutucu var.

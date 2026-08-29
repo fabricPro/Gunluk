@@ -122,6 +122,9 @@ export async function tohumEk(depo: Depo, bitis = '2026-08-28'): Promise<number>
       adetToplam++
     }
     await depo.defterAdiYaz(depo.aktifDefterId, 'Son yıl')
+    /* Tohum verisi 45 sayfayı aşıyor; defter dolu görünüp yazmayı
+       engellemesin diye sınırı içeriğe göre açıyoruz. */
+    await depo.sayfaSiniriYaz(depo.aktifDefterId, 120)
     if (ilkKayitId) await depo.baslikYaz(ilkKayitId, 'Son yaz')
   })
   console.info(`[defter] tohum: ${adetToplam} kayıt eklendi (${gunAdi(bitis)} gününe kadar).`)

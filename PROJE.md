@@ -49,7 +49,7 @@ Cevap yalnızca kullanıcının kendi kayıtlarından kurulur ve **kullanılan k
 
 ### DEFTER
 Uygulamanın tamamı burası.
-- **Ciltli ve sayfalı.** Cilt = 45 sayfa. Sayfa = ~620 karakter. Sonsuz kaydırma yok.
+- **Ciltli ve sayfalı.** Defterin sayfa sayısını kullanıcı belirler (varsayılan 45). Sayfa kapasitesi ekrana göre ölçülür. Sonsuz kaydırma yok.
 - Yazma yeri son sayfanın devamı — ayrı kutu, form, "yeni giriş" butonu yok.
 - Sayfa çevirme: `‹ ›`, ok tuşları, dokunmatik kaydırma. Sayfa soldan menteşelenip döner.
 - Yan kesit (sol şerit): her çizgi bir sayfa, ciltlere ayrılmış. Başlıklı sayfalar altın renkli.
@@ -58,7 +58,7 @@ Uygulamanın tamamı burası.
 - **Kenar notu:** eski bir kayda sonradan düşülen not, kırmızı kalemle.
 - Düzeltme iz bırakır (`· düzeltildi`). Kullanıcı geçmişini sessizce yeniden yazamaz.
 - **Bugüne dön** düğmesi.
-- **Kilit:** defter kapanır, kapak görünür.
+- **Kitaplık:** defter kapanır, raflar görünür. Birden çok defter, ad ve kapak; aynı adlı defterler cilt cilt devam eder.
 
 ### ARŞİV
 Arama ve sorma. **Yorum yok.**
@@ -121,7 +121,7 @@ Sıra önemli. Her adım bir öncekine yaslanıyor.
 ### Faz 1 — Temel (önce bunlar)
 1. **Kalıcılık.** SQLite + SQLCipher, cihazda şifreli (KARARLAR.md · K-002). Şu an sayfa yenilenince her şey gidiyor.
 2. **Boş defter / onboarding.** En zor ekran ve hiç tasarlanmadı. Demo 437 kayıtla açılıyor, gerçek kullanıcı sıfırla açacak. İlk 7 gün yönlendirilmiş sorular olmalı.
-3. **Cilt kapanma töreni.** Ürünün en duygusal anı ve şu an tamamen boş. Cilt dolunca: ad ver, kapak seç, "bu cildi kapatıyor musun", kapanınca cildin özeti.
+3. ~~**Cilt kapanma töreni.**~~ **Tamam.** Defter dolunca ad ver, kapak seç, uzat ya da kapat; kapanınca cildin özeti ve bir sonraki cilt. Sayfa sayısı artık her defterin kendi ölçüsü (KARARLAR.md · K-017, K-018).
 
 ### Faz 2 — Defterin geri kalanı
 5. Fotoğraf ve ek ekleme (bilet, ekran görüntüsü).

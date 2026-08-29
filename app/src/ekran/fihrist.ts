@@ -8,6 +8,7 @@ export function fihristiBagla(
   durum: Durum,
   depo: Depo,
   sayfayaGit: (i: number, anim?: boolean) => void,
+  toreniAc: () => void,
 ): void {
   const ciz = (): void => {
     $('#fihAlt').textContent =
@@ -48,6 +49,13 @@ export function fihristiBagla(
 
   $('#fihristBtn').onclick = () => {
     ciz()
+    /* Kapanmış defter zaten kapalı; boş defteri kapatmanın anlamı yok. */
+    const bitir = $('#defteriBitir')
+    bitir.style.display = durum.kapali || durum.bos ? 'none' : ''
+    bitir.onclick = () => {
+      $('#fihrist').classList.remove('acik')
+      toreniAc()
+    }
     $('#fihrist').classList.add('acik')
   }
   $('#fihKapat').onclick = () => $('#fihrist').classList.remove('acik')

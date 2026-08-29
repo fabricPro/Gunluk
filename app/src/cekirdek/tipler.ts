@@ -103,7 +103,11 @@ export interface DefterBilgi {
   kapak: string
   raf: number
   sira: number
+  /** Bu defterin kendi sayfa sınırı. Dolunca tören açılır. */
+  sayfaSiniri: number
   kapandi: boolean
+  /** Kapanma anı; kapanmamışsa null. */
+  kapanma: number | null
   /** İçindeki kayıt sayısı — kitaplıkta sırtın kalınlığını belirler. */
   kayitSayisi: number
 }
