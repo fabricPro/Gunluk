@@ -130,7 +130,16 @@ async function baslat(): Promise<void> {
     fihristiBagla(durum, depo, defter.sayfayaGit, () => toren?.ac())
     kilidiBagla(kitaplik.ac)
     yakmayiBagla()
-    ayarlariBagla(kilit, acilis.sifreli, () => kilit.anaAnahtar, () => defter.ciz())
+    ayarlariBagla({
+      kilit,
+      sifreli: acilis.sifreli,
+      mevcutAnahtar: () => kilit.anaAnahtar,
+      db: surucu,
+      depo,
+      durum,
+      degisti: () => defter.ciz(),
+      yenidenYukle: () => location.reload(),
+    })
 
     durum.dinle(() => {
       defter.ciz()

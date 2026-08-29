@@ -76,7 +76,11 @@ async function surumOku(db: SqlSurucu): Promise<number> {
  * Şemayı güncel sürüme getirir. Zaten güncelse hiçbir şey yapmaz.
  * Uygulanan göç sayısını döndürür.
  */
-export async function gocleriUygula(db: SqlSurucu): Promise<number> {
+/**
+ * Göçleri uygular. `hedef` verilirse yalnızca o sürüme kadar — yedek geri
+ * yüklerken şema önce dökümün alındığı sürümde kuruluyor (K-022).
+ */
+export async function gocleriUygula(db: SqlSurucu, hedef = SON_SURUM): Promise<number> {
   const mevcut = await surumOku(db)
   if (mevcut > SON_SURUM)
     throw new Error(
@@ -99,7 +103,7 @@ export async function gocleriUygula(db: SqlSurucu): Promise<number> {
   await db.calistir('PRAGMA foreign_keys = OFF')
   try {
     for (const g of GOCLER) {
-      if (g.surum <= mevcut) continue
+      if (g.surum <= mevcut || g.surum > hedef) continue
       await db.islem(async () => {
         await db.betik(g.sql)
         await db.calistir(`PRAGMA user_version = ${g.surum}`)

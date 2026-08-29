@@ -7,7 +7,7 @@ import { gocleriUygula, type SqlSurucu } from './db.js'
  * Uygulamada bir düğmesi yok ve olmayacak — kullanıcının on yıllık defterini
  * tek dokunuşla silen bir şey bu üründe bulunamaz.
  */
-export async function defteriSifirla(db: SqlSurucu): Promise<void> {
+export async function defteriSifirla(db: SqlSurucu, hedef?: number): Promise<void> {
   const nesneler = await db.hepsi<{ tip: string; ad: string }>(
     `SELECT type AS tip, name AS ad FROM sqlite_master
      WHERE name NOT LIKE 'sqlite_%' AND type IN ('table','view','trigger','index')`,
@@ -26,5 +26,5 @@ export async function defteriSifirla(db: SqlSurucu): Promise<void> {
   }
   await db.calistir('PRAGMA user_version = 0')
   await db.calistir('PRAGMA foreign_keys = ON')
-  await gocleriUygula(db)
+  await gocleriUygula(db, hedef)
 }

@@ -1,16 +1,32 @@
+import { markdownAktar } from '../cekirdek/disaAktar.js'
+import { kurtarmaUret } from '../cekirdek/kurtarma.js'
+import type { Durum } from '../durum.js'
 import type { Kilit } from '../kilitAkis.js'
+import type { Depo } from '../veri/depo.js'
+import { dokumAl, dokumuYukle } from '../veri/dokum.js'
+import type { SqlSurucu } from '../veri/db.js'
+import { muhruAc, muhurle } from '../veri/yedek.js'
+import { dosyaAdi, dosyaKaydet, dosyaSec } from './dosya.js'
 import { $, kacir } from './ortak.js'
 
 /**
  * Ayar kağıdı. Şimdilik tek bölüm: kilit.
  * Yedekleme (Faz 2.8) buraya eklenecek.
  */
-export function ayarlariBagla(
-  kilit: Kilit,
-  sifreli: boolean,
-  mevcutAnahtar: () => string | null,
-  degisti: () => void,
-): { ac: () => Promise<void> } {
+export interface AyarBaglam {
+  kilit: Kilit
+  sifreli: boolean
+  mevcutAnahtar: () => string | null
+  db: SqlSurucu
+  depo: Depo
+  durum: Durum
+  degisti: () => void
+  /** Geri yükleme sonrası uygulamayı baştan kurmak için. */
+  yenidenYukle: () => void
+}
+
+export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
+  const { kilit, sifreli, mevcutAnahtar, db, depo, durum, degisti, yenidenYukle } = b
   const kapat = () => $('#ayarlar').classList.remove('acik')
 
   /** PIN sorar; iptal edilirse null. */
@@ -68,8 +84,8 @@ export function ayarlariBagla(
       )
     $('#ayNot').innerHTML = notlar.map((n) => `<p>${n}</p>`).join('')
 
-    for (const b of [...document.querySelectorAll<HTMLButtonElement>('#ayKilitDugmeler button')])
-      b.onclick = () => void eylem(b.dataset.eylem!)
+    for (const d of [...document.querySelectorAll<HTMLButtonElement>('#ayarlar button[data-eylem]')])
+      d.onclick = () => void eylem(d.dataset.eylem!)
   }
 
   const eylem = async (ad: string): Promise<void> => {
@@ -95,9 +111,102 @@ export function ayarlariBagla(
     } else if (ad === 'kaldir') {
       if (!confirm('Kilit kaldırılsın mı? Defter bundan sonra doğrudan açılır.')) return
       await kilit.kaldir()
+    } else if (ad === 'yedekAl') {
+      await yedekAl()
+      return
+    } else if (ad === 'geriYukle') {
+      await geriYukle()
+      return
+    } else if (ad === 'mdAktar') {
+      await markdownIndir()
+      return
     }
     await ciz()
     degisti()
+  }
+
+  /* ── mühürlü yedek ─────────────────────────────────────── */
+
+  const yedekAl = (): Promise<void> =>
+    new Promise((bitti) => {
+      const kod = kurtarmaUret()
+      $('#kurKod').textContent = kod
+      $<HTMLInputElement>('#kurOnay').checked = false
+      $<HTMLButtonElement>('#kurDevam').disabled = true
+      $('#kurtarmaKarti').classList.add('acik')
+
+      $<HTMLInputElement>('#kurOnay').onchange = (e) => {
+        $<HTMLButtonElement>('#kurDevam').disabled = !(e.target as HTMLInputElement).checked
+      }
+      $('#kurKopyala').onclick = () => {
+        void navigator.clipboard?.writeText(kod)
+        $('#kurKopyala').textContent = 'kopyalandı'
+        setTimeout(() => ($('#kurKopyala').textContent = 'kopyala'), 1800)
+      }
+      const kapat = () => {
+        $('#kurtarmaKarti').classList.remove('acik')
+        bitti()
+      }
+      $('#kurVaz').onclick = kapat
+      $('#kurDevam').onclick = async () => {
+        const y = await muhurle(await dokumAl(db), kod)
+        await dosyaKaydet(
+          `${dosyaAdi('defter-yedek')}.defter`,
+          JSON.stringify(y),
+          'application/json',
+        )
+        kapat()
+      }
+    })
+
+  const geriYukle = async (): Promise<void> => {
+    const ham = await dosyaSec('.defter,application/json')
+    if (!ham) return
+    const kod = prompt('Bu yedeğin kurtarma kodu:')
+    if (!kod) return
+    try {
+      const dokum = await muhruAc(JSON.parse(ham), kod)
+      const kayitSayisi = (dokum.tablolar.kayit ?? []).length
+      const mevcut = await depo.kayitSayisi()
+      if (
+        !confirm(
+          `Yedekte ${kayitSayisi} kayıt var.\n\n` +
+            (mevcut > 0
+              ? `Bu cihazdaki ${mevcut} kayıt SİLİNECEK ve yerine yedek geçecek.\n\n`
+              : '') +
+            'Devam edilsin mi?',
+        )
+      )
+        return
+      if (mevcut > 0 && !confirm('Emin misin? Bu geri alınamaz.')) return
+      await dokumuYukle(db, dokum)
+      alert('Yedek geri yüklendi.')
+      yenidenYukle()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Yedek açılamadı.')
+    }
+  }
+
+  const markdownIndir = async (): Promise<void> => {
+    const defterler = await depo.defterler()
+    const eskiDefter = depo.aktifDefterId
+    const dokumler = []
+    for (const d of defterler) {
+      depo.defteriSec(d.id)
+      dokumler.push({
+        defter: d,
+        gunler: await depo.gunler(),
+        kenarlar: await depo.kenarlar(),
+        basliklar: await depo.basliklar(),
+      })
+    }
+    depo.defteriSec(eskiDefter)
+    await dosyaKaydet(
+      `${dosyaAdi('defter')}.md`,
+      markdownAktar(dokumler),
+      'text/markdown;charset=utf-8',
+    )
+    void durum
   }
 
   $('#ayarlarBtn').onclick = () => void ac()

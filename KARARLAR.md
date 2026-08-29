@@ -9,6 +9,59 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · K-022 · Mühürlü yedek kurtarma kodundan açılır
+
+Faz 2.8 tamamlandı. K-003'te yedeğin iki yüzü olacağına karar vermiştik:
+mühürlü yedek (şifreli) ve açık dışa aktarma (Markdown). İkisi de yazıldı.
+Uygulama sırasında dört soru çıktı, cevapları burada.
+
+**Anahtar cihazdan değil, kurtarma kodundan türüyor.** Yedeği cihaz
+anahtarıyla mühürlemek kolaydı ama yedeğin varlık sebebini yok ediyordu:
+telefon giderse yedek de gidiyor. PIN'den türetmek de olmuyor — PIN altı
+hane, çevrimdışı denenebilir bir dosyada altı hane koruma değil. O yüzden
+yedek kendi anahtarını taşıyor: kullanıcı bir kurtarma kodu alıyor, dosya
+`Argon2id(kod)` ile mühürleniyor. Kod hiçbir yerde saklanmıyor — ne
+veritabanında, ne güvenli depoda, ne dosyanın içinde. Kaybolursa yedek
+açılmaz; bunu ekranda açıkça yazıyoruz ve indirmeden önce kullanıcıya
+"kodu kaydettim" onayı imzalatıyoruz.
+
+**Kod Crockford base32, sağlama basamaklı.** 26 karakter gizli + 2 karakter
+sağlama, dörderli gruplar hâlinde. Sebep: kod elle yazılacak. Crockford
+alfabesinde I/L/O yok; kullanıcı `1` yerine `I`, `0` yerine `O` yazsa da
+`normalize()` düzeltiyor. Sağlama basamağı yanlış yazılmış kodu Argon2id'yi
+çalıştırmadan, "yanlış kod" diyerek yakalıyor — 10 bitlik sağlama, testte
+%99'un üstünde tek harf hatası yakalıyor. Reddedilen: BIP39 kelime listesi
+(İngilizce kelimeler Türkçe bir üründe yabancı duruyor, 12 kelime yazmak
+28 karakterden uzun) ve ham hex (I/O karışıklığı yok ama %60 daha uzun).
+
+**Yedek ham veritabanı dosyası değil, mantıksal döküm.** Tablolar JSON'a
+yazılıyor, sıkıştırılıyor, sonra mühürleniyor. Sebep: ham SQLCipher dosyası
+aynı SQLCipher sürümünü ve aynı şema sürümünü gerektirir; iki yıl sonraki
+uygulama iki yıl önceki dosyayı açamayabilir. Döküm kendi şema sürümünü
+taşıyor ve geri yüklemede göçler o sürümden bugüne uygulanıyor — yani eski
+yedek yeni uygulamada açılıyor. Gelecekten gelen yedek (şema sürümü bizden
+büyük) reddediliyor; sessizce yarısını yüklemek en kötü seçenek.
+
+**Geri yükleme değiştirir, birleştirmez.** Aynı kaydın iki kopyası, hangi
+sürümün doğru olduğu, çakışan cilt numaraları — birleştirme bir günlükte
+kullanıcının göremediği bir karar veriyor. Geri yükleme bunun yerine
+defteri sıfırlıyor ve dökümü olduğu gibi yazıyor; kullanıcıya "bu cihazdaki
+her şey silinecek" diye soruyor. Birleştirme gerekiyorsa iki dosya da açık
+Markdown olarak dışa aktarılıp elle yapılır.
+
+**Açık dışa aktarma şifresiz ve öyle kalacak.** Markdown çıktısı düz metin:
+gün başlıkları, saatler, sorular alıntı olarak. Sebep K-003'teki gerekçe —
+günlüğün okunabilirliği uygulamanın ömrüne bağlanamaz. Riski de aynı yerde
+yazıyor: bu dosya şifresiz, buluta koyarsan herkes okur.
+
+**İlkelerle ilişki.** Yedek dosyası cihazdan çıkıyor ama ham metin bizim
+tarafımıza değil, kullanıcının seçtiği yere gidiyor — sunucumuz yok, ağ
+çağrısı yok, her iki akış da kullanıcının açık eylemiyle başlıyor (ilke
+2.3). Yakılan sayfa yedeğe de girmiyor: diske hiç değmediği için dökümde
+yeri yok (ilke 2.2).
+
+---
+
 ## 2026-08-29 · K-021 · PIN + biyometri
 
 Faz 2.7 tamamlandı. Şimdiye kadar cihazda veritabanı SQLCipher ile şifreliydi

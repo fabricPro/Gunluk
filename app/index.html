@@ -131,8 +131,36 @@
       <div class="ay-alt" id="ayKilitDurum"></div>
       <div class="ay-dugmeler" id="ayKilitDugmeler"></div>
     </div>
+    <div class="ay-bolum">
+      <div class="ay-baslik">Yedek</div>
+      <div class="ay-alt">Defterin tamamı tek dosyaya çıkar. Mühürlü yedek şifrelidir ve
+        yalnızca kurtarma kodunla açılır; açık dışa aktarma şifresizdir, on yıl sonra bu
+        uygulama olmasa da okunur.</div>
+      <div class="ay-dugmeler">
+        <button data-eylem="yedekAl">mühürlü yedek al</button>
+        <button data-eylem="geriYukle">yedekten geri yükle</button>
+        <button data-eylem="mdAktar">Markdown olarak çıkar</button>
+      </div>
+    </div>
     <div class="ay-not" id="ayNot"></div>
     <div class="ay-kapat"><button id="ayKapat">kapat</button></div>
+  </div>
+</div>
+
+<div id="kurtarmaKarti">
+  <div class="kur-kagit">
+    <div class="kur-et">kurtarma kodu</div>
+    <h3>Bunu bir yere yaz</h3>
+    <p>Yedeğini yalnızca bu kod açar. Kaybedersen yedeğin de açılmaz —
+      biz de açamayız, bir kopyası bizde yok.</p>
+    <div class="kur-kod" id="kurKod"></div>
+    <button class="kur-kopyala" id="kurKopyala">kopyala</button>
+    <label class="kur-onay"><input type="checkbox" id="kurOnay">
+      <span>Bu kodu güvenli bir yere yazdım.</span></label>
+    <div class="tek-dugmeler">
+      <button id="kurVaz">vazgeç</button>
+      <button class="birincil" id="kurDevam" disabled>yedeği indir</button>
+    </div>
   </div>
 </div>
 

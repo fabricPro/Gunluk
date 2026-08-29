@@ -87,7 +87,7 @@ uyarı yazar. Telefonda gerçek kalıcılığı denemek için Capacitor kabuğuy
 ### Derleme ve testler
 
 ```sh
-npm test               # 159 test
+npm test               # 183 test
 npm run build          # dist/ üretir
 npm run onizle         # derlenmiş sürümü 4173 portunda sunar
 ```
@@ -113,6 +113,22 @@ Biyometri açmak, anahtarın açılabilir bir kopyasını cihazda bırakır —
 kullandığımız güvenli depo eklentisi öge bazında biyometrik erişim denetimi
 sunmuyor. Yalnızca PIN isteyen kullanıcı biyometriyi kapalı bırakmalı.
 
+## Yedekleme
+
+Ayar kağıdında iki yol var, ikisi de kullanıcının açık eylemiyle çalışır;
+ne ağ çağrısı ne sunucu var (KARARLAR.md · K-003, K-022).
+
+- **Mühürlü yedek** (`.defter`). Tablolar mantıksal döküme çevrilir,
+  sıkıştırılır, `Argon2id(kurtarma kodu)` ile AES-GCM altında mühürlenir.
+  Kod 28 karakter Crockford base32, sağlama basamaklı; hiçbir yerde
+  saklanmaz — kaybolursa yedek açılmaz. Döküm kendi şema sürümünü taşır,
+  geri yüklemede göçler o sürümden bugüne uygulanır, yani eski yedek yeni
+  uygulamada açılır. Geri yükleme birleştirmez: defteri sıfırlar ve dökümü
+  olduğu gibi yazar.
+- **Açık dışa aktarma** (`.md`). Düz metin Markdown — **şifresiz.** Sebep:
+  günlüğün okunabilirliği bu uygulamanın ömrüne bağlanamaz. Riski ekranda
+  yazılı.
+
 ## Değişmez ilkeler ve kodda karşılıkları
 
 PROJE.md §2'deki dört ilke pazarlığa kapalı. İkisinin kodda doğrudan
@@ -132,6 +148,5 @@ karşılığı var:
 
 **Faz 1 tamam.** Kalıcılık, boş defter / onboarding, kitaplık ve cilt kapanma
 töreni çalışıyor; yazı tipleri gömülü. (El yazısı kapsam dışı — K-007.)
-Faz 2.7 (PIN + biyometri) tamam. Sırada: mühürlü yedek (2.8), fotoğraf eki,
-kenar notu arayüzü. Sırada Faz 1.2 (boş defter / onboarding) —
-şu an yalnızca çökmeyen bir yer tutucu var.
+Faz 2.7 (PIN + biyometri) ve Faz 2.8 (mühürlü yedek) tamam. Sırada:
+fotoğraf eki (2.5), kenar notu arayüzü (2.6).
