@@ -15,12 +15,26 @@ export function arsiviBagla(
 ): { gecenYilCiz: () => void } {
   const kaynakHtml = (b: Bulgu): string => {
     const s = sayfaBul(durum.sayfalar, b.kayit.id)
+    /*
+     * Eşleşen kenar notu kaynakla birlikte gösteriliyor. Kayıt yalnızca
+     * notu yüzünden bulunduysa gövdeyi gösterip notu saklamak, cevabın
+     * neden geldiğini saklamak olurdu (ilke 2.4).
+     */
+    const notlar = b.kenarlar
+      .map(
+        (n) => `<div class="kaynak-kenar">${kacir(n.metin)}
+          <span>kenar notu · ${kacir(kenarTarih(n.tarih))}</span></div>`,
+      )
+      .join('')
     return `<div class="kaynak" data-id="${b.kayit.id}">
       <time>${b.gunAd} · ${tamTarih(b.kayit.tarih)} · ${b.kayit.saat}${
         s ? ` · <b>cilt ${romen(s.cilt)}, sayfa ${s.ciltSayfa}</b>` : ''
       }</time>
-      ${kacir(b.kayit.metin)}</div>`
+      ${kacir(b.kayit.metin)}${notlar}</div>`
   }
+
+  /** Göç öncesi okunur dizeler olduğu gibi basılır (K-024). */
+  const kenarTarih = (t: string): string => (/^\d{4}-\d{2}-\d{2}$/.test(t) ? tamTarih(t) : t)
 
   const kaynakBagla = (kap: HTMLElement, terim: string): void => {
     for (const el of kap.querySelectorAll<HTMLElement>('.kaynak,.gy-kayit'))
@@ -41,7 +55,7 @@ export function arsiviBagla(
       kutu.innerHTML = ''
       return
     }
-    const c = soruCoz(soru, durum.gunler, durum.temalar)
+    const c = soruCoz(soru, durum.gunler, durum.temalar, durum.kenarlar)
     if (c.bos) {
       kutu.innerHTML = `<div class="cevap"><div class="et">cevap</div>
         <p>Bununla ilgili bir şey yazmamışsın. Yazmadığın bir şeyi uydurmam.</p></div>`

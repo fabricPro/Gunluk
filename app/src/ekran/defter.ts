@@ -150,7 +150,9 @@ export function defteriBagla(
          */
         ic += `<div class="ek" data-ek="${o.kayitId}"><i style="${ekOran(o.en, o.boy)}"></i></div>`
       } else {
-        ic += `<div class="kenar" data-not="${o.id}">${kacir(o.metin)}
+        /* Arşivden gelen terim notta da vurgulanıyor: kayıt notu yüzünden
+           bulunduysa kullanıcı sayfada nereye bakacağını görsün. */
+        ic += `<div class="kenar" data-not="${o.id}">${vurgu(o.metin)}
           <span>kenar notu · ${kacir(kenarTarih(o.tarih))}</span></div>`
       }
     }
@@ -373,7 +375,17 @@ export function defteriBagla(
   }
 
   const sayfayaGit = (i: number, anim = true): void => {
-    if (i < 0 || i > durum.sonSayfa || i === durum.aktifSayfa) return
+    if (i < 0 || i > durum.sonSayfa) return
+    /*
+     * Aynı sayfaya "gitmek" de bir iş yapar: arşivden bir kayda tıklandığında
+     * arama terimi değişmiş olabilir. Eskiden burada kayıtsız dönülüyordu ve
+     * kayıt zaten açık sayfadaysa vurgu hiç görünmüyordu — kullanıcı neden
+     * o kaydın geldiğini göremiyordu.
+     */
+    if (i === durum.aktifSayfa) {
+      ciz()
+      return
+    }
     const yon = i > durum.aktifSayfa ? 'ileri' : 'geri'
     if (anim) {
       const eski = $('#kagit-kap .kagit')

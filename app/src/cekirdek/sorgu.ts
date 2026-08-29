@@ -1,4 +1,4 @@
-import type { Gun, Kayit } from './tipler.js'
+import type { Gun, Kayit, KenarNotu } from './tipler.js'
 import { AY_SIRA, ayAnahtar, ayEk, bas, sayiEk, saatSayi, tamTarih } from './tr.js'
 
 export interface TemaTanim {
@@ -11,6 +11,14 @@ export interface Bulgu {
   puan: number
   kayit: Kayit
   gunAd: string
+  /**
+   * Bu kayda düşülmüş ve soruyla eşleşen kenar notları.
+   *
+   * Kaynak kartında gösterilmek zorunda: kayıt yalnızca notu yüzünden
+   * bulunduysa gövdeyi gösterip notu göstermemek, kullanıcıya cevabın
+   * neden geldiğini saklamak olurdu (ilke 2.4 · KARARLAR.md · K-026).
+   */
+  kenarlar: KenarNotu[]
 }
 
 export interface SorguSonuc {
@@ -60,7 +68,12 @@ function donemBul(soru: string, mevcutAylar: string[]): { aylar: string[]; ad: s
  *  - tema adı geçtiğinde havuz o temaya kilitlenir, alakasız kayıt sızmaz;
  *  - dönem sorusunda o ayın tamamı geçerli sayılır, sonuç boş dönmez.
  */
-export function soruCoz(soru: string, gunler: Gun[], temalar: TemaTanim[]): SorguSonuc {
+export function soruCoz(
+  soru: string,
+  gunler: Gun[],
+  temalar: TemaTanim[],
+  kenarlar: Map<string, KenarNotu[]> = new Map(),
+): SorguSonuc {
   const s = soru.toLocaleLowerCase('tr').trim()
   if (!s) return BOS
 
@@ -91,11 +104,25 @@ export function soruCoz(soru: string, gunler: Gun[], temalar: TemaTanim[]): Sorg
       if (temaKilidi.length && !temaKilidi.some((id) => kayit.temalar.includes(id))) continue
       let puan = 0
       const metin = kayit.metin.toLocaleLowerCase('tr')
+      const notlar = kenarlar.get(kayit.id) ?? []
       for (const id of temaKilidi) if (kayit.temalar.includes(id)) puan += 4
-      for (const k of kelimeler) if (metin.includes(k)) puan += 2
+
+      /*
+       * Sözcük kayıtta YA DA kenar notunda geçiyorsa +2 — sözcük başına en
+       * fazla bir kez. Not eşleşmesi sıralamayı şişirmiyor: mesele
+       * bulunabilirlik, üstünlük değil. İkisini ayrı saymak, bir kez
+       * yazılıp bir kez de not düşülen konuyu haksız yere öne çıkarırdı.
+       */
+      const eslesenNotlar: KenarNotu[] = []
+      for (const k of kelimeler) {
+        const kayitta = metin.includes(k)
+        const nottakiler = notlar.filter((n) => n.metin.toLocaleLowerCase('tr').includes(k))
+        for (const n of nottakiler) if (!eslesenNotlar.includes(n)) eslesenNotlar.push(n)
+        if (kayitta || nottakiler.length) puan += 2
+      }
       /* Dönem sorusunda o ayın tamamı geçerli — yoksa hiç sonuç dönmez. */
       if (!puan && donem) puan = 1
-      if (puan > 0) bulgular.push({ puan, kayit, gunAd: gun.ad })
+      if (puan > 0) bulgular.push({ puan, kayit, gunAd: gun.ad, kenarlar: eslesenNotlar })
     }
   }
   if (!bulgular.length) return BOS
@@ -123,6 +150,22 @@ export function soruCoz(soru: string, gunler: Gun[], temalar: TemaTanim[]): Sorg
         (bulgular.length < kapsam ? ` Bu soruyla ilgili ${bulgular.length} kayıt buldum.` : ''),
     )
   else p.push(`Defterinde bununla ilgili ${bulgular.length} kayıt var.`)
+
+  /*
+   * Yalnızca kenar notu yüzünden bulunan kayıtlar ayrıca söyleniyor.
+   * Yorum değil, kaynak beyanı: cevabın nereden geldiği görünmeli.
+   */
+  const yalnizNot = bulgular.filter(
+    (b) =>
+      b.kenarlar.length &&
+      !kelimeler.some((k) => b.kayit.metin.toLocaleLowerCase('tr').includes(k)),
+  ).length
+  if (yalnizNot)
+    p.push(
+      yalnizNot === bulgular.length
+        ? `${bulgular.length === 1 ? 'Bu kaydı' : 'Bunların hepsini'} kenar notundan buldum.`
+        : `Bunların ${sayiEk(yalnizNot)} kenar notundan geldi.`,
+    )
 
   if (enSik.length)
     p.push(

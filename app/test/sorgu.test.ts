@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { soruCoz, type TemaTanim } from '../src/cekirdek/sorgu.js'
-import type { Gun } from '../src/cekirdek/tipler.js'
+import type { Gun, KenarNotu } from '../src/cekirdek/tipler.js'
 import { gunAdi } from '../src/cekirdek/tr.js'
 
 const TEMALAR: TemaTanim[] = [
@@ -98,5 +98,113 @@ describe('soruCoz — genel davranış', () => {
 
   it('kayıt yokken çökmez', () => {
     expect(soruCoz('kerem', [], TEMALAR).bos).toBe(true)
+  })
+})
+
+/* ── kenar notları aramaya dahil (K-026) ─────────────────────── */
+
+const not = (kayitId: string, metin: string, id = 'n-' + kayitId): KenarNotu => ({
+  id,
+  kayitId,
+  metin,
+  tarih: '2027-01-10',
+  olusturma: 0,
+})
+/** VERI'deki kayıtları metninden bulur — kimlikler sayaçtan geliyor. */
+const kayitId = (parca: string): string =>
+  VERI.flatMap((g) => g.kayitlar).find((k) => k.metin.includes(parca))!.id
+
+describe('soruCoz — kenar notları', () => {
+  it('yalnızca kenar notunda geçen sözcük kaydı buluyor', () => {
+    const id = kayitId('Annemle kahvaltı')
+    const kenarlar = new Map([[id, [not(id, 'Sonradan anladım: barcelona kararını o gün verdim.')]]])
+    const yok = soruCoz('barcelona', VERI, TEMALAR)
+    const var_ = soruCoz('barcelona', VERI, TEMALAR, kenarlar)
+    expect(yok.bos).toBe(true)
+    expect(var_.bos).toBe(false)
+    expect(var_.kullanilan[0]!.kayit.id).toBe(id)
+  })
+
+  it('eşleşen notu kaynakla birlikte döndürüyor (ilke 2.4)', () => {
+    const id = kayitId('Annemle kahvaltı')
+    const kenarlar = new Map([[id, [not(id, 'barcelona kararı')]]])
+    const s = soruCoz('barcelona', VERI, TEMALAR, kenarlar)
+    expect(s.kullanilan[0]!.kenarlar.map((n) => n.metin)).toEqual(['barcelona kararı'])
+  })
+
+  it('eşleşmeyen not kaynakta görünmüyor', () => {
+    const id = kayitId('Annemle kahvaltı')
+    const kenarlar = new Map([[id, [not(id, 'alakasız bir not'), not(id, 'barcelona', 'n2')]]])
+    const s = soruCoz('barcelona', VERI, TEMALAR, kenarlar)
+    expect(s.kullanilan[0]!.kenarlar.map((n) => n.metin)).toEqual(['barcelona'])
+  })
+
+  it('not eşleşmesi puanı şişirmiyor — sözcük başına tek sayılır', () => {
+    const id = kayitId('Tez teslim')
+    const notsuz = soruCoz('teslim', VERI, TEMALAR)
+    const notlu = soruCoz('teslim', VERI, TEMALAR, new Map([[id, [not(id, 'teslim ettim')]]]))
+    const a = notsuz.kullanilan.find((b) => b.kayit.id === id)!
+    const b = notlu.kullanilan.find((x) => x.kayit.id === id)!
+    expect(b.puan).toBe(a.puan)
+  })
+
+  it('tema kilidi notla delinmiyor', () => {
+    /* "kerem" sorusu tema kilidi kuruyor; tez kaydına düşülen not sızmamalı. */
+    const id = kayitId('Tez teslim')
+    const kenarlar = new Map([[id, [not(id, 'aslında kerem yüzündendi')]]])
+    const s = soruCoz('kerem hakkında ne yazdım', VERI, TEMALAR, kenarlar)
+    expect(s.kullanilan.every((b) => b.kayit.temalar.includes('kerem'))).toBe(true)
+  })
+
+  it('yalnızca nottan gelen kayıtları söylüyor — kaynak beyanı', () => {
+    const id = kayitId('Annemle kahvaltı')
+    const kenarlar = new Map([[id, [not(id, 'barcelona kararı')]]])
+    const s = soruCoz('barcelona', VERI, TEMALAR, kenarlar)
+    expect(s.paragraflar.some((p) => p.includes('kenar notundan'))).toBe(true)
+  })
+
+  it('kayıtta da geçiyorsa "kenar notundan" denmiyor', () => {
+    const id = kayitId('Tez teslim')
+    const kenarlar = new Map([[id, [not(id, 'teslim ettim')]]])
+    const s = soruCoz('teslim', VERI, TEMALAR, kenarlar)
+    expect(s.paragraflar.some((p) => p.includes('kenar notundan'))).toBe(false)
+  })
+
+  it('notsuz çağrı bugünküyle birebir aynı — regresyon', () => {
+    for (const soru of ['kerem hakkında ne yazdım', 'şubatta neden bu kadar kötüydüm', 'tez']) {
+      const a = soruCoz(soru, VERI, TEMALAR)
+      const b = soruCoz(soru, VERI, TEMALAR, new Map())
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b))
+    }
+  })
+})
+
+describe('soruCoz — K-020 regresyonu', () => {
+  /*
+   * Bu güvence bugüne kadar yalnızca FTS yolunda (depo.ara) sınanıyordu;
+   * arşivin gerçekte kullandığı yol ise soruCoz. Kenar notları havuza
+   * girerken buraya da bir kilit koyuyoruz: kullanıcının kendi sözleri
+   * girsin, defterin kendi cümleleri asla.
+   */
+  it('defterin sorduğu sorunun sözcükleri eşleşmiyor', () => {
+    const veri: Gun[] = [
+      {
+        tarih: '2026-05-04',
+        ad: gunAdi('2026-05-04'),
+        kayitlar: [
+          {
+            id: 'ks1',
+            tarih: '2026-05-04',
+            saat: '12:00',
+            metin: 'Bugün yürüyüşe çıktım.',
+            temalar: [],
+            duzenlendi: false,
+            soru: 'Bugün kimseye söylemediğin ne oldu?',
+          },
+        ],
+      },
+    ]
+    expect(soruCoz('söylemediğin', veri, TEMALAR).bos).toBe(true)
+    expect(soruCoz('yürüyüşe', veri, TEMALAR).bos).toBe(false)
   })
 })

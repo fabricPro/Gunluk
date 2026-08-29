@@ -34,3 +34,9 @@
 .gy-kayit time{font-family:var(--ui);font-size:10.5px;color:var(--ust3);display:block;margin-bottom:5px}
 .gy-kayit:hover p{color:#F2E7CE}
 
+
+/* Kaynak kartındaki eşleşen kenar notu — defterdeki `.kenar` diliyle aynı. */
+.kaynak-kenar{margin:9px 0 0;padding-left:11px;border-left:2px solid rgba(168,64,44,.45);
+  font-size:14px;line-height:1.6;font-style:italic;color:var(--kirmizi)}
+.kaynak-kenar span{display:block;font-style:normal;font-family:var(--ui);font-size:9.5px;
+  color:var(--soluk);margin-top:3px;letter-spacing:.04em}

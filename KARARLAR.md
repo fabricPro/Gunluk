@@ -9,6 +9,66 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · K-026 · Kenar notu aramaya girer, ama kaydın parçası olarak
+
+K-024'te açık bırakılmıştı: kenar notları kullanıcının kendi sözleri ama
+arşiv onları görmüyordu. Bir kayda "Sonradan anladım: Barcelona kararını o
+gün verdim" diye not düşüp "barcelona" diye arayınca hiçbir şey çıkmıyordu.
+
+**Önce bir düzeltme.** Bu işin "ikinci bir FTS indeksi ve göç" gerektirdiğini
+söylemiştim; yanlıştı. Arşivin arama yolu FTS değil: `ekran/arsiv.ts`
+doğrudan `soruCoz`'u çağırıyor ve `cekirdek/sorgu.ts` bellekteki kayıtları
+tarıyor. `depo.ara` (FTS) arayüzde hiç kullanılmıyor, yalnızca testlerde
+çağrılıyor. Göç da yeni tablo da gerekmedi.
+
+**Not ayrı bir sonuç değil, kaydın parçası.** Kenar notunun bağımsız bir
+varlığı yok — eski bir kayda düşülmüş bir şey. Sonuç yine kayıt olarak
+dönüyor, tıklayınca yine o kaydın sayfasına gidiyor. Notu ayrı bir sonuç
+satırı yapmak arşivde iki tür sonuç yaratır ve "kaynak = kayıt" bağını
+gevşetirdi; ilke 2.4'ün dayandığı şey tam olarak o bağ.
+
+**Eşleşen not kaynak kartında görünmek zorunda.** Kayıt yalnızca notu
+yüzünden bulunduysa gövdeyi gösterip notu göstermemek sessiz bir yalan
+olurdu: kullanıcı cevabın neden geldiğini göremezdi. Kart artık kaydın
+altında eşleşen notu "kenar notu · tarih" etiketiyle basıyor. Eşleşmeyen
+notlar görünmüyor — kaynak, gerekçedir; kaydın tüm çevresi değil.
+
+**Özet cümlesi kaynağını söylüyor.** Bulguların bir kısmı yalnızca nottan
+geldiyse bir cümle ekleniyor: *"Bu kaydı kenar notundan buldum."* Yorum
+değil, kaynak beyanı — cilt özetiyle aynı refleks (K-018).
+
+**Puan şişmiyor.** Sözcük kayıtta ya da notlarında geçiyorsa +2, sözcük
+başına en fazla bir kez. İkisini ayrı saymak, bir kez yazılıp bir kez de
+not düşülen konuyu haksız yere öne çıkarırdı. Mesele bulunabilirlik,
+üstünlük değil.
+
+**Tema kilidi delinmiyor.** Notlar tema taşımıyor; tema adı geçtiğinde
+havuzun o temaya kilitlenmesi PROJE.md §7'deki bir regresyonun cevabıydı ve
+notlarla delinmesi o hatayı geri getirirdi.
+
+**FTS bilerek dışarıda.** `depo.ara` yalnızca `kayit.metin`'i görmeye devam
+ediyor. Kullanılmayan bir kod yoluna ikinci bir indeks kurmak spekülatif iş
+olurdu; Faz 3'te embedding araması gelirken indeks zaten yeniden
+düşünülecek. Tutarsızlık görünürse sebebi burada yazılı.
+
+**K-020 kilidi artık gerçek yolda da sınanıyor.** "Defterin sorduğu soru
+aramaya girmez" güvencesi bugüne kadar yalnızca FTS yolunda test ediliyordu;
+arşivin gerçekte kullandığı yol ise `soruCoz`. Kenar notları havuza girerken
+oraya da bir test kondu: kullanıcının kendi sözleri girsin, defterin kendi
+cümleleri asla.
+
+### Yol boyunca çıkan hata
+
+**Arşivden bir kayda tıklamak, kayıt zaten açık sayfadaysa hiçbir şey
+yapmıyordu.** `sayfayaGit` hedef sayfa mevcut sayfaya eşitse kayıtsız
+dönüyordu — animasyon boşuna oynamasın diye. Ama arama terimi de o an
+değişiyor; dönüş erken olduğu için sayfa yeniden çizilmiyor ve vurgu hiç
+görünmüyordu. Kenar notundan gelen sonuçlarda bu daha da kötüydü:
+kullanıcı hem neden o kaydın geldiğini hem nereye bakacağını göremiyordu.
+Aynı sayfaya "gitmek" artık yeniden çiziyor.
+
+---
+
 ## 2026-08-29 · K-025 · Defter silinebilir, ama sürtünme içindekiyle ölçülür
 
 Kitaplıkta defter açılabiliyordu ama silinemiyordu. Deneme için açılan

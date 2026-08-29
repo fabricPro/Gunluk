@@ -87,7 +87,7 @@ uyarı yazar. Telefonda gerçek kalıcılığı denemek için Capacitor kabuğuy
 ### Derleme ve testler
 
 ```sh
-npm test               # 214 test
+npm test               # 223 test
 npm run build          # dist/ üretir
 npm run onizle         # derlenmiş sürümü 4173 portunda sunar
 ```
@@ -142,9 +142,12 @@ kez neden açsın" sorusuna kendi cevabı (KARARLAR.md · K-024).
 - Kayıt araçları (`düzelt`, `kenar notu`) kayda **dokununca** açılıyor;
   `:hover` dokunmatikte "iki kez dokun" demekti.
 
-Kenar notları henüz arşiv aramasına girmiyor — FTS yalnızca `kayit.metin`'i
-indeksliyor. Girmeleri doğru, ama cevabın kenar notundan mı kayıttan mı
-geldiği görünmek zorunda (ilke 2.4); ayrı bir iş.
+Kenar notları arşiv aramasına da giriyor (K-026). Bir kayıt yalnızca notu
+yüzünden bulunduysa cevap bunu söylüyor (*"Bu kaydı kenar notundan
+buldum."*) ve kaynak kartı eşleşen notu "kenar notu · tarih" etiketiyle
+gösteriyor — ilke 2.4 gereği cevabın nereden geldiği görünmek zorunda.
+Not eşleşmesi puanı şişirmiyor: sözcük kayıtta ya da notta geçsin, sözcük
+başına bir kez sayılıyor.
 
 ## Ek — bilet, ekran görüntüsü, fotoğraf
 
@@ -178,6 +181,18 @@ ne ağ çağrısı ne sunucu var (KARARLAR.md · K-003, K-022).
 - **Açık dışa aktarma** (`.md`). Düz metin Markdown — **şifresiz.** Sebep:
   günlüğün okunabilirliği bu uygulamanın ömrüne bağlanamaz. Riski ekranda
   yazılı.
+
+## Arama nasıl çalışıyor
+
+Arşivin arama yolu **FTS değil**: `ekran/arsiv.ts` doğrudan
+`cekirdek/sorgu.ts`'teki `soruCoz`'u çağırıyor ve bellekteki kayıtları
+tarıyor. `depo.ara` (FTS5) şu an yalnızca testlerde kullanılıyor ve
+yalnızca `kayit.metin`'i indeksliyor; Faz 3'te embedding araması gelirken
+indeks yeniden düşünülecek (K-026).
+
+Havuza giren: kayıt metni ve kenar notları — ikisi de kullanıcının kendi
+sözleri. Girmeyen: `kayit.soru`, yani defterin kendi cümleleri (K-020).
+Bu ayrımı iki test koruyor, biri FTS yolunda biri `soruCoz`'da.
 
 ## Değişmez ilkeler ve kodda karşılıkları
 
