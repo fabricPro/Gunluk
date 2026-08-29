@@ -13,7 +13,7 @@ kavram/           dondurulmuş kavram demosu (tek dosya, referans)
 app/              üretim uygulaması
   src/cekirdek/   saf mantık: sayfa akışı, Türkçe ekler, arşiv retrieval'ı
   src/veri/       şema, göçler, depo, şifreleme, sürücüler
-  src/ekran/      defter · kitaplık · tören · arşiv · kapsül · fihrist · yakılan sayfa
+  src/ekran/      defter · kitaplık · tören · kilit · ayarlar · arşiv · kapsül · fihrist · yakılan sayfa
   src/stil/       tasarım dili, PROJE.md §4 sırasıyla bölünmüş
   src/yazitipi/   gömülü woff2 dosyaları + OFL lisansları
   test/           birim ve regresyon testleri
@@ -87,7 +87,7 @@ uyarı yazar. Telefonda gerçek kalıcılığı denemek için Capacitor kabuğuy
 ### Derleme ve testler
 
 ```sh
-npm test               # 128 test
+npm test               # 159 test
 npm run build          # dist/ üretir
 npm run onizle         # derlenmiş sürümü 4173 portunda sunar
 ```
@@ -103,8 +103,15 @@ Tarayıcı derlemesi sessizce şifresiz çalışmaz: açılışta konsola uyarı
 Cihazda güvenli anahtar deposu bulunamazsa defter **açılmaz** — şifresiz
 yedek yola düşmez.
 
-PIN ve biyometri henüz yok (Faz 2.7). Anahtar şimdilik cihaza bağlı,
-kullanıcı doğrulaması istemiyor.
+Kilit (Faz 2.7) çalışıyor: veritabanı anahtarı rastgele, bir kopyası
+Argon2id(PIN) ile sarmalanmış, bir kopyası biyometriyle korunan depoda.
+Kilitliyken ana anahtar bellekte olmadığı için veritabanı açılamıyor.
+Arka plana geçince kilitleniyor. İsteğe bağlı; üçüncü yazma gününden sonra
+bir kez teklif ediliyor.
+
+Biyometri açmak, anahtarın açılabilir bir kopyasını cihazda bırakır —
+kullandığımız güvenli depo eklentisi öge bazında biyometrik erişim denetimi
+sunmuyor. Yalnızca PIN isteyen kullanıcı biyometriyi kapalı bırakmalı.
 
 ## Değişmez ilkeler ve kodda karşılıkları
 
@@ -125,5 +132,6 @@ karşılığı var:
 
 **Faz 1 tamam.** Kalıcılık, boş defter / onboarding, kitaplık ve cilt kapanma
 töreni çalışıyor; yazı tipleri gömülü. (El yazısı kapsam dışı — K-007.)
-Sırada Faz 2: fotoğraf eki, kenar notu arayüzü, PIN + biyometri, yedekleme. Sırada Faz 1.2 (boş defter / onboarding) —
+Faz 2.7 (PIN + biyometri) tamam. Sırada: mühürlü yedek (2.8), fotoğraf eki,
+kenar notu arayüzü. Sırada Faz 1.2 (boş defter / onboarding) —
 şu an yalnızca çökmeyen bir yer tutucu var.

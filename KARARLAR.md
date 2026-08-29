@@ -9,6 +9,83 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · K-021 · PIN + biyometri
+
+Faz 2.7 tamamlandı. Şimdiye kadar cihazda veritabanı SQLCipher ile şifreliydi
+ama anahtar Keychain/Keystore'da **kullanıcı doğrulaması istemeden**
+duruyordu: telefonun kilidi açıksa defter de açıktı.
+
+### Karma anahtar modeli
+
+```
+AV     = rastgele 32 bayt        → SQLCipher bunu kullanır
+KEK    = Argon2id(pin, tuz)      → t=3, m=48 MiB, p=1
+sarmal = AES-GCM(KEK, AV)        → açık depoda durabilir
+```
+
+Anahtar PIN'den **türetilmiyor**, PIN'le **sarmalanıyor**. İki sebep:
+
+1. Altı haneli bir PIN'den türeyen anahtar, dosyayı ele geçiren biri için
+   çevrimdışı denenebilir tek engel olurdu.
+2. Türetmede PIN unutulunca on yıllık defter biter. Sarmalamada AV'nin
+   biyometriyle korunan ikinci kopyası var; PIN unutulsa da defter açılır.
+
+PIN değişince defter yeniden şifrelenmiyor — yalnızca sarmal yenileniyor.
+
+### Kilitliyken veritabanı açılmıyor
+
+Kilit, veritabanının önünde. Kayıt güvenli depodan (veritabanının dışından)
+okunuyor; ana anahtar bellekte olmadığı için veritabanı açılamıyor bile.
+Kilitlenince anahtar sıfırlanıyor, sürücü kapanıyor **ve DOM temizleniyor** —
+çözülmüş metin ağaçta kalmasın.
+
+Arka plana geçer geçmez kilitleniyor. Gerçek tehdit "birisi açık telefonu
+eline aldı"; gecikme tam o tehdide açık kapı bırakıyor.
+
+### Deneme sınırlama
+
+5 hatadan sonra artan bekleme (30 sn → 2 dk → 10 dk), sayaç kilit kaydında
+kalıcı — uygulamayı kapatmak sıfırlamıyor. **Veri silme yok:** yanlış PIN on
+yıllık defteri yok edemez. Bir test kırk yanlış denemeden sonra doğru PIN'in
+hâlâ açtığını sabitliyor.
+
+### Biyometrinin sınırı — abartmıyoruz
+
+`@aparajita/capacitor-secure-storage` **öge bazında biyometrik erişim
+denetimi sunmuyor**; API'si yalnızca `set/get/remove`. Yani akış
+"biyometriyle doğrula, sonra depodan oku". Sağlam bir cihazda depo işletim
+sisteminin kumuyla korunuyor, ama kök erişimi olan bir cihazda doğrulama
+atlanıp anahtar okunabilir.
+
+Bunun sonucu dürüstçe söylenmeli: **biyometri açmak, anahtarın açılabilir bir
+kopyasını cihazda bırakmak demek.** Ayarlarda bu yazıyor ve yalnızca PIN
+isteyen kullanıcı biyometriyi kapalı bırakabiliyor. Donanıma gerçekten bağlı
+bir çözüm native kod ister (iOS `kSecAccessControlBiometryCurrentSet`,
+Android `setUserAuthenticationRequired`); o gün geldiğinde `veri/kilitDepo.ts`
+değişecek, üst katman değişmeyecek.
+
+### Zorunlu değil
+
+İlk açılışta boş sayfa ve soru var (K-019); araya kurulum sokmak o anı bozar.
+Üçüncü yazma gününden sonra bir kez sessizce teklif ediliyor; reddedilirse bir
+daha sorulmuyor, ayarlardan her zaman açılabiliyor.
+
+### Tarayıcı önizlemesi
+
+SQLCipher yok; kilit orada **yalnızca bir ekran**. Argon2id ve sarmalama
+gerçekten çalışıyor (akış tarayıcıda test edilebilsin diye) ama koruduğu
+şifreli bir şey yok. Ayarlarda ve konsolda açıkça yazıyor.
+
+### Yol boyunca bulunan iki hata
+
+- `visibilitychange` dinleyicisi erken dönüşün arkasındaydı: kilitli açılışta
+  hiç bağlanmıyordu, yani kilit bir kez açıldıktan sonra bir daha
+  kilitlenmiyordu. Dinleyici artık dönüşten önce bağlanıyor.
+- Worker'da `kapat` mesajı boş SQL'i `exec`e düşürüyordu. Veritabanını ilk
+  kez gerçekten kapattığımızda ortaya çıktı.
+
+---
+
 ## 2026-08-29 · K-019 · İlk hafta takvimle değil, yazılan günle sayılır
 
 Faz 1.2 tamamlandı. Yedi soru, sabit liste, sırayla.

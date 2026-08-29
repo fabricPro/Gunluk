@@ -22,6 +22,7 @@
     <button data-ekran="arsiv">arşiv</button>
     <button data-ekran="kapsul">kapsül</button>
   </nav>
+  <button class="ust-btn" id="ayarlarBtn" title="ayarlar">ayarlar</button>
   <button class="ust-btn" id="kilitle">kapat</button>
 </header>
 
@@ -105,6 +106,48 @@
   <div class="altlik" id="yakAltlik"><button id="yakVaz">vazgeç</button><button id="yakBas">YAK</button></div>
 </div>
 <div id="korlar"></div>
+
+<div id="kilitEkrani">
+  <div class="kil-ic">
+    <div class="kil-kapak"><b>defter</b><small id="kilAlt">kilitli</small></div>
+    <div class="kil-giris">
+      <div class="kil-noktalar" id="kilNoktalar"></div>
+      <input id="kilPin" inputmode="numeric" autocomplete="off" spellcheck="false"
+        aria-label="PIN" maxlength="64">
+      <div class="kil-uyari" id="kilUyari"></div>
+      <div class="kil-dugmeler">
+        <button id="kilBiyo">biyometriyle aç</button>
+        <button id="kilParola">parola kullan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="ayarlar">
+  <div class="ay-kagit">
+    <h3>Ayarlar</h3>
+    <div class="ay-bolum">
+      <div class="ay-baslik">Kilit</div>
+      <div class="ay-alt" id="ayKilitDurum"></div>
+      <div class="ay-dugmeler" id="ayKilitDugmeler"></div>
+    </div>
+    <div class="ay-not" id="ayNot"></div>
+    <div class="ay-kapat"><button id="ayKapat">kapat</button></div>
+  </div>
+</div>
+
+<div id="kilitTeklif">
+  <div class="tek-kagit">
+    <div class="tek-et">bir öneri</div>
+    <h3>Defterine kilit koymak ister misin?</h3>
+    <p>Telefonun açıkken bile defter kapalı kalır. Bir PIN belirlersin,
+      biyometrin varsa onunla açarsın. Sonra da kurabilirsin.</p>
+    <div class="tek-dugmeler">
+      <button id="tekSonra">şimdi değil</button>
+      <button class="birincil" id="tekKur">kilit kur</button>
+    </div>
+  </div>
+</div>
 
 <div id="toren">
   <div class="tor-kagit">

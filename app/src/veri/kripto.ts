@@ -8,8 +8,10 @@
  * Tarayıcıda (geliştirme): güvenli depo yok, veritabanı şifresiz açılır.
  * Bu durum sessiz geçilmez — konsola yazılır ve `sifreli` alanı false döner.
  *
- * PIN + biyometri bu milestone'da yok (Faz 2.7). Anahtar şimdilik cihaza
- * bağlı, kullanıcı doğrulaması istemiyor.
+ * Kilit kurulduğunda (Faz 2.7 / K-021) anahtar buradan gelmez: kullanıcının
+ * PIN'i ya da biyometrisi çözer ve `anahtariDayat` ile geçilir. Bu modül o
+ * zaman devreden çıkar — kilitli defterin anahtarı hiçbir yerde
+ * doğrulamasız durmaz.
  */
 
 const ANAHTAR_ADI = 'defter.db.anahtar'
@@ -45,7 +47,18 @@ function yeniAnahtar(): string {
  * Veritabanı anahtarını getirir; ilk açılışta üretip güvenli depoya yazar.
  * Güvenli depo yoksa şifresiz çalışılır ve bu açıkça bildirilir.
  */
+let dayatilan: string | null = null
+
+/**
+ * Kilit çözüldüğünde ana anahtarı doğrudan geçer.
+ * Bundan sonraki açılışlar cihaz anahtarını değil bunu kullanır.
+ */
+export function anahtariDayat(anahtar: string | null): void {
+  dayatilan = anahtar
+}
+
 export async function veritabaniAnahtari(): Promise<AnahtarSonuc> {
+  if (dayatilan) return { anahtar: dayatilan, sifreli: true }
   if (!depo) {
     console.warn(
       '[defter] Güvenli depo bağlı değil — veritabanı ŞİFRESİZ açılıyor. ' +

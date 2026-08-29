@@ -57,12 +57,12 @@ self.onmessage = async (e: MessageEvent<Istek>) => {
   try {
     let sonuc: unknown
     if (tip === 'ac') await ac(dosya)
-    else if (tip === 'betik') db!.exec(sql)
-    else sonuc = satirlar(sql, param)
-    if (tip === 'kapat') {
+    else if (tip === 'kapat') {
+      /* Kapatma bir sorgu değil: boş SQL'i exec'e vermeyelim. */
       db?.close()
       db = null
-    }
+    } else if (tip === 'betik') db!.exec(sql)
+    else sonuc = satirlar(sql, param)
     const yanit: Yanit = { id, sonuc, kalici }
     self.postMessage(yanit)
   } catch (hata) {

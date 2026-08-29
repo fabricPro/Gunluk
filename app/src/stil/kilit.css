@@ -1,0 +1,79 @@
+/* ══════ KİLİT ══════
+   Defter kapalıyken görünen tek şey: kapak ve giriş. Ana anahtar bellekte
+   olmadığı için arkada uygulama yok — açılmamış bir defter var
+   (KARARLAR.md · K-021). */
+
+#kilitEkrani{position:fixed;inset:0;z-index:95;display:none;align-items:center;
+  justify-content:center;background:var(--masa);padding:24px}
+#kilitEkrani.acik{display:flex}
+.kil-ic{width:100%;max-width:330px;display:flex;flex-direction:column;align-items:center;gap:30px}
+
+.kil-kapak{width:172px;height:232px;cursor:text;border-radius:3px 6px 6px 3px;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;gap:9px;
+  background:linear-gradient(152deg,#4A3524,#31220F 60%,#241708);
+  box-shadow:0 34px 64px -26px rgba(0,0,0,.95), inset -4px 0 9px -5px rgba(0,0,0,.8),
+    inset 2px 0 0 rgba(255,255,255,.07)}
+.kil-kapak b{font-family:var(--yazi);font-size:26px;font-weight:300;font-style:italic;color:#D9C49A}
+.kil-kapak small{font-family:var(--ui);font-size:9.5px;letter-spacing:.2em;
+  text-transform:uppercase;color:#95805E}
+
+.kil-giris{width:100%;display:flex;flex-direction:column;align-items:center;gap:14px}
+.kil-noktalar{display:flex;gap:13px;height:34px;align-items:center;cursor:text;
+  padding:0 20px}
+.kil-noktalar i{width:10px;height:10px;border-radius:50%;border:1px solid var(--hat2);
+  transition:.18s}
+.kil-noktalar i.dolu{background:var(--kagit);border-color:var(--kagit)}
+#kilPin{width:100%;background:none;border:none;border-bottom:1px solid var(--hat);
+  outline:none;color:var(--ust);font-family:var(--ui);font-size:17px;letter-spacing:.3em;
+  text-align:center;padding:8px 0;caret-color:var(--altin)}
+#kilPin.parola{letter-spacing:normal;text-align:left;font-size:15px}
+#kilPin:focus{border-bottom-color:var(--hat2)}
+/* PIN kipinde rakamlar noktalarla gösterildiği için alan görünmez durur. */
+#kilitEkrani:not(.parola) #kilPin{position:absolute;opacity:0;pointer-events:none;width:1px}
+
+.kil-uyari{font-family:var(--ui);font-size:11.5px;color:var(--kirmizi);min-height:17px;
+  text-align:center;line-height:1.5}
+.kil-dugmeler{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+.kil-dugmeler button{font-family:var(--ui);font-size:11.5px;color:var(--ust2);
+  border:1px solid var(--hat);border-radius:100px;padding:7px 15px;transition:.2s}
+.kil-dugmeler button:hover{color:var(--ust);border-color:var(--hat2)}
+
+/* ══════ AYARLAR ══════ */
+#ayarlar{position:fixed;inset:0;z-index:88;display:none;align-items:center;justify-content:center;
+  background:rgba(10,8,6,.74);padding:22px}
+#ayarlar.acik{display:flex}
+.ay-kagit{width:100%;max-width:440px;max-height:88vh;overflow-y:auto;border-radius:3px;
+  padding:26px 26px 20px;color:var(--murekkep);
+  background:linear-gradient(158deg,var(--kagit),var(--kagit3));
+  box-shadow:0 44px 96px -32px rgba(0,0,0,.95)}
+.ay-kagit h3{margin:0 0 18px;font-size:25px;font-weight:400;font-style:italic}
+.ay-bolum{padding-bottom:16px;border-bottom:1px solid var(--cizgi);margin-bottom:14px}
+.ay-baslik{font-family:var(--ui);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--soluk);margin-bottom:7px}
+.ay-alt{font-size:16px;line-height:1.7;color:var(--murekkep2);margin-bottom:13px}
+.ay-dugmeler{display:flex;gap:8px;flex-wrap:wrap}
+.ay-dugmeler button{font-family:var(--ui);font-size:12px;color:var(--murekkep2);
+  border:1px solid rgba(44,33,24,.25);border-radius:100px;padding:7px 15px;transition:.2s}
+.ay-dugmeler button:hover{border-color:rgba(44,33,24,.5);color:var(--murekkep)}
+.ay-dugmeler .birincil{background:var(--murekkep);color:var(--kagit);border-color:var(--murekkep)}
+.ay-not{font-family:var(--ui);font-size:11px;line-height:1.65;color:var(--soluk);
+  padding:10px 0 4px}
+.ay-kapat{display:flex;justify-content:flex-end;margin-top:8px}
+.ay-kapat button{font-family:var(--ui);font-size:12px;color:var(--murekkep2);
+  border:1px solid rgba(44,33,24,.25);border-radius:100px;padding:7px 15px}
+
+/* ══════ KİLİT TEKLİFİ ══════ */
+#kilitTeklif{position:fixed;inset:0;z-index:86;display:none;align-items:flex-end;
+  justify-content:center;background:rgba(10,8,6,.6);padding:20px}
+#kilitTeklif.acik{display:flex}
+.tek-kagit{width:100%;max-width:420px;border-radius:3px;padding:22px 24px 18px;
+  color:var(--murekkep);background:linear-gradient(158deg,var(--kagit),var(--kagit3));
+  box-shadow:0 34px 70px -26px rgba(0,0,0,.9)}
+.tek-et{font-family:var(--ui);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--soluk);margin-bottom:7px}
+.tek-kagit h3{margin:0 0 8px;font-size:22px;font-weight:400;font-style:italic}
+.tek-kagit p{margin:0 0 16px;font-size:15.5px;line-height:1.7;color:var(--murekkep2)}
+.tek-dugmeler{display:flex;gap:8px;justify-content:flex-end}
+.tek-dugmeler button{font-family:var(--ui);font-size:12px;color:var(--murekkep2);
+  border:1px solid rgba(44,33,24,.25);border-radius:100px;padding:7px 15px}
+.tek-dugmeler .birincil{background:var(--murekkep);color:var(--kagit);border-color:var(--murekkep)}

@@ -126,7 +126,7 @@ Sıra önemli. Her adım bir öncekine yaslanıyor.
 ### Faz 2 — Defterin geri kalanı
 5. Fotoğraf ve ek ekleme (bilet, ekran görüntüsü).
 6. Kullanıcının kenar notu düşebilmesi (şu an sadece demo verisinde var).
-7. Gerçek kilit — PIN + biyometri.
+7. ~~Gerçek kilit — PIN + biyometri.~~ **Tamam** (KARARLAR.md · K-021).
 8. Yedekleme ve dışa aktarma. On yıllık günlük tek cihaza emanet edilmez.
 
 ### Faz 3 — Arşiv ve AI
