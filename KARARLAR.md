@@ -9,6 +9,71 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · K-028 · Kayıt silme iz bırakmaz; keşfedilemeyen özellik yoktur
+
+İki iş, aynı boşluktan: kullanıcı yazdığını geri alamıyordu.
+
+### Kayıt silme
+
+`depo.kayitSil` en baştan beri vardı, testleri de vardı, arayüzü yoktu.
+Tek çıkış yolu bütün defteri silmekti — tek bir kötü cümle için on yılı
+yakmak. K-025'in gerekçesi burada da geçerli: *kendi rafını temizleyemeyen
+kullanıcı verisinin sahibi değildir.*
+
+**Mezar taşı yok.** Ürünün iki ilkesi burada birbirini çekiyor: *"düzeltme
+iz bırakır"* ve *"yakılan sayfa gerçekten yanar."* Ayrım şu: **düzeltme
+metni değiştirir, silme metni yok eder.** Değiştirilen bir geçmiş sessizce
+yeniden yazılabilir, o yüzden iz bırakır. Yok edilen bir geçmiş zaten
+yoktur; sayfada kalan "burada bir kayıt vardı" satırı utandığı bir şeyi
+silen kullanıcı için hiç silmemekten kötüdür — kalıcı bir hatırlatıcı
+bırakır. Silinen kayıt FTS indeksinden de düşüyor.
+
+**Ad yazdırmıyoruz.** K-025'te dolu defter için ad yazdırmıştık çünkü orada
+on yıl gidiyordu. Tek bir kayıt için orantısız olurdu. Sürtünme adımla
+kuruluyor: kayda dokun → `sil` → onay kartı. Üç kasıtlı adım.
+
+**Kart ne kaybedileceğini gösteriyor**, "emin misin" diye sormuyor
+(K-025'in refleksi): kaydın tarihi, saati, metninin kendisi, ve varsa "1
+kenar notu da gidecek". CASCADE zaten hepsini götürüyor; kullanıcı bunu
+önceden bilmeli.
+
+**Kapalı defterde silme yok.** K-018 kapalı defterde `düzelt`i kapatıyor;
+silme daha güçlü bir düzeltme. Kenar notu düşmek serbest kalmaya devam
+ediyor — o ekleme, bu çıkarma. Kapattığın şey kapanır.
+
+### Defter silmeyi görünür kılma
+
+Defter silme K-025'te gelmişti ama yalnızca sırta **basılı tutunca**
+açılıyordu. Kullanıcı arayıp bulamadı. **Keşfedilemeyen özellik yok
+demektir** — bu, özelliğin değil arayüzün hatası.
+
+Sırta sessiz ama sürekli görünür bir `···` düğmesi kondu. Basılı tutma
+duruyor; düğme onu değiştirmiyor, yalnızca görünür kılıyor.
+
+Ayrı bir `düzenle` kipi düşünüldü ve seçilmedi: rafında iki-üç defter olan
+bir ekranda kip, çözdüğü sorundan büyük bir kavram. Sessiz düğme ürünün
+mevcut dilinde zaten var (kenar notundaki `sil`, kayıttaki `düzelt`).
+
+### Yol boyunca çıkan iki hata
+
+1. **Boş defter ilk ekranda taşıyordu.** `.bos-sayfa` `height:100%` ile
+   kağıdın tamamını istiyordu; günün sorusu ve yazma alanı sayfanın altına
+   itiliyordu. Yeni kullanıcının gördüğü ilk ekranda yazma yeri kağıdın
+   dışında kalıyordu — 818px içerik, 674px kağıt. Bu değişiklikten
+   eskiydi, silme testi ortaya çıkardı. Blok artık içeriği kadar yer
+   kaplıyor.
+2. **"1 kenar notu de gidecek"** yazıyordu. Bağlaç ünlü uyumuna uymuyordu.
+   `tr.ts`'e `dahiEki` eklendi; sertleşme yok, bağlaç "te/ta" olmaz
+   ("kitap da", "kitap ta" değil).
+
+### Not edilen, yapılmayan
+
+Bir seride ortadaki cilt silinince numaralar boşluklu kalıyor: Cilt II
+gidince III, II'ye kaymıyor. Yeniden numaralama kapanmış ciltlerin
+kimliğini değiştirir (K-006/K-016 alanı) ve ayrı bir karar gerektirir.
+
+---
+
 ## 2026-08-29 · K-027 · Önce dil, sonra anlam: sözlüksüz Türkçe gövdeleme
 
 Yol haritasının 9. maddesi "embedding tabanlı arama" diyor ve örnek olarak

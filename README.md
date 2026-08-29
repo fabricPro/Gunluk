@@ -87,7 +87,7 @@ uyarı yazar. Telefonda gerçek kalıcılığı denemek için Capacitor kabuğuy
 ### Derleme ve testler
 
 ```sh
-npm test               # 257 test
+npm test               # 266 test
 npm run build          # dist/ üretir
 npm run onizle         # derlenmiş sürümü 4173 portunda sunar
 ```
@@ -113,9 +113,17 @@ Biyometri açmak, anahtarın açılabilir bir kopyasını cihazda bırakır —
 kullandığımız güvenli depo eklentisi öge bazında biyometrik erişim denetimi
 sunmuyor. Yalnızca PIN isteyen kullanıcı biyometriyi kapalı bırakmalı.
 
-## Defter silme
+## Silme
 
-Kitaplıkta sırta **basılı tutunca** defterin kartı açılır. Silme sürtünmesi
+**Kayıt silme.** Kayda dokun → `sil` → onay kartı. Kart "emin misin"
+sormaz, ne gittiğini gösterir: kaydın tarihi, metni, ve varsa birlikte
+gidecek kenar notu ve ek. **İz bırakmaz** — düzeltme metni değiştirir,
+silme yok eder; sayfada kalan bir "burada bir kayıt vardı" satırı, silmek
+isteyen için hiç silmemekten kötüdür (K-028). Kapalı defterde silme yok
+(K-018), kenar notu düşmek serbest.
+
+**Defter silme.** Kitaplıkta sırttaki `···` düğmesi (ya da sırta basılı
+tutmak) defterin kartını açar. Silme sürtünmesi
 defterin içindekiyle ölçülür (KARARLAR.md · K-025):
 
 - **Boş defter** tek onayla gider — deneme için açılmış defterler rafta

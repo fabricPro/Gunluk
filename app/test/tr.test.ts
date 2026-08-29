@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ayEk, bas, belirtme, bulunma, gunAdi, sayiEk, sonSozcuk, tamTarih, tamlayan,
+  ayEk, bas, belirtme, bulunma, dahiEki, gunAdi, sayiEk, sonSozcuk, tamTarih, tamlayan,
 } from '../src/cekirdek/tr.js'
 
 describe('sonSozcuk', () => {
@@ -65,5 +65,20 @@ describe('tarih', () => {
   it('bas Türkçe büyük harf kuralına uyar', () => {
     expect(bas('istanbul')).toBe('İstanbul')
     expect(bas('ağustos')).toBe('Ağustos')
+  })
+})
+
+describe('bağlaç "de/da"', () => {
+  it('ünlü uyumuna uyuyor', () => {
+    expect(dahiEki('1 kenar notu')).toBe('da')
+    expect(dahiEki('bir ek')).toBe('de')
+    expect(dahiEki('kitap')).toBe('da')
+    expect(dahiEki('defter')).toBe('de')
+  })
+
+  /* Bağlaç sertleşmez: "kitap ta" değil "kitap da". */
+  it('sert ünsüzden sonra bile d ile başlıyor', () => {
+    expect(dahiEki('mülakat')).toBe('da')
+    expect(dahiEki('süt')).toBe('de')
   })
 })

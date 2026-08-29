@@ -101,6 +101,17 @@
 .yd-dugmeler .birincil{background:var(--murekkep);color:var(--kagit);border-color:var(--murekkep)}
 .yd-dugmeler button[disabled]{opacity:.4}
 
+/*
+ * Sırtın kart düğmesi. Silme K-025'te gelmişti ama yalnızca basılı
+ * tutmayla açılıyordu ve kullanıcı bulamadı — keşfedilemeyen özellik yok
+ * demektir. Sessiz ama sürekli görünür (K-028).
+ */
+.sirt .kart-btn{position:absolute;left:50%;bottom:5px;transform:translateX(-50%);
+  font-family:var(--ui);font-size:12px;line-height:1;letter-spacing:.5px;
+  color:rgba(255,247,232,.34);background:none;border:none;padding:3px 4px;
+  border-radius:3px;transition:color .18s,background .18s}
+.sirt .kart-btn:hover{color:rgba(255,247,232,.9);background:rgba(0,0,0,.28)}
+
 .kit-ipucu{font-family:var(--ui);font-size:10.5px;color:var(--soluk);opacity:.7;
   text-align:center;padding:2px 0 14px;letter-spacing:.03em}
 .kit-bos{font-family:var(--yazi);font-size:17px;font-style:italic;color:var(--soluk);

@@ -82,6 +82,17 @@ export const bulunmaEki = (s: string): string => {
   return (SERT.has(sonHarf(s)) ? 't' : 'd') + uyum2(sesli, 'e', 'a')
 }
 
+/**
+ * Bağlaç olan "de/da" — ayrı yazılır, ünlü uyumuna uyar.
+ * 'kenar notu' -> 'da', 'bir ek' -> 'de'
+ *
+ * Sertleşme yok: bağlaç "te/ta" olmaz ("kitap da", "kitap ta" değil).
+ */
+export const dahiEki = (s: string): string => {
+  const sesli = sonSesli(s) ?? 'a'
+  return 'd' + uyum2(sesli, 'e', 'a')
+}
+
 /** Bulunma hâli: 'mart' -> 'martta', 'haziran' -> 'haziranda' */
 export const bulunma = (s: string): string => s + bulunmaEki(s)
 

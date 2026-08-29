@@ -238,6 +238,23 @@
   Defter kartı: sırta basılı tutunca açılır. Silme buradan geçiyor ve
   hiçbir zaman tek dokunuşla olmuyor (KARARLAR.md · K-025).
 -->
+<!--
+  Kayıt silme onayı. Mezar taşı bırakmıyoruz: silinen kayıt sayfada iz
+  bırakmadan gidiyor (KARARLAR.md · K-028).
+-->
+<div id="kayitSilKarti">
+  <div class="ks-kart">
+    <div class="ks-et" id="ksZaman"></div>
+    <h3>Bu kayıt silinsin mi?</h3>
+    <div class="ks-metin" id="ksMetin"></div>
+    <div class="ks-uyari" id="ksUyari"></div>
+    <div class="ks-dugmeler">
+      <button id="ksVaz">vazgeç</button>
+      <button class="yikici" id="ksSil">sil</button>
+    </div>
+  </div>
+</div>
+
 <div id="defterKarti">
   <div class="dk-kart">
     <h3 id="dkAd"></h3>

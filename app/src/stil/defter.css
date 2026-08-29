@@ -95,6 +95,8 @@ body.odak .defter-ust{opacity:.08}
   background:var(--kagit);white-space:nowrap;box-shadow:0 1px 4px rgba(44,33,24,.1)}
 .satir-arac button:hover{color:var(--murekkep);border-color:rgba(44,33,24,.45)}
 .satir-arac .kenar-btn:hover{color:var(--kirmizi);border-color:rgba(168,64,44,.45)}
+.satir-arac .sil-btn{color:rgba(168,64,44,.75);border-color:rgba(168,64,44,.28)}
+.satir-arac .sil-btn:hover{background:var(--kirmizi);color:var(--kagit);border-color:var(--kirmizi)}
 /* Açık kayıt hafifçe belli olsun — hangisine dokunduğun görünsün. */
 .satir.acik{background:rgba(168,64,44,.035);border-radius:3px}
 .kenar{margin:1px 0 9px 48px;padding-left:12px;border-left:2px solid rgba(168,64,44,.45);
@@ -198,3 +200,26 @@ body.odak .arac{opacity:.1}
 /* yazma alanının üstünde duran, henüz cevaplanmamış soru */
 #yazma-soru{font-family:var(--ui);font-size:12.5px;line-height:1.6;color:var(--murekkep2);
   margin:14px 0 2px 48px;padding-left:11px;border-left:1px solid rgba(168,64,44,.4)}
+
+/* ── kayıt silme onayı (K-028) ────────────────────────────── */
+#kayitSilKarti{position:fixed;inset:0;z-index:70;display:none;align-items:center;
+  justify-content:center;padding:20px;background:rgba(12,9,6,.62)}
+#kayitSilKarti.acik{display:flex}
+.ks-kart{width:100%;max-width:430px;background:linear-gradient(160deg,var(--kagit),var(--kagit3));
+  border-radius:4px;padding:20px 22px 16px;box-shadow:0 18px 50px rgba(0,0,0,.5);
+  color:var(--murekkep)}
+.ks-kart .ks-et{font-family:var(--ui);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--soluk);margin-bottom:6px}
+.ks-kart h3{margin:0 0 12px;font-size:21px;font-weight:400;font-style:italic}
+/* Silinecek metnin kendisi — "emin misin" demek yerine ne gittiğini göster. */
+.ks-metin{font-family:var(--yazi);font-size:16px;line-height:1.65;font-weight:300;
+  color:var(--murekkep2);border-left:2px solid rgba(44,33,24,.2);padding-left:12px;
+  margin-bottom:12px;max-height:160px;overflow-y:auto;white-space:pre-wrap}
+.ks-uyari{font-family:var(--ui);font-size:11.5px;line-height:1.7;color:var(--kirmizi);
+  margin-bottom:14px;min-height:1px}
+.ks-dugmeler{display:flex;gap:8px;justify-content:flex-end}
+.ks-dugmeler button{font-family:var(--ui);font-size:12px;color:var(--murekkep2);
+  border:1px solid rgba(44,33,24,.25);border-radius:100px;padding:7px 15px;background:none}
+.ks-dugmeler button:hover{border-color:rgba(44,33,24,.5)}
+.ks-dugmeler .yikici{color:var(--kirmizi);border-color:rgba(168,64,44,.4)}
+.ks-dugmeler .yikici:hover{background:var(--kirmizi);color:var(--kagit);border-color:var(--kirmizi)}

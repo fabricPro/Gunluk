@@ -47,6 +47,7 @@ export function kitapligiBagla(
       ${d.kapandi ? '<span class="kapali-im"></span>' : ''}
       <span class="ad">${kacir(d.ad)}</span>
       <span class="cilt">${romen(d.cilt)}</span>
+      <button class="kart-btn" title="defterin kartı">···</button>
     </div>`
 
   const ciz = (): void => {
@@ -73,12 +74,19 @@ export function kitapligiBagla(
       h += `<div class="kit-bos">Kitaplığın boş. Bir defter aç, adını ver, kapağını seç.</div>`
     else
       /* Basılı tutmak keşfedilmez; bir satır söylemek yeter. */
-      h += `<div class="kit-ipucu">sırtı sürükleyerek diz · basılı tutunca defterin kartı açılır</div>`
+      h += `<div class="kit-ipucu">sırtı sürükleyerek diz · <b>···</b> defterin kartını açar</div>`
     $('#raflar').innerHTML = h
 
     for (const el of $$('#raflar .sirt'))
-      el.onclick = () => {
+      el.onclick = (e) => {
         if (surukleniyor) return
+        /* Kart düğmesi ayrı bir eylem; sırta dokunmak defteri açmaya devam
+           ediyor. Basılı tutma da duruyor — düğme onu değiştirmiyor, yalnızca
+           görünür kılıyor (K-028). */
+        if ((e.target as HTMLElement).closest('.kart-btn')) {
+          void kartiAc(el.dataset.id!)
+          return
+        }
         void defteriSec(el.dataset.id!)
       }
     const yeni = document.getElementById('yeniSirt')

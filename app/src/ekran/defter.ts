@@ -3,7 +3,7 @@ import { govdeler, ortakGovde } from '../cekirdek/govde.js'
 import type { Ek, KenarNotu, Sayfa } from '../cekirdek/tipler.js'
 import { ekKaynak, gorseliHazirla } from './gorsel.js'
 import { resimSec } from './dosya.js'
-import { iso, romen, saatSayi, tamTarih } from '../cekirdek/tr.js'
+import { dahiEki, iso, romen, saatSayi, tamTarih } from '../cekirdek/tr.js'
 import type { Durum } from '../durum.js'
 import type { Depo } from '../veri/depo.js'
 import { $, $$, bugun, isikAyarla, kacir, odakBirak, odakVer, sayfaIsigiBagla, suanSaat } from './ortak.js'
@@ -150,7 +150,8 @@ export function defteriBagla(
         const arac = bas
           ? `<div class="satir-arac">
               ${duzeltilebilir ? '<button class="kalem-btn">düzelt</button>' : ''}
-              <button class="kenar-btn">kenar notu</button></div>`
+              <button class="kenar-btn">kenar notu</button>
+              ${duzeltilebilir ? '<button class="sil-btn">sil</button>' : ''}</div>`
           : ''
         ic += `<div class="satir${bas ? '' : ' devam'}" data-id="${o.kayitId}">
           <time>${bas ? b.kayit.saat : ''}</time><p>${vurgu(o.metin)}${o.sonParca ? iz : ''}</p>
@@ -228,6 +229,12 @@ export function defteriBagla(
         const acikti = el.classList.contains('acik')
         for (const o of $$('#kagit-kap .satir.acik')) o.classList.remove('acik')
         if (!acikti) el.classList.add('acik')
+      }
+
+    for (const b of $$('#kagit-kap .sil-btn'))
+      b.onclick = (e) => {
+        const el = (e.target as HTMLElement).closest<HTMLElement>('.satir')
+        if (el?.dataset.id) kayitSilSor(el.dataset.id)
       }
 
     for (const b of $$('#kagit-kap .kenar-btn'))
@@ -539,6 +546,60 @@ export function defteriBagla(
       yeni.focus()
       yeni.scrollIntoView({ block: 'nearest' })
     }
+  }
+
+  /* ── silme — iz BIRAKMAZ (K-028) ───────────────────────── */
+
+  /**
+   * Silme onayı.
+   *
+   * "Emin misin" diye sormak yerine ne gittiğini gösteriyor: kaydın kendi
+   * metni, ve varsa birlikte gidecek kenar notu ve ek. Kart K-025'in
+   * refleksini izliyor — sürtünme, kullanıcıya kararı gösterilerek kuruluyor.
+   *
+   * Mezar taşı yok. "Düzeltme iz bırakır" kuralı düzeltme içindir; silmenin
+   * karşılığı "yakılan sayfa gerçekten yanar". Sayfada kalan bir "burada bir
+   * kayıt vardı" satırı, utandığı bir şeyi silen kullanıcı için hiç
+   * silmemekten kötüdür.
+   */
+  function kayitSilSor(kayitId: string): void {
+    const b = durum.kayitBul(kayitId)
+    if (!b || durum.kapali) return
+
+    const notSayisi = (durum.kenarlar.get(kayitId) ?? []).length
+    const ekVar = durum.ekler.has(kayitId)
+    const gidecek: string[] = []
+    if (notSayisi) gidecek.push(`${notSayisi} kenar notu`)
+    if (ekVar) gidecek.push('bir ek')
+
+    $('#ksZaman').textContent = `${b.gun.ad} · ${tamTarih(b.kayit.tarih)} · ${b.kayit.saat}`
+    $('#ksMetin').textContent = b.kayit.metin
+    const liste = gidecek.join(' ve ')
+    $('#ksUyari').textContent = gidecek.length
+      ? `Bu kayıtla birlikte ${liste} ${dahiEki(liste)} gidecek. Geri alınamaz.`
+      : 'Geri alınamaz.'
+
+    const kart = $('#kayitSilKarti')
+    const kapat = () => {
+      kart.classList.remove('acik')
+      removeEventListener('keydown', esc)
+    }
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') kapat()
+    }
+    $('#ksVaz').onclick = kapat
+    kart.onclick = (e) => {
+      if ((e.target as HTMLElement).id === 'kayitSilKarti') kapat()
+    }
+    $('#ksSil').onclick = async () => {
+      kapat()
+      await depo.kayitSil(kayitId)
+      await durum.yenile()
+      if (durum.aktifSayfa > durum.sonSayfa) durum.aktifSayfa = durum.sonSayfa
+      ciz()
+    }
+    addEventListener('keydown', esc)
+    kart.classList.add('acik')
   }
 
   /* ── düzeltme — iz bırakır ─────────────────────────────── */

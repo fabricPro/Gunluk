@@ -56,7 +56,7 @@ Uygulamanın tamamı burası.
 - **Sayfa başlığı:** kullanıcı sayfaya ad verebilir. Başlık sayfa numarasına değil **içeriğe** bağlıdır (`tarih|kayıt` anahtarı) — yoksa yeni yazı eklendikçe başlıklar kayar.
 - **Fihrist:** başlıklı sayfaların ciltlere göre listesi, noktalı satırlarla. Ciltlere ad verilebilir.
 - **Kenar notu:** eski bir kayda sonradan düşülen not, kırmızı kalemle.
-- Düzeltme iz bırakır (`· düzeltildi`). Kullanıcı geçmişini sessizce yeniden yazamaz.
+- Düzeltme iz bırakır (`· düzeltildi`). Kullanıcı geçmişini sessizce yeniden yazamaz. **Silme iz bırakmaz** — düzeltme metni değiştirir, silme yok eder; yok edilen bir geçmişin mezar taşı, silmek isteyen için hiç silmemekten kötüdür (KARARLAR.md · K-028).
 - **Bugüne dön** düğmesi.
 - **Kitaplık:** defter kapanır, raflar görünür. Birden çok defter, ad ve kapak; aynı adlı defterler cilt cilt devam eder. Sırta basılı tutunca defterin kartı açılır; defter buradan silinir — boşsa tek onayla, doluysa ancak adı yazılarak (KARARLAR.md · K-025).
 
