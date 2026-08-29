@@ -1,11 +1,20 @@
 import { SAYFA_HACIM } from '../cekirdek/sayfa.js'
-import type { Ek, Sayfa } from '../cekirdek/tipler.js'
+import type { Ek, KenarNotu, Sayfa } from '../cekirdek/tipler.js'
 import { ekKaynak, gorseliHazirla } from './gorsel.js'
 import { resimSec } from './dosya.js'
-import { romen, saatSayi, tamTarih } from '../cekirdek/tr.js'
+import { iso, romen, saatSayi, tamTarih } from '../cekirdek/tr.js'
 import type { Durum } from '../durum.js'
 import type { Depo } from '../veri/depo.js'
 import { $, $$, bugun, isikAyarla, kacir, odakBirak, odakVer, sayfaIsigiBagla, suanSaat } from './ortak.js'
+
+/**
+ * Kenar notunun uzunluk sınırı.
+ *
+ * Kenarda duran bir not, sayfanın kendisi değil. Sınır aynı zamanda sayfa
+ * bütçesini öngörülebilir tutuyor — akış taşan kuyruğu sonraki sayfaya
+ * dökebiliyor ama bir notun tek başına sayfa yutması ürünün dili değil.
+ */
+const KENAR_SINIR = 280
 
 export interface DefterArayuz {
   ciz: () => void
@@ -122,9 +131,18 @@ export function defteriBagla(
         if (bas && b.kayit.soru) ic += `<div class="kayit-soru">${kacir(b.kayit.soru)}</div>`
         const duzeltilebilir = bas && !durum.kapali
         const iz = bas && b.kayit.duzenlendi ? ' <span class="duz">· düzeltildi</span>' : ''
+        /*
+         * Kenar notu düğmesi kapalı ve dolu defterde de duruyor: kapattığın
+         * şey kapanır ama kenarına yazabilirsin (K-018).
+         */
+        const arac = bas
+          ? `<div class="satir-arac">
+              ${duzeltilebilir ? '<button class="kalem-btn">düzelt</button>' : ''}
+              <button class="kenar-btn">kenar notu</button></div>`
+          : ''
         ic += `<div class="satir${bas ? '' : ' devam'}" data-id="${o.kayitId}">
           <time>${bas ? b.kayit.saat : ''}</time><p>${vurgu(o.metin)}${o.sonParca ? iz : ''}</p>
-          ${duzeltilebilir ? '<button class="kalem-btn">düzelt</button>' : ''}</div>`
+          ${arac}</div>`
       } else if (o.tip === 'ek') {
         /*
          * Çerçeve şimdi, görsel sonra. En-boy oranı üstveriden bilindiği
@@ -132,7 +150,8 @@ export function defteriBagla(
          */
         ic += `<div class="ek" data-ek="${o.kayitId}"><i style="${ekOran(o.en, o.boy)}"></i></div>`
       } else {
-        ic += `<div class="kenar">${kacir(o.metin)}<span>kenar notu · ${kacir(o.tarih)}</span></div>`
+        ic += `<div class="kenar" data-not="${o.id}">${kacir(o.metin)}
+          <span>kenar notu · ${kacir(kenarTarih(o.tarih))}</span></div>`
       }
     }
     if (i === durum.sonSayfa) ic += altHtml()
@@ -183,6 +202,26 @@ export function defteriBagla(
         const el = (e.target as HTMLElement).closest<HTMLElement>('.satir')
         if (el?.dataset.id) duzelt(el.dataset.id)
       }
+    /*
+     * Araçlar dokunmayla açılıyor, bir seferde tek kayıtta. Metnin
+     * kendisine dokunmak yeterli; ayrı bir "…" düğmesi sayfaya bir arayüz
+     * öğesi daha eklerdi.
+     */
+    for (const el of $$('#kagit-kap .satir[data-id]'))
+      el.onclick = (e) => {
+        const h = e.target as HTMLElement
+        if (h.closest('.satir-arac') || h.closest('.duzelt-alan')) return
+        const acikti = el.classList.contains('acik')
+        for (const o of $$('#kagit-kap .satir.acik')) o.classList.remove('acik')
+        if (!acikti) el.classList.add('acik')
+      }
+
+    for (const b of $$('#kagit-kap .kenar-btn'))
+      b.onclick = (e) => {
+        const el = (e.target as HTMLElement).closest<HTMLElement>('.satir')
+        if (el?.dataset.id) kenarYaz(el.dataset.id, el)
+      }
+    kenarlariBagla()
     const torenBtn = document.getElementById('torenAc')
     if (torenBtn) torenBtn.onclick = () => toreniAc()
     const ozetBtn = document.getElementById('ozetGor')
@@ -191,6 +230,88 @@ export function defteriBagla(
     ekleriBagla()
     kesitCiz()
     sayfaIsik()
+  }
+
+  /* ── kenar notu · eski bir kayda sonradan (K-024) ──────── */
+
+  /**
+   * Tarih ISO saklanıyor, burada biçimleniyor. Göç öncesi yazılmış okunur
+   * dizeler olduğu gibi basılıyor — o veriyi güvenilir biçimde ayrıştırmak
+   * mümkün değil, uydurmaktansa aynen göstermek doğru.
+   */
+  const kenarTarih = (t: string): string => (/^\d{4}-\d{2}-\d{2}$/.test(t) ? tamTarih(t) : t)
+
+  /** Not yalnızca yazıldığı gün silinebilir; ertesi gün kalıcılaşır. */
+  const bugunYazildi = (not: KenarNotu): boolean =>
+    not.olusturma > 0 && iso(new Date(not.olusturma)) === bugun()
+
+  function kenarlariBagla(): void {
+    const hepsi = new Map<string, KenarNotu>()
+    for (const liste of durum.kenarlar.values()) for (const n of liste) hepsi.set(n.id, n)
+
+    for (const el of $$('#kagit-kap .kenar[data-not]')) {
+      const not = hepsi.get(el.dataset.not ?? '')
+      if (!not || !bugunYazildi(not)) continue
+      const sil = document.createElement('button')
+      sil.className = 'sil'
+      sil.textContent = 'sil'
+      sil.onclick = async () => {
+        await depo.kenarSil(not.id)
+        await durum.yenile()
+        ciz()
+      }
+      el.appendChild(sil)
+    }
+  }
+
+  /** Kaydın altında, notun duracağı yerde küçük bir yazma alanı açar. */
+  function kenarYaz(kayitId: string, satir: HTMLElement): void {
+    if (satir.parentElement?.querySelector('.kenar-yaz')) return
+    const alan = document.createElement('div')
+    alan.className = 'kenar-yaz'
+    alan.innerHTML = `<textarea maxlength="${KENAR_SINIR}"
+        placeholder="bugünden bu kayda bir not düş…"></textarea>
+      <div class="kenar-arac">
+        <button class="kaydet">kaydet</button>
+        <button class="vaz">vazgeç</button>
+        <span class="sayac"></span>
+      </div>`
+    satir.insertAdjacentElement('afterend', alan)
+
+    const ta = alan.querySelector('textarea')!
+    const sayac = alan.querySelector<HTMLElement>('.sayac')!
+    const boyla = () => {
+      ta.style.height = 'auto'
+      ta.style.height = ta.scrollHeight + 'px'
+      /* Sayaç yalnızca sınıra yaklaşınca görünüyor; sürekli sayı göstermek
+         notu bir forma çevirirdi. */
+      const kalan = KENAR_SINIR - ta.value.length
+      sayac.textContent = kalan <= 40 ? String(kalan) : ''
+    }
+    ta.focus()
+    ta.addEventListener('input', boyla)
+
+    const bit = async () => {
+      const m = ta.value.trim()
+      if (!m) return ciz()
+      await depo.kenarEkle(kayitId, m)
+      await durum.yenile()
+      ciz()
+    }
+    /* Kısayollar K-015'le aynı: tek bir yazma refleksi olsun. */
+    ta.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault()
+        void bit()
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        ciz()
+      }
+    })
+    alan.querySelector<HTMLButtonElement>('.kaydet')!.onclick = () => void bit()
+    alan.querySelector<HTMLButtonElement>('.vaz')!.onclick = () => ciz()
+    alan.scrollIntoView({ block: 'nearest' })
   }
 
   /* ── ek ────────────────────────────────────────────────── */

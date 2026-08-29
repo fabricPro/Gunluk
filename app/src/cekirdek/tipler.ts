@@ -15,11 +15,20 @@ export interface Kayit {
   soru: string | null
 }
 
+/**
+ * Eski bir kayda sonradan düşülen not (PROJE.md §4).
+ *
+ * Bir kayda birden çok not düşülebilir — 2026'da bir, 2028'de bir. Arşivi
+ * ikinci kez açmanın sebebi bu (KARARLAR.md · K-024).
+ */
 export interface KenarNotu {
   id: string
   kayitId: string
   metin: string
-  tarih: string // kenar notunun düşüldüğü gün, okunur biçimde
+  /** Notun düşüldüğü gün, 'YYYY-MM-DD'. */
+  tarih: string
+  /** Yazılma anı. Not yalnızca yazıldığı gün silinebilir. */
+  olusturma: number
 }
 
 /**
@@ -77,6 +86,8 @@ export interface KayitOgesi {
 }
 export interface KenarOgesi {
   tip: 'kenar'
+  /** Notun kimliği — ekran silme hakkını buradan çözer. */
+  id: string
   kayitId: string
   metin: string
   tarih: string

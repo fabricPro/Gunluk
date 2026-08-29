@@ -152,7 +152,7 @@ describe('başlık ve kenar notu — kayıt kimliğine bağlı (K-005)', () => {
   it('kenar notu kayda bağlanır', async () => {
     const k = await depo.kayitEkle({ tarih: '2026-03-12', saat: '03:00', metin: 'dibi gördüm' })
     await depo.kenarEkle(k.id, 'Bunu okuyan ben: o gün gerçekten dibi görmüştün.', '14 haziran 2026')
-    const kn = (await depo.kenarlar()).get(k.id)
+    const kn = (await depo.kenarlar()).get(k.id)?.[0]
     expect(kn?.metin).toContain('dibi görmüştün')
     expect(kn?.tarih).toBe('14 haziran 2026')
   })

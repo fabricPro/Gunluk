@@ -310,26 +310,56 @@ export class Depo {
 
   /* ── kenar notu ────────────────────────────────────────── */
 
-  async kenarEkle(kayitId: string, metin: string, tarih: string): Promise<KenarNotu> {
+  /**
+   * Kayda bir kenar notu düşer.
+   *
+   * Tarihi ve zaman damgasını depo koyar: not "bugün" düşülmüştür, çağıran
+   * bunu uyduramamalı. Tarih ISO saklanıyor, ekranda biçimleniyor — on
+   * yıllık bir üründe biçimlenmiş dize saklamak sonradan düzeltilemez.
+   */
+  async kenarEkle(kayitId: string, metin: string, tarih = gunISO(simdi())): Promise<KenarNotu> {
     const id = kimlik()
-    await this.db.calistir('INSERT INTO kenar (id, kayit_id, metin, tarih) VALUES (?, ?, ?, ?)', [
-      id,
-      kayitId,
-      metin,
-      tarih,
-    ])
-    return { id, kayitId, metin, tarih }
+    const t = simdi()
+    await this.db.calistir(
+      'INSERT INTO kenar (id, kayit_id, metin, tarih, olusturma) VALUES (?, ?, ?, ?, ?)',
+      [id, kayitId, metin, tarih, t],
+    )
+    return { id, kayitId, metin, tarih, olusturma: t }
   }
 
-  async kenarlar(): Promise<Map<string, KenarNotu>> {
-    const m = new Map<string, KenarNotu>()
+  /** Not yalnızca yazıldığı gün silinebilir; kuralı ekran uygular. */
+  async kenarSil(id: string): Promise<void> {
+    await this.db.calistir('DELETE FROM kenar WHERE id = ?', [id])
+  }
+
+  /**
+   * Kayıt kimliğine göre kenar notları, yazılma sırasında.
+   *
+   * Dizi döndürüyor: bir kayda yıllar içinde birden çok not düşülebilir.
+   * Önceden tek not döndürüyordu ve ikinci not sessizce kayboluyordu —
+   * `kenarEkle` satırı açıyor ama okuma yolu birini alıp ötekini
+   * düşürüyordu (K-024).
+   */
+  async kenarlar(): Promise<Map<string, KenarNotu[]>> {
+    const m = new Map<string, KenarNotu[]>()
     for (const r of await this.db.hepsi<{
       id: string
       kayit_id: string
       metin: string
       tarih: string
-    }>('SELECT id, kayit_id, metin, tarih FROM kenar'))
-      m.set(r.kayit_id, { id: r.id, kayitId: r.kayit_id, metin: r.metin, tarih: r.tarih })
+      olusturma: number
+    }>('SELECT id, kayit_id, metin, tarih, olusturma FROM kenar ORDER BY olusturma, rowid')) {
+      const not: KenarNotu = {
+        id: r.id,
+        kayitId: r.kayit_id,
+        metin: r.metin,
+        tarih: r.tarih,
+        olusturma: r.olusturma,
+      }
+      const liste = m.get(r.kayit_id)
+      if (liste) liste.push(not)
+      else m.set(r.kayit_id, [not])
+    }
     return m
   }
 

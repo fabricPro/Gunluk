@@ -81,14 +81,14 @@ describe('sayfalariKur — demoyla aynı bölünme', () => {
 
   it('kenar notlarıyla da demoyla birebir aynı sayfaları üretir', () => {
     const { gunler, ham } = ornekVeri(90)
-    const kenarlar = new Map<string, KenarNotu>()
+    const kenarlar = new Map<string, KenarNotu[]>()
     const demoKenar: Record<string, { metin: string }> = {}
     gunler.forEach((g, i) => {
       if (i % 5) return
       const k = g.kayitlar[1]
       if (!k) return
       const metin = 'kenar notu ' + 'y'.repeat(i % 40)
-      kenarlar.set(k.id, { id: 'kn' + i, kayitId: k.id, metin, tarih: g.tarih })
+      kenarlar.set(k.id, [{ id: 'kn' + i, kayitId: k.id, metin, tarih: g.tarih, olusturma: 0 }])
       demoKenar[g.tarih + '|1'] = { metin }
     })
     const { sayfalar } = sayfalariKur({ gunler, kenarlar })
@@ -292,7 +292,7 @@ describe('K-014 — uzun kayıt sayfalara bölünür', () => {
   it('saat damgası yalnızca ilk parçada, kenar notu yalnızca son parçada', () => {
     const metin = uzunMetin(3000)
     const kenarlar = new Map([
-      ['k0', { id: 'kn', kayitId: 'k0', metin: 'sonradan düşülen not', tarih: '2 ocak 2026' }],
+      ['k0', [{ id: 'kn', kayitId: 'k0', metin: 'sonradan düşülen not', tarih: '2026-01-02', olusturma: 0 }]],
     ])
     const { sayfalar } = sayfalariKur({ gunler: tekGun(metin), kenarlar })
     const p = parcalar(sayfalar, 'k0').filter((o) => o.tip === 'kayit')

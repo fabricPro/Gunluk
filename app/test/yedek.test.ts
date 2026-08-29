@@ -80,7 +80,7 @@ describe('döküm', () => {
     expect(gunler[0]!.kayitlar[0]!.soru).toBe('Bu defteri neden açtın?')
     expect(gunler[0]!.kayitlar[0]!.temalar).toEqual(['kerem'])
     expect([...(await yeniDepo.basliklar()).values()]).toEqual(['Başlangıç'])
-    expect([...(await yeniDepo.kenarlar()).values()][0]!.metin).toBe('Sonradan düşülen not')
+    expect([...(await yeniDepo.kenarlar()).values()][0]![0]!.metin).toBe('Sonradan düşülen not')
     expect((await yeniDepo.defterGetir('defter-1'))?.ad).toBe('Son yıl')
     expect(await yeniDepo.kapsuller()).toHaveLength(1)
     expect(await yeniDepo.ayarOku('yonlendirme.gun')).toBe('3')

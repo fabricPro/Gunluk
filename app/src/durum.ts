@@ -18,7 +18,7 @@ export class Durum {
   sayfalar: Sayfa[] = []
   ciltler: Cilt[] = []
   basliklar = new Map<string, string>()
-  kenarlar = new Map<string, KenarNotu>()
+  kenarlar = new Map<string, KenarNotu[]>()
   /**
    * Eklerin yalnızca ÜSTVERİSİ. Gövde (base64) burada durmuyor: ekran
    * görünen sayfanınkini `depo.ekVeri` ile tek tek istiyor. Yoksa

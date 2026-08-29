@@ -69,8 +69,8 @@ const ASGARI_PARCA = 80
 
 export interface AkisGirdi {
   gunler: Gun[]
-  /** kayitId -> o kayda düşülmüş kenar notu */
-  kenarlar: Map<string, KenarNotu>
+  /** kayitId -> o kayda düşülmüş kenar notları, yazılma sırasında */
+  kenarlar: Map<string, KenarNotu[]>
   /** kayitId -> o kayda iliştirilmiş ekin üstverisi (gövde yok). */
   ekler?: Map<string, EkBilgi>
   /**
@@ -149,7 +149,7 @@ export function sayfalariKur({
     let basYok = true
     for (const kayit of gun.kayitlar) {
       if (donmusKayitlar.has(kayit.id)) continue
-      const kenar = kenarlar.get(kayit.id)
+      const notlar = kenarlar.get(kayit.id) ?? []
       const ek = ekler.get(kayit.id)
       /* Soru yalnızca kaydın başladığı sayfada, bir kez yer kaplar. */
       const soruMaliyet = kayit.soru ? kayit.soru.length + SORU_SABIT_MALIYET : 0
@@ -167,11 +167,43 @@ export function sayfalariKur({
         0,
         SAYFA - GUN_BASLIGI_MALIYET - KAYIT_SABIT_MALIYET - ASGARI_PARCA,
       )
+      /*
+       * Kuyruk öğeleri ve maliyetleri. Toplam tavana vuruyor ama BASIM
+       * tavanla değil gerçek boşlukla ilerliyor (bkz. `kuyrugaBas`):
+       * maliyeti kırpıp çizimi kırpmamak sayfayı sessizce taşırır — ek
+       * işinde tam olarak bu olmuştu.
+       */
+      const kuyruk: { oge: SayfaOgesi; maliyet: number }[] = []
+      if (ek)
+        kuyruk.push({
+          oge: { tip: 'ek', kayitId: kayit.id, tur: ek.tur, en: ek.en, boy: ek.boy },
+          maliyet: ekMaliyeti(ek, olcu),
+        })
+      for (const n of notlar)
+        kuyruk.push({
+          oge: { tip: 'kenar', id: n.id, kayitId: kayit.id, metin: n.metin, tarih: n.tarih },
+          maliyet: n.metin.length + KENAR_SABIT_MALIYET,
+        })
       const kuyrukMaliyet = Math.min(
         kuyrukTavan,
-        (ek ? ekMaliyeti(ek, olcu) : 0) +
-          (kenar ? kenar.metin.length + KENAR_SABIT_MALIYET : 0),
+        kuyruk.reduce((t, k) => t + k.maliyet, 0),
       )
+
+      /**
+       * Kuyruğu basar; sığmayan öğe için sayfayı kapatıp yenisinden devam
+       * eder. Kayıt yerleştikten sonra çalıştığı için sayfa kapatmak
+       * güvenli — bölme mantığına dokunmuyor.
+       */
+      const kuyrugaBas = (): void => {
+        for (const k of kuyruk) {
+          if (ogeler.length && hacim + k.maliyet > SAYFA) {
+            sayfayiKapat()
+            basYok = true
+          }
+          ogeler.push(k.oge)
+          hacim += k.maliyet
+        }
+      }
 
       let kalan = kayit.metin
       let parcaNo = 0
@@ -210,22 +242,8 @@ export function sayfalariKur({
             parcaNo,
             sonParca: true,
           })
-          if (ek)
-            ogeler.push({
-              tip: 'ek',
-              kayitId: kayit.id,
-              tur: ek.tur,
-              en: ek.en,
-              boy: ek.boy,
-            })
-          if (kenar)
-            ogeler.push({
-              tip: 'kenar',
-              kayitId: kayit.id,
-              metin: kenar.metin,
-              tarih: kenar.tarih,
-            })
-          hacim += tamMaliyet
+          hacim += tamMaliyet - kuyrukMaliyet
+          kuyrugaBas()
           break
         }
 

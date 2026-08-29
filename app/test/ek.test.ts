@@ -150,8 +150,8 @@ describe('ek · sayfa akışı', () => {
    * yalnızca kenar notu arayüzü olmadığı için tetiklenmemişti.
    */
   it('sayfadan uzun kenar notu akışı kilitlemiyor', () => {
-    const kenarlar = new Map<string, KenarNotu>([
-      ['k1', { id: 'n1', kayitId: 'k1', metin: 'x'.repeat(5000), tarih: '28 ağustos' }],
+    const kenarlar = new Map<string, KenarNotu[]>([
+      ['k1', [{ id: 'n1', kayitId: 'k1', metin: 'x'.repeat(5000), tarih: '2026-08-28', olusturma: 0 }]],
     ])
     const akis = sayfalariKur({ gunler: gun('kısa bir gün'), kenarlar })
     expect(akis.sayfalar.length).toBeGreaterThan(0)

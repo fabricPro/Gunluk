@@ -42,7 +42,7 @@ describe('kalıcılık — Milestone 1in asıl sözü', () => {
     expect(geri?.temalar.sort()).toEqual(['is', 'umut'])
     expect((await depo2.basliklar()).get(k.id)).toBe('Mülakat haftası')
     expect((await depo2.defterGetir(depo2.aktifDefterId))?.ad).toBe('Son yıl')
-    expect((await depo2.kenarlar()).get(k.id)?.metin).toContain('o gün başladı')
+    expect((await depo2.kenarlar()).get(k.id)?.[0]?.metin).toContain('o gün başladı')
     expect(await depo2.ara('konuşabildim')).toHaveLength(1)
     await ikinci.kapat()
   })

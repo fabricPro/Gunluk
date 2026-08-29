@@ -125,7 +125,7 @@ Sıra önemli. Her adım bir öncekine yaslanıyor.
 
 ### Faz 2 — Defterin geri kalanı
 5. ~~Fotoğraf ve ek ekleme (bilet, ekran görüntüsü).~~ **Tamam.** Kayıt başına bir ek, sayfaya yapıştırılmış gibi duruyor ve sayfa bütçesinden pay alıyor. Görsel küçültülüp yeniden kodlanıyor — EXIF de böylece düşüyor (KARARLAR.md · K-023).
-6. Kullanıcının kenar notu düşebilmesi (şu an sadece demo verisinde var).
+6. ~~Kullanıcının kenar notu düşebilmesi.~~ **Tamam.** Bir kayda yıllar içinde birden çok not; yazıldığı gün silinebilir, sonra kalıcı. Kapalı deftere de düşülebilir (KARARLAR.md · K-018, K-024).
 7. ~~Gerçek kilit — PIN + biyometri.~~ **Tamam** (KARARLAR.md · K-021).
 8. ~~Yedekleme ve dışa aktarma.~~ **Tamam.** Mühürlü yedek kurtarma kodundan türeyen anahtarla açılıyor; ayrıca şifresiz Markdown dışa aktarma var (KARARLAR.md · K-003, K-022).
 

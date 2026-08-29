@@ -9,6 +9,82 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · K-024 · Kenar notu: geçmiş benle konuşma
+
+Faz 2.6 tamamlandı. Veri katmanı ve sayfa akışı kenar notunu 1.
+Milestone'dan beri taşıyordu ama kullanıcının not düşebileceği bir yol hiç
+olmamıştı — tablo gerçek kullanımda boştu, yalnızca testler yazıyordu.
+
+**Bir kayda birden çok not.** 2026'da bir, 2028'de bir. Tek not seçseydik
+bu bir dipnot olurdu; birden çok not olunca sayfa bir konuşmaya dönüşüyor
+ve "kullanıcı bunu ikinci kez neden açsın" sorusunun cevabı görünür hale
+geliyor: eski sayfada yalnızca eski hâlin değil, ona sonradan söylediklerin
+de duruyor.
+
+Bu karar aynı zamanda sessiz bir hatayı kapattı: `kenarEkle` her çağrıda
+yeni satır açıyordu ama `kenarlar()` `Map<string, KenarNotu>` döndürdüğü
+için ikinci not sessizce kayboluyordu. Arayüz olmadığı için kimse fark
+etmemişti. Artık `Map<string, KenarNotu[]>`, yazılma sırasında.
+
+**Not yazıldığı gün silinebilir, ertesi gün kalıcı.** İki uçtan da kaçınma:
+hiç silinemezse düşer düşmez fark edilen bir yazım hatası on yıl kalıyor;
+her zaman silinebilirse "geçmişini sessizce yeniden yazamazsın" ilkesi
+kenar notunda delik veriyor — kayıtta düzeltme iz bırakırken notta hiç iz
+bırakmamak tutarsız olurdu. Aradaki çizgi "bugün yazdığın hâlâ senin
+elinde, dün yazdığın artık geçmiş".
+
+Bunun için şema 006 `olusturma` sütununu ekliyor; `tarih` okunur bir dize
+olduğu için "bugün mü" sorusunu cevaplayamıyordu. Varsayılan 0 — göç
+öncesi notlar hiçbir zaman "bugün yazılmış" sayılmaz, yani kalıcıdırlar.
+Varsayılanın yanlış tarafa düşmesi burada veri kaybı demek olurdu.
+
+**Tarih ISO saklanıyor, ekranda biçimleniyor.** Önce okunur dize
+saklanıyordu ("14 haziran 2026"). On yıllık bir üründe biçimlenmiş dize
+saklamak sonradan düzeltilemez: dil değişir, biçim değişir, elde karışık
+kayıtlar kalır. Göç öncesi değerler ayrıştırılmaya çalışılmıyor, olduğu
+gibi basılıyor — uydurmaktansa aynen göstermek doğru.
+
+**Kapalı deftere not düşülebilir.** K-018'de karara bağlanmıştı, arayüz
+şimdi onu izliyor: kapalı defterde `düzelt` düğmesi ve yazma alanı yok ama
+`kenar notu` var. Kapattığın şey kapanır; kenarına yazabilirsin.
+
+**Kuyruk artık kırpılmıyor, taşıyor.** Ek işinde (K-023) öğrendiğimiz
+tuzağın büyüğü buydu: kaydın son parçasıyla gelenlerin (ek + notlar)
+maliyeti tavana vuruyordu ama basım tavana uymuyordu, yani sayfa sessizce
+taşıyordu. Üç not × 280 karakter telefonda zaten bir sayfadan uzun.
+
+Çözüm hesapla basımı ayırmak. Tavan yerinde kalıyor ve tek işi akışın
+sonsuz döngüye girmesini engellemek — yani yalnızca "bu kayıt hangi sayfada
+başlasın" kararını etkiliyor. Basım ise gerçek boşlukla ilerliyor: sığmayan
+not için sayfa kapatılıp yenisinden devam ediliyor. Bir not kendi başına
+sonraki sayfaya düşebiliyor. Bir test altı uzun notla bunu sabitliyor;
+dökülme kapatıldığında test gerçekten kırılıyor.
+
+**Araçlar dokunmayla açılıyor.** `düzelt` düğmesi bugüne kadar `:hover` ile
+duruyordu; dokunmatikte bu "iki kez dokun" demek ve ürün telefon öncelikli.
+Sürekli görünür yapmak da olmuyor — her kaydın altında duran iki düğme
+sayfayı arayüze çevirir. Kayda dokununca araçlar açılıyor, bir seferde tek
+kayıtta. Şerit mutlak konumlu: akış `.satir`ın yüksekliğini ölçüyor, şerit
+yer kaplasaydı ölçüm yanılır ve sayfa taşardı.
+
+**Kısayollar K-015'le aynı:** Ctrl+Enter kaydeder, Enter satır başı, Esc
+çıkar. Not kısa diye ayrı bir kural koymadık; ürünün tek bir yazma refleksi
+olsun.
+
+**Sınır 280 karakter.** Kenarda duran bir not sayfanın kendisi değil. Sayaç
+yalnızca son 40 karakterde görünüyor — sürekli sayı göstermek notu bir
+forma çevirirdi.
+
+### Açık bırakılan
+
+**Kenar notları aramaya girmiyor.** FTS bugün yalnızca `kayit.metin`'i
+indeksliyor. Notlar da kullanıcının kendi sözleri olduğu için aranabilmeleri
+doğru, ama ikinci bir indeks ve `soruCoz`'da kaynak türü ayrımı gerekiyor:
+ilke 2.4 gereği cevabın kenar notundan mı kayıttan mı geldiği görünmek
+zorunda. Ayrı bir iş olarak duruyor.
+
+---
+
 ## 2026-08-29 · K-023 · Ek sayfaya sıkıştırılır, galeriye değil
 
 Faz 2.5 tamamlandı. PROJE.md "fotoğraf ve ek ekleme (bilet, ekran

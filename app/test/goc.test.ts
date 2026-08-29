@@ -106,7 +106,7 @@ describe('002 — kitaplık göçü', () => {
 
     const depo = new Depo(db)
     expect((await depo.basliklar()).get('k1')).toBe('Başlık')
-    expect((await depo.kenarlar()).get('k1')?.metin).toBe('not')
+    expect((await depo.kenarlar()).get('k1')?.[0]?.metin).toBe('not')
     expect(await depo.kapsuller()).toHaveLength(1)
   })
 
@@ -143,5 +143,28 @@ describe('005 — ek göçü', () => {
     const depo = new Depo(db)
     await depo.ekYaz({ kayitId: 'k1', tur: 'image/jpeg', veri: 'AAAA', en: 4, boy: 3, bayt: 3 })
     expect((await depo.ekVeri('k1'))?.veri).toBe('AAAA')
+  })
+})
+
+describe('006 — kenar notu zaman damgası', () => {
+  it('göçten önceki notlar duruyor ve kalıcı sayılıyor', async () => {
+    await eskiDefter(db)
+    const t = Date.now()
+    await db.calistir(
+      `INSERT INTO kayit (id, tarih, saat, metin, sira, olusturma, guncelleme)
+       VALUES ('k1', '2026-01-05', '09:00', 'kayıt', 0, ?, ?)`,
+      [t, t],
+    )
+    await db.calistir(
+      "INSERT INTO kenar (id, kayit_id, metin, tarih) VALUES ('n1', 'k1', 'eski not', '5 ocak 2026')",
+    )
+
+    await gocleriUygula(db)
+
+    const notlar = (await new Depo(db).kenarlar()).get('k1')!
+    expect(notlar).toHaveLength(1)
+    expect(notlar[0]!.metin).toBe('eski not')
+    /* 0 = "bugün yazılmadı", yani silinemez. Varsayılan doğru tarafa düşüyor. */
+    expect(notlar[0]!.olusturma).toBe(0)
   })
 })

@@ -12,7 +12,7 @@ import { romen, tamTarih } from './tr.js'
 export interface DefterDokum {
   defter: DefterBilgi
   gunler: Gun[]
-  kenarlar: Map<string, KenarNotu>
+  kenarlar: Map<string, KenarNotu[]>
   basliklar: Map<string, string>
   /**
    * Ekler gövdesiyle birlikte — `data:` URI olarak gömülüyorlar.
@@ -47,8 +47,8 @@ export function markdownAktar(defterler: DefterDokum[]): string {
         p.push(`**${k.saat}** — ${k.metin}${k.duzenlendi ? ' *(düzeltildi)*' : ''}`, '')
         const ek = ekler?.get(k.id)
         if (ek) p.push(`![ek](data:${ek.tur};base64,${ek.veri})`, '')
-        const kenar = kenarlar.get(k.id)
-        if (kenar) p.push(`> *Kenar notu (${kenar.tarih}):* ${kenar.metin}`, '')
+        for (const kenar of kenarlar.get(k.id) ?? [])
+          p.push(`> *Kenar notu (${kenar.tarih}):* ${kenar.metin}`, '')
       }
     }
     p.push('')

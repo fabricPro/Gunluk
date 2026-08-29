@@ -87,7 +87,7 @@ uyarı yazar. Telefonda gerçek kalıcılığı denemek için Capacitor kabuğuy
 ### Derleme ve testler
 
 ```sh
-npm test               # 199 test
+npm test               # 208 test
 npm run build          # dist/ üretir
 npm run onizle         # derlenmiş sürümü 4173 portunda sunar
 ```
@@ -112,6 +112,25 @@ bir kez teklif ediliyor.
 Biyometri açmak, anahtarın açılabilir bir kopyasını cihazda bırakır —
 kullandığımız güvenli depo eklentisi öge bazında biyometrik erişim denetimi
 sunmuyor. Yalnızca PIN isteyen kullanıcı biyometriyi kapalı bırakmalı.
+
+## Kenar notu
+
+Eski bir kayda sonradan düşülen not, kırmızı kalemle. Ürünün "arşivi ikinci
+kez neden açsın" sorusuna kendi cevabı (KARARLAR.md · K-024).
+
+- **Bir kayda birden çok not**, yıllar içinde; tarihleriyle alt alta.
+- **Yazıldığı gün silinebilir**, ertesi gün kalıcı. Kayıtta düzeltme iz
+  bırakırken notta hiç iz bırakmamak tutarsız olurdu.
+- **Kapalı deftere de düşülebilir** (K-018). Kapalı defterde `düzelt` ve
+  yazma alanı yok, `kenar notu` var.
+- Notlar sayfa bütçesinden pay alıyor; sığmayanlar sonraki sayfaya
+  dökülüyor — maliyet kırpılıyor ama basım gerçek boşluğu izliyor.
+- Kayıt araçları (`düzelt`, `kenar notu`) kayda **dokununca** açılıyor;
+  `:hover` dokunmatikte "iki kez dokun" demekti.
+
+Kenar notları henüz arşiv aramasına girmiyor — FTS yalnızca `kayit.metin`'i
+indeksliyor. Girmeleri doğru, ama cevabın kenar notundan mı kayıttan mı
+geldiği görünmek zorunda (ilke 2.4); ayrı bir iş.
 
 ## Ek — bilet, ekran görüntüsü, fotoğraf
 
@@ -165,5 +184,6 @@ karşılığı var:
 
 **Faz 1 tamam.** Kalıcılık, boş defter / onboarding, kitaplık ve cilt kapanma
 töreni çalışıyor; yazı tipleri gömülü. (El yazısı kapsam dışı — K-007.)
-Faz 2.5 (fotoğraf ve ek), 2.7 (PIN + biyometri) ve 2.8 (mühürlü yedek)
-tamam. Sırada: kenar notu arayüzü (2.6).
+**Faz 2 tamam:** fotoğraf ve ek (2.5), kenar notu (2.6), PIN + biyometri
+(2.7), mühürlü yedek (2.8). Sırada Faz 3 — embedding tabanlı arama,
+kaynaklı model çağrısı, kriz sınıflandırıcısı.
