@@ -1,0 +1,47 @@
+/* ══════ KAPSÜL ══════ */
+#kapsul{overflow-y:auto;padding:0 24px 90px}
+.kap-ic{max-width:690px;margin:0 auto}
+.kap-ust{padding:38px 0 0}
+.kap-ust h2{font-size:29px;font-weight:300;font-style:italic;margin:0;color:#EFE2C6}
+.kap-ust .alt{font-family:var(--ui);font-size:12px;color:var(--ust3);margin-top:9px;line-height:1.7}
+.kap-yeni{margin:24px 0 0;border-radius:2px 6px 6px 2px;padding:26px 30px;
+  background:linear-gradient(158deg,var(--kagit),var(--kagit3));color:var(--murekkep);
+  box-shadow:0 22px 55px -32px #000;filter:brightness(var(--parlak))}
+.kap-yeni textarea{width:100%;background:none;border:none;resize:none;outline:none;
+  font-family:var(--yazi);font-size:18.5px;line-height:1.76;font-weight:300;min-height:120px;color:var(--murekkep)}
+.kap-yeni textarea::placeholder{color:var(--soluk);font-style:italic}
+.kap-alt{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:14px;
+  padding-top:14px;border-top:1px solid var(--cizgi)}
+.kap-alt>span{font-family:var(--ui);font-size:11px;color:var(--soluk);margin-right:3px}
+.kap-alt button{font-family:var(--ui);font-size:11.5px;color:var(--murekkep2);
+  border:1px solid rgba(44,33,24,.22);border-radius:100px;padding:6px 13px;transition:.2s}
+.kap-alt button:hover{border-color:rgba(44,33,24,.5)}
+.kap-alt button.secili{background:var(--murekkep);color:var(--kagit);border-color:var(--murekkep)}
+.kap-alt input[type=date]{font-family:var(--ui);font-size:11.5px;color:var(--murekkep2);
+  background:rgba(44,33,24,.05);border:1px solid rgba(44,33,24,.22);border-radius:100px;
+  padding:5px 12px;outline:none}
+.kap-alt .muhurle{margin-left:auto;background:var(--kirmizi);color:#F6E9DC;border-color:var(--kirmizi);
+  letter-spacing:.06em;padding:8px 20px}
+.kap-alt .muhurle:hover{background:#8E3323;border-color:#8E3323}
+.kap-uyari{font-family:var(--ui);font-size:11px;color:var(--soluk);margin-top:10px}
+
+.mektup{margin:30px 0;border-left:2px solid var(--hat2);padding-left:22px}
+.mektup.muhurlu{border-left-color:var(--kirmizi)}
+.mektup.acildi{border-left-color:var(--altin)}
+.m-et{font-family:var(--ui);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ust3);margin-bottom:11px}
+.mektup.acildi .m-et{color:var(--altin)}
+.mektup.muhurlu .m-et{color:var(--kirmizi)}
+.m-govde{font-size:18.5px;line-height:1.8;font-weight:300;color:#E2D5B9;white-space:pre-wrap}
+.m-muhur{font-family:var(--yazi);font-size:19px;font-style:italic;color:var(--ust2);line-height:1.75}
+.m-sayac{font-family:var(--ui);font-size:11.5px;color:var(--kirmizi);margin-top:12px}
+.m-cevap{margin:22px 0 0;padding:18px 0 0 20px;border-left:1px solid rgba(150,102,29,.4)}
+.m-cevap .m-et{color:var(--ust2)}
+.m-cevap .m-govde{font-size:17.5px;color:#CDBE9F}
+.m-cevapla textarea{width:100%;background:rgba(222,210,184,.05);border:1px solid var(--hat);
+  border-radius:3px;resize:none;outline:none;padding:14px 16px;font-size:17.5px;line-height:1.72;
+  font-weight:300;min-height:90px;color:var(--ust)}
+.m-cevapla button,.m-cevap-ac{margin-top:11px;font-family:var(--ui);font-size:11.5px;color:var(--ust2);
+  border:1px solid var(--hat);border-radius:100px;padding:7px 15px;transition:.2s}
+.m-cevapla button:hover,.m-cevap-ac:hover{color:var(--ust);border-color:var(--hat2)}
+

@@ -1,0 +1,93 @@
+import { sayfaBul } from '../cekirdek/sayfa.js'
+import { soruCoz, type Bulgu } from '../cekirdek/sorgu.js'
+import { gunAdi, iso, romen, tamTarih } from '../cekirdek/tr.js'
+import type { Durum } from '../durum.js'
+import { $, $$, ekranAc, kacir } from './ortak.js'
+
+/**
+ * Arşiv: arama ve sorma. Yorum yok.
+ * Cevap yalnızca kullanıcının kayıtlarından kurulur ve kullanılan kayıtlar
+ * cilt/sayfa numarasıyla her zaman gösterilir (ilke 2.4).
+ */
+export function arsiviBagla(
+  durum: Durum,
+  sayfayaGit: (i: number, anim?: boolean) => void,
+): { gecenYilCiz: () => void } {
+  const kaynakHtml = (b: Bulgu): string => {
+    const s = sayfaBul(durum.sayfalar, b.kayit.id)
+    return `<div class="kaynak" data-id="${b.kayit.id}">
+      <time>${b.gunAd} · ${tamTarih(b.kayit.tarih)} · ${b.kayit.saat}${
+        s ? ` · <b>cilt ${romen(s.cilt)}, sayfa ${s.ciltSayfa}</b>` : ''
+      }</time>
+      ${kacir(b.kayit.metin)}</div>`
+  }
+
+  const kaynakBagla = (kap: HTMLElement, terim: string): void => {
+    for (const el of kap.querySelectorAll<HTMLElement>('.kaynak,.gy-kayit'))
+      el.onclick = () => {
+        const id = el.dataset.id
+        if (!id) return
+        const s = sayfaBul(durum.sayfalar, id)
+        if (!s) return
+        durum.aramaTerim = terim
+        ekranAc('defter')
+        sayfayaGit(s.no - 1, false)
+      }
+  }
+
+  const cevapCiz = (soru: string): void => {
+    const kutu = $('#cevapAlan')
+    if (!soru.trim()) {
+      kutu.innerHTML = ''
+      return
+    }
+    const c = soruCoz(soru, durum.gunler, durum.temalar)
+    if (c.bos) {
+      kutu.innerHTML = `<div class="cevap"><div class="et">cevap</div>
+        <p>Bununla ilgili bir şey yazmamışsın. Yazmadığın bir şeyi uydurmam.</p></div>`
+      return
+    }
+    kutu.innerHTML = `<div class="cevap"><div class="et">yalnızca senin yazdıklarından</div>
+      ${c.paragraflar.map((x) => `<p>${x}</p>`).join('')}
+      <div class="k-et">kullandığım kayıtlar</div>
+      ${c.kullanilan.map(kaynakHtml).join('')}
+      <p class="cevap-not">Kaydın üstüne dokun, defterde o sayfaya gider.</p></div>`
+    kaynakBagla(kutu, c.terim)
+  }
+
+  const gecenYilCiz = (): void => {
+    const kap = $('#gecenYil')
+    if (!durum.gunler.length) {
+      kap.innerHTML = ''
+      return
+    }
+    const sonGun = durum.gunler[durum.gunler.length - 1]!
+    const b = new Date(sonGun.tarih + 'T12:00')
+    b.setFullYear(b.getFullYear() - 1)
+    const hedef = iso(b)
+    const g =
+      durum.gunler.find((x) => x.tarih === hedef) ??
+      durum.gunler.find((x) => Math.abs(+new Date(x.tarih + 'T12:00') - +b) < 4 * 864e5)
+    if (!g) {
+      kap.innerHTML = ''
+      return
+    }
+    kap.innerHTML = `<div class="gecen-yil"><div class="et">bugün, geçen sene</div>
+      ${g.kayitlar
+        .map(
+          (k) => `<div class="gy-kayit" data-id="${k.id}">
+            <time>${gunAdi(g.tarih)} · ${tamTarih(g.tarih)} · ${k.saat}</time>
+            <p>${kacir(k.metin)}</p></div>`,
+        )
+        .join('')}</div>`
+    kaynakBagla(kap, '')
+  }
+
+  $('#sorBtn').onclick = () => cevapCiz($<HTMLInputElement>('#soruKutu').value)
+  $('#soruKutu').addEventListener('keydown', (e) => {
+    if ((e as KeyboardEvent).key === 'Enter') cevapCiz((e.target as HTMLInputElement).value)
+  })
+  for (const b of $$('nav button')) b.onclick = () => ekranAc(b.dataset.ekran as 'defter')
+
+  return { gecenYilCiz }
+}

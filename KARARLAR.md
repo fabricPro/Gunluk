@@ -9,6 +9,45 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · Milestone 1 kararları (K-008 … K-010)
+
+Kalıcılık uygulanırken çıkan üç karar.
+
+### K-008 · Tarayıcı derlemesi worker içinde SQLite, ve şifresiz olduğunu söyler
+
+OPFS'in eşzamanlı dosya erişimi (`createSyncAccessHandle`) ana iş
+parçacığında yok, yalnızca worker'da var; `opfs-sahpool` ana iş parçacığında
+"Missing required OPFS APIs" ile düşüyor ve sessizce belleğe kaçıyordu —
+yani yazılan kayıt yenilemede gidiyordu. Veritabanı artık kendi worker'ında
+açılıyor (`veri/sqlite-isci.ts`), ana taraf mesajla konuşuyor. COOP/COEP
+başlığı gerekmiyor.
+
+Bunun yan sonucu: sürücü arayüzü **async**. Capacitor'ın SQLite API'si zaten
+Promise tabanlı olduğu için senkron bir arayüz cihazda hiç çalışmayacaktı.
+
+Tarayıcı derlemesinde SQLCipher yok, veritabanı şifresiz. Bu sessiz
+geçilmiyor: açılışta konsola uyarı yazılıyor ve README'de tablo hâlinde
+duruyor. Cihazda güvenli anahtar deposu bulunamazsa defter **açılmıyor** —
+şifresiz yola düşmek yok.
+
+### K-009 · İşlemler yeniden girilebilir
+
+Tohum yüzlerce kaydı tek işlemde ekliyor, `kayitEkle` ise kendi işlemini
+açıyor. SQLite iç içe `BEGIN` kabul etmediği için bu kilitleniyordu. En
+dıştaki işlem gerçek olur, içtekiler ona katılır
+(`yenidenGirilebilirIslem`). Üç sürücü de aynı sarmalayıcıyı kullanıyor.
+
+### K-010 · Türkçe ek uyumu sayının okunuşuna bağlandı
+
+Demodaki `YIL_EK` / `BIR_EK` tabloları sayının **son rakamına** bakıyordu.
+Bu 2025 ve 2026 için doğru sonuç veriyor ama kural son rakamın değil,
+okunuştaki **son sözcüğün**: 2020 "…yirmi" → `2020'de`, 2030 "…otuz" →
+`2030'da`, 10 "on" → `10'u` (demo `10'i` yazıyordu). `sonSozcuk()` sayının
+okunuşundaki son sözcüğü veriyor, ekler ondan türüyor. On yıl kullanılacak
+bir defterde yıl ekinin 2030'da bozulması kabul edilebilir değil.
+
+---
+
 ## 2026-08-28 · K-007 · El yazısı kapsam dışı
 
 Yol haritasının Faz 1.3'ü (el yazısı: PencilKit / S Pen, görünmez döküm,

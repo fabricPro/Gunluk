@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>defter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200;0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&family=Instrument+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/src/stil/tumu.css">
+</head>
+<body>
+<div id="isik"></div><div id="ahsap"></div>
+
+<header>
+  <div class="marka">defter</div>
+  <nav>
+    <button data-ekran="defter" aria-current="true">defter</button>
+    <button data-ekran="arsiv">arşiv</button>
+    <button data-ekran="kapsul">kapsül</button>
+  </nav>
+  <button class="ust-btn" id="kilitle">kapat</button>
+</header>
+
+<main>
+  <section class="ekran acik" id="defter">
+    <div id="kesit-sut"><div id="kesit"></div><div id="kesit-alt"></div></div>
+    <div id="defter-orta">
+      <div class="defter-ust"><b id="ciltAd"></b><span id="sayfaNo"></span><span class="kalan" id="kalanYazi"></span></div>
+      <div id="kagit-kap"></div>
+      <div class="arac">
+        <button class="ok" id="geri" title="önceki sayfa">‹</button>
+        <button class="ok" id="ileri" title="sonraki sayfa">›</button>
+        <button id="bugune">bugüne dön</button>
+        <button id="fihristBtn">fihrist</button>
+        <button id="dikte">sesli yaz</button>
+        <button id="yakBtn">yakılan sayfa</button>
+        <button id="birak">bırak</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="ekran" id="arsiv">
+    <div class="ar-ic">
+      <div class="ar-ust"><h2>arşiv</h2></div>
+      <div class="sor">
+        <input id="soruKutu" placeholder="defterine sor…" autocomplete="off" spellcheck="false">
+        <button id="sorBtn">ara</button>
+      </div>
+      <div class="sor-ipucu">«şubatta neden bu kadar kötüydüm» · «kerem» · «annemle kavgalarım»<br>
+        Cevap yalnızca senin yazdıklarından kurulur. Yazmadığın bir şey uydurulmaz.</div>
+      <div id="cevapAlan"></div>
+      <div id="gecenYil"></div>
+    </div>
+  </section>
+
+  <section class="ekran" id="kapsul">
+    <div class="kap-ic">
+      <div class="kap-ust"><h2>zaman kapsülü</h2>
+        <div class="alt">Kendine mektup yaz. Seçtiğin güne kadar mühürlü kalır — sen bile açamazsın.<br>
+          Açıldığında cevap yazarsın; mektup ve cevabı yan yana durur.</div></div>
+      <div class="kap-yeni">
+        <textarea id="mektupYazi" placeholder="sevgili ben,"></textarea>
+        <div class="kap-alt">
+          <span>ne zaman açılsın</span>
+          <button data-gun="7">1 hafta</button>
+          <button data-ay="1">1 ay</button>
+          <button data-ay="3" class="secili">3 ay</button>
+          <button data-ay="6">6 ay</button>
+          <button data-ay="12">1 yıl</button>
+          <button data-ay="60">5 yıl</button>
+          <input type="date" id="ozelTarih" title="kendi tarihini seç">
+          <button class="muhurle" id="muhurle">mühürle</button>
+        </div>
+        <div class="kap-uyari" id="kapUyari"></div>
+      </div>
+      <div id="mektuplar"></div>
+    </div>
+  </section>
+</main>
+
+<div id="fihrist"><div class="fih-kagit">
+  <h3>Fihrist</h3><div class="alt" id="fihAlt"></div>
+  <div id="fihListe"></div>
+  <button class="fih-kapat" id="fihKapat">kapat</button>
+</div></div>
+
+<div id="yak">
+  <div class="uyari">Bu sayfa <b>hiçbir yere kaydedilmiyor.</b> Aranamaz, geri getirilemez, arşive girmez.
+    Yaktığında bir daha kimse — sen dahil — göremez.</div>
+  <div id="yakAlan">
+    <textarea id="yakYazi" placeholder="burada ne yazdığın kimseyi ilgilendirmiyor."
+      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+      data-klavye-ogrenmesin="1"></textarea>
+    <div id="yakGoster" style="display:none"></div>
+  </div>
+  <div id="yakSon">Gitti.</div>
+  <div class="altlik" id="yakAltlik"><button id="yakVaz">vazgeç</button><button id="yakBas">YAK</button></div>
+</div>
+<div id="korlar"></div>
+
+<div id="kilit">
+  <div class="kapak" id="kapak"><b>defter</b><em id="kapakCilt"></em><small id="kapakAlt"></small></div>
+  <div class="ipucu">açmak için dokun</div>
+</div>
+<script type="module" src="/src/ana.ts"></script>
+</body>
+</html>

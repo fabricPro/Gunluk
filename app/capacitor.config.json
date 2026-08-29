@@ -1,0 +1,17 @@
+{
+  "appId": "com.defter.app",
+  "appName": "Defter",
+  "webDir": "dist",
+  "plugins": {
+    "CapacitorSQLite": {
+      "iosDatabaseLocation": "Library/DefterDatabase",
+      "iosIsEncryption": true,
+      "iosKeychainPrefix": "defter",
+      "androidIsEncryption": true,
+      "androidBiometric": {
+        "biometricAuth": false,
+        "biometricTitle": "Defteri aç"
+      }
+    }
+  }
+}

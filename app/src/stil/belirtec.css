@@ -1,0 +1,18 @@
+/* Tasarım belirteçleri — PROJE.md §4. Tek aydınlık yüzey sayfadır. */
+
+:root{
+  /* masa — sıcak, koyu, ahşap gibi */
+  --masa:#12100C; --masa2:#1A160F; --masa3:#241D14;
+  --cam:rgba(20,17,12,.93);
+  --hat:rgba(222,210,184,.13); --hat2:rgba(222,210,184,.26);
+  --ust:#CBBCA0; --ust2:#8C7C63; --ust3:#61554459;
+  /* kağıt — parşömen */
+  --kagit:#E0D4BA; --kagit2:#D6C9AC; --kagit3:#CBBD9C;
+  --murekkep:#2C2118; --murekkep2:#584734; --soluk:#8C7A60;
+  --cizgi:rgba(44,33,24,.13);
+  --kirmizi:#A8402C; --altin:#96661D; --mavi:#3E5A78;
+  --kor:#C4462B; --kor2:#F08A3C;
+  --parlak:1;
+  --yazi:'Newsreader',Georgia,'Times New Roman',serif;
+  --ui:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
