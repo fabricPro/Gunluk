@@ -121,7 +121,7 @@ export async function tohumEk(depo: Depo, bitis = '2026-08-28'): Promise<number>
       ilkKayitId ??= kayit.id
       adetToplam++
     }
-    await depo.ciltAdiYaz(1, 'Son yıl')
+    await depo.defterAdiYaz(depo.aktifDefterId, 'Son yıl')
     if (ilkKayitId) await depo.baslikYaz(ilkKayitId, 'Son yaz')
   })
   console.info(`[defter] tohum: ${adetToplam} kayıt eklendi (${gunAdi(bitis)} gününe kadar).`)

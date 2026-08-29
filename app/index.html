@@ -102,10 +102,30 @@
 </div>
 <div id="korlar"></div>
 
-<div id="kilit">
-  <div class="kapak" id="kapak"><b>defter</b><em id="kapakCilt"></em><small id="kapakAlt"></small></div>
-  <div class="ipucu">açmak için dokun</div>
+<div id="kitaplik">
+  <div class="kit-ust">
+    <h2>kitaplık</h2>
+    <span class="alt" id="kitAlt"></span>
+    <button class="ust-btn kapat-btn" id="kitKapat">defterine dön</button>
+  </div>
+  <div id="raflar"></div>
 </div>
+
+<div id="yeniDefter">
+  <div class="yd-kart">
+    <h3>Yeni defter</h3>
+    <div class="yd-alt">Ad ver ve bir kapak seç. Aynı adda bir defterin varsa yenisi onun cildi olur.</div>
+    <input id="ydAd" placeholder="deftere bir ad ver…" autocomplete="off" spellcheck="false">
+    <div class="yd-uyari" id="ydUyari"></div>
+    <div class="yd-kapaklar" id="ydKapaklar"></div>
+    <div class="yd-dugmeler">
+      <button id="ydVaz">vazgeç</button>
+      <button class="birincil" id="ydAc">defteri aç</button>
+    </div>
+  </div>
+</div>
+
+
 <script type="module" src="/src/ana.ts"></script>
 </body>
 </html>

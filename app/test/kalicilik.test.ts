@@ -30,7 +30,7 @@ describe('kalıcılık — Milestone 1in asıl sözü', () => {
       temalar: ['is', 'umut'],
     })
     await depo1.baslikYaz(k.id, 'Mülakat haftası')
-    await depo1.ciltAdiYaz(1, 'Son yıl')
+    await depo1.defterAdiYaz(depo1.aktifDefterId, 'Son yıl')
     await depo1.kenarEkle(k.id, 'Bunu okuyan ben: o gün başladı.', '29 ağustos 2026')
     await ilk.kapat()
 
@@ -41,7 +41,7 @@ describe('kalıcılık — Milestone 1in asıl sözü', () => {
     expect(geri?.metin).toBe('Fena geçmedi. Konuşabildim, donup kalmadım.')
     expect(geri?.temalar.sort()).toEqual(['is', 'umut'])
     expect((await depo2.basliklar()).get(k.id)).toBe('Mülakat haftası')
-    expect((await depo2.ciltAdlari()).get(1)).toBe('Son yıl')
+    expect((await depo2.defterGetir(depo2.aktifDefterId))?.ad).toBe('Son yıl')
     expect((await depo2.kenarlar()).get(k.id)?.metin).toContain('o gün başladı')
     expect(await depo2.ara('konuşabildim')).toHaveLength(1)
     await ikinci.kapat()

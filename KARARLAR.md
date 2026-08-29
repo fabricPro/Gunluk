@@ -9,6 +9,103 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · K-014 · Sayfa akışının atomu kayıt değil, parça
+
+Uzun bir kayıt kitaba yayılmıyordu. Akışın atomu *kayıt* olduğu için bir
+sayfaya sığmayan kayıt kendi sayfasında kalıyor ve kağıdın içinde kayıyordu:
+1538 karakterlik bir yazı, 758px'lik sayfada 1736px içerik demekti — metin
+sayfa numarasının altından taşıyordu. "Dolduğunda biten defter" tezinin tam
+karşıtı.
+
+Artık kayıt, sığmadığı yerde **sözcük sınırından** kesilip sonraki sayfadan
+devam ediyor. İşaretsiz — gerçek bir defterde de "devamı var" yazmaz, sayfayı
+çevirirsiniz. Parçalar birleştirildiğinde özgün metin birebir geri gelir ve
+bu teste bağlı. Arşiv, arama ve düzeltme kaydı hep bütün görür; bölünme
+yalnızca görüntüde.
+
+Bölme yalnızca gerektiğinde: tek başına bir sayfaya sığan kayıt bütün hâlde
+sonraki sayfaya taşınıyor, kısa kayıtların davranışı demodaki gibi kalıyor.
+
+Devam sayfasına başlık verilemiyor (anahtar `null`). Yoksa aynı anahtar iki
+sayfaya düşüyor ve başlık ikisine birden yazılıyordu. `sayfaBul` kaydın
+başladığı sayfayı döndürüyor — arşivden tıklayan kaydın ortasına düşmesin.
+
+### Sayfa kapasitesi ölçülüyor, varsayılmıyor
+
+Bunu düzeltirken daha derin bir hata çıktı: `SAYFA_HACIM = 620` sabitti, ama
+gerçek kapasite ekrana bağlı. Aynı metin 680px'lik kağıtta ve 320px'lik
+telefon kağıdında bambaşka yer kaplıyor; telefonda sayfa taşıyordu. Sabit
+değer demonun geniş ekranına göre ayarlanmıştı.
+
+Kapasite artık ölçülüyor (`ekran/olcum.ts`): kağıdın içine bilinen uzunlukta
+bir metin konup gerçek yüksekliği ölçülüyor, oradan "piksel başına karakter"
+çıkarılıyor. Yazı tipi, satır aralığı, ekran genişliği ne olursa olsun doğru
+sonuç veriyor. Ekran döndüğünde yeniden ölçülüyor.
+
+Doğrusal model bir şeyi kaçırıyordu: metin satır satır dizildiği için her
+kaydın son satırı yarım kalıyor. Dar ekranda (satırda ~20 karakter) bu kayıp
+sayfayı taşıracak kadar büyüyor. Kayda ortalama yarım satır ekleniyor,
+sayfadan bir satır emniyet payı düşülüyor. Üç ekran boyutunda da taşma sıfır.
+
+Çekirdek DOM bilmemeye devam ediyor: ölçüm ekran katmanında yapılıp
+`sayfalariKur`'a sayı olarak geçiyor.
+
+Son sayfada yazma alanının yeri de hesaba katılıyor. Sayfa dolduysa gerçek
+bir defterdeki gibi temiz bir sayfa açılıyor.
+
+**Demoda bulunan hata:** gün başlığı sayfa sınırında yeniden yazıldığında
+44 karakterlik maliyeti sayılmıyordu (maliyet kırılmadan önce hesaplanıyor,
+sonra yeni başlık ekleniyor ama hacme eklenmiyordu). Sayfa sessizce taşıyordu.
+Düzeltildi; testteki referans uygulama da düzeltilmiş hâli izliyor ve
+"hiçbir sayfa hacmi aşmaz" değişmezi teste bağlandı.
+
+---
+
+## 2026-08-29 · K-015 · Ctrl+Enter bırakır, Enter satır başı kalır
+
+Enter'ın bırakması sohbet uygulamalarının alışkanlığı ve hızlı. Ama bu ürünün
+asıl işi paragraf yazmak: düşünerek yazarken Enter'a basmak doğal bir
+hareket ve her seferinde Shift tutmak yazmayı bozar. Yanlışlıkla bırakılan
+yarım cümle de geri alınamıyor — düzeltme iz bırakıyor (PROJE.md §3).
+
+Ctrl+Enter (Mac'te Cmd+Enter) bırakır, Esc yazma modundan çıkar. Bıraktıktan
+sonra odak yeni kalemde kalır; kullanıcı durmadan sonraki kayda geçer.
+Kısayol bırak düğmesinde yazılı.
+
+---
+
+## 2026-08-29 · K-016 · Cilt, aynı adlı defterin devamı
+
+Kullanıcı tek deftere bağlı kalmıyor: birden çok defter tutabiliyor, ad
+veriyor, kapak seçiyor, rafta kendi düzenini kuruyor. "Kapat" düğmesi artık
+tek bir kapak değil **kitaplığı** açıyor.
+
+Cilt soyut bir bölüm olmaktan çıktı. Eskiden 45 sayfada bir cilt kendiliğinden
+doğuyordu; artık cilt, aynı adlı defterin devamı. Aynı adla açılan yeni defter
+o adın bir sonraki cildi oluyor ve rafa yanına diziliyor. Bu, PROJE.md'deki
+cilt kapanma töreniyle (Faz 1.4) doğal olarak birleşiyor: tören artık "defter
+kapandı, yenisi rafa girdi" anı. Töreni bu turda yapmadım — şema ve mekanizma
+hazır.
+
+Kapaklar tamamen CSS ile üretiliyor, görsel dosya yok: uygulama çevrimdışı ve
+hafif kalsın.
+
+**Sürükleyerek dizme pointer olaylarıyla.** HTML5 sürükle-bırak önce denendi
+ama dokunmatikte çalışmıyor ve ürün telefon-öncelikli (K-007). Pointer
+yakalama da denendi ve çalışmadı: sürükleme sırasında sırtı DOM'da taşımak
+(`insertBefore`) öğeyi bir an ağaçtan çıkarıyor, bu yakalamayı düşürüyor ve
+ilk taşımadan sonra hareket olayları kesiliyordu. Dinleyiciler `window`'da;
+fare, kalem ve parmakta çalışıyor, ikisi de tarayıcıda doğrulandı.
+
+**Göç, veri kaybı riskinin asıl olduğu yer.** `DROP TABLE kayit` açık yabancı
+anahtarlarla birlikte `ON DELETE CASCADE` zincirini tetikliyor ve sayfa
+başlıklarını, kenar notlarını, tema bağlarını da siliyordu. Testler bunu
+yakaladı. `PRAGMA foreign_keys` işlem *içinde* yok sayıldığı için göç
+sürerken işlemin dışında kapatılıyor — SQLite'ın tablo değiştirme yordamının
+önerdiği sıra bu.
+
+---
+
 ## 2026-08-29 · K-013 · GitHub Pages önizlemesi
 
 Uygulama yalnızca depo klonlanıp `npm run dev` ile açılabiliyordu ve

@@ -87,3 +87,23 @@ export interface Kapsul {
   cevap: string | null
   cevapTarihi: string | null
 }
+
+/* ── kitaplık ─────────────────────────────────────────────── */
+
+/**
+ * Rafta duran bir defter.
+ *
+ * Cilt soyut bir bölüm değil, aynı adlı defterin devamı: bir defter dolunca
+ * kapanır ve aynı adla bir sonraki cilt doğar (KARARLAR.md · K-016).
+ */
+export interface DefterBilgi {
+  id: string
+  ad: string
+  cilt: number
+  kapak: string
+  raf: number
+  sira: number
+  kapandi: boolean
+  /** İçindeki kayıt sayısı — kitaplıkta sırtın kalınlığını belirler. */
+  kayitSayisi: number
+}

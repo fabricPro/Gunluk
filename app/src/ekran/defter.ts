@@ -72,9 +72,13 @@ export function defteriBagla(durum: Durum, depo: Depo): DefterArayuz {
     const s: Sayfa | undefined = durum.sayfalar[durum.aktifSayfa]
     const c = s ? durum.ciltler.find((x) => x.no === s.cilt) : undefined
 
-    $('#ciltAd').textContent = c ? `Cilt ${romen(c.no)}${c.ad ? ' · ' + c.ad : ''}` : 'Cilt I'
+    /* Defterin adı önce; cilt yalnızca birden fazlaysa anlamlı (K-016). */
+    const d = durum.aktifDefter
+    $('#ciltAd').textContent = d
+      ? d.ad + (d.cilt > 1 ? ` · Cilt ${romen(d.cilt)}` : '')
+      : (c?.ad ?? 'Defter')
     $('#sayfaNo').textContent = s
-      ? `sayfa ${s.ciltSayfa}/${CILT_SAYFA}${c?.kapali ? ' · kapalı cilt' : ''}`
+      ? `sayfa ${s.ciltSayfa}/${CILT_SAYFA}${d?.kapandi ? ' · kapalı defter' : ''}`
       : `sayfa 1/${CILT_SAYFA}`
 
     const sonCilt = durum.ciltler[durum.ciltler.length - 1]
@@ -82,8 +86,8 @@ export function defteriBagla(durum: Durum, depo: Depo): DefterArayuz {
     $('#kalanYazi').textContent =
       durum.aktifSayfa === durum.sonSayfa
         ? kalan > 0
-          ? `bu ciltte ${kalan} sayfa kaldı`
-          : 'bu cilt doldu'
+          ? `bu defterde ${kalan} sayfa kaldı`
+          : 'bu defter doldu'
         : ''
 
     $('#kagit-kap').innerHTML = sayfaHtml(durum.aktifSayfa)
@@ -263,7 +267,7 @@ export function defteriBagla(durum: Durum, depo: Depo): DefterArayuz {
     `bırak <kbd>${/Mac|iPhone|iPad/.test(navigator.userAgent) ? '\u2318' : 'Ctrl'}\u23CE</kbd>`
 
   addEventListener('keydown', (e) => {
-    if ($('#kilit').classList.contains('acik') || $('#yak').classList.contains('acik')) return
+    if ($('#kitaplik').classList.contains('acik') || $('#yak').classList.contains('acik')) return
     const a = document.activeElement
     if (a && ['TEXTAREA', 'INPUT'].includes(a.tagName)) return
     if (e.key === 'ArrowLeft') sayfayaGit(durum.aktifSayfa - 1)

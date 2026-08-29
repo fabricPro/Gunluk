@@ -1,6 +1,7 @@
-import { ciltleriKur, sayfalariKur } from './cekirdek/sayfa.js'
+import { VARSAYILAN_OLCU, ciltleriKur, sayfalariKur } from './cekirdek/sayfa.js'
+import type { SayfaOlcu } from './cekirdek/sayfa.js'
 import type { TemaTanim } from './cekirdek/sorgu.js'
-import type { Cilt, Gun, KenarNotu, Sayfa } from './cekirdek/tipler.js'
+import type { Cilt, DefterBilgi, Gun, KenarNotu, Sayfa } from './cekirdek/tipler.js'
 import type { Depo } from './veri/depo.js'
 
 /**
@@ -17,11 +18,14 @@ export class Durum {
   basliklar = new Map<string, string>()
   kenarlar = new Map<string, KenarNotu>()
   temalar: TemaTanim[] = []
-  ciltAdlari = new Map<number, string>()
+  /** Açık defter — kitaplıktan seçilen. */
+  aktifDefter: DefterBilgi | null = null
   aktifSayfa = 0
   aramaTerim = ''
   /** Tarayıcı derlemesinde false — veritabanı şifresiz. */
   sifreli = false
+  /** Ölçülmüş sayfa kapasitesi; ekran katmanı doldurur. */
+  olcu: SayfaOlcu = VARSAYILAN_OLCU
 
   private dinleyiciler: (() => void)[] = []
 
@@ -44,16 +48,30 @@ export class Durum {
   }
 
   /** Depodan okur, sayfaları yeniden akıtır, dinleyicileri uyarır. */
+  /** Kitaplıktan bir defter seçip açar. */
+  async defteriAc(id: string): Promise<void> {
+    this.depo.defteriSec(id)
+    await this.depo.ayarYaz('aktifDefter', id)
+    this.aktifSayfa = 0
+    await this.yenile()
+    this.aktifSayfa = this.sonSayfa
+  }
+
   async yenile(): Promise<void> {
     this.gunler = await this.depo.gunler()
     this.kenarlar = await this.depo.kenarlar()
     this.basliklar = await this.depo.basliklar()
-    this.ciltAdlari = await this.depo.ciltAdlari()
     this.temalar = await this.depo.temalar()
+    this.aktifDefter = await this.depo.defterGetir(this.depo.aktifDefterId)
 
-    const akis = sayfalariKur({ gunler: this.gunler, kenarlar: this.kenarlar })
+    const akis = sayfalariKur({
+      gunler: this.gunler,
+      kenarlar: this.kenarlar,
+      olcu: this.olcu,
+    })
     this.sayfalar = akis.sayfalar
-    this.ciltler = ciltleriKur(this.sayfalar, this.ciltAdlari)
+    const ad = this.aktifDefter ? new Map([[1, this.aktifDefter.ad]]) : new Map<number, string>()
+    this.ciltler = ciltleriKur(this.sayfalar, ad)
     if (this.aktifSayfa > this.sonSayfa) this.aktifSayfa = this.sonSayfa
     for (const f of this.dinleyiciler) f()
   }

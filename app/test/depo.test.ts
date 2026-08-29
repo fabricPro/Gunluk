@@ -158,17 +158,78 @@ describe('başlık ve kenar notu — kayıt kimliğine bağlı (K-005)', () => {
   })
 })
 
-describe('cilt', () => {
-  it('ad verilir ve okunur', async () => {
-    await depo.ciltAdiYaz(1, 'Son yıl')
-    expect((await depo.ciltAdlari()).get(1)).toBe('Son yıl')
+describe('kitaplık', () => {
+  it('göçten gelen tek defter aktif', async () => {
+    const d = await depo.defterGetir(depo.aktifDefterId)
+    expect(d?.ad).toBe('Defter')
+    expect(d?.cilt).toBe(1)
   })
 
-  it('kapatma kayıt aralığını dondurur (K-006)', async () => {
-    const k = await depo.kayitEkle({ tarih: '2026-08-28', saat: '10:00', metin: 'son kayıt' })
-    await depo.ciltAdiYaz(1, 'Son yıl')
-    await depo.ciltKapat(1, k.id)
-    expect(await depo.kapaliCiltler()).toEqual([{ no: 1, ad: 'Son yıl' }])
+  it('yeni defter açılır, adı ve kapağı saklanır', async () => {
+    const d = await depo.defterAc('Gece defteri', 'bez')
+    expect(d.ad).toBe('Gece defteri')
+    expect(d.cilt).toBe(1)
+    expect(d.kapak).toBe('bez')
+    expect(await depo.defterler()).toHaveLength(2)
+  })
+
+  it('aynı adla açılan defter bir sonraki cilt olur (K-016)', async () => {
+    await depo.defterAc('Günlük', 'deri')
+    expect(await depo.siradakiCilt('Günlük')).toBe(2)
+    const ikinci = await depo.defterAc('Günlük', 'kraft')
+    expect(ikinci.cilt).toBe(2)
+    const ucuncu = await depo.defterAc('Günlük', 'kraft')
+    expect(ucuncu.cilt).toBe(3)
+    expect(await depo.siradakiCilt('Yepyeni')).toBe(1)
+  })
+
+  it('kayıtlar yalnızca kendi defterinde görünür', async () => {
+    await depo.kayitEkle({ tarih: '2026-01-01', saat: '09:00', metin: 'birinci defterin kaydı' })
+    const ikinci = await depo.defterAc('İkinci', 'bez')
+    depo.defteriSec(ikinci.id)
+    expect(await depo.kayitSayisi()).toBe(0)
+    expect(await depo.ara('birinci')).toHaveLength(0)
+    await depo.kayitEkle({ tarih: '2026-01-01', saat: '10:00', metin: 'ikinci defterin kaydı' })
+    expect(await depo.kayitSayisi()).toBe(1)
+
+    depo.defteriSec('defter-1')
+    expect(await depo.kayitSayisi()).toBe(1)
+    expect(await depo.ara('birinci')).toHaveLength(1)
+    expect(await depo.ara('ikinci defterin')).toHaveLength(0)
+  })
+
+  it('defter silinince kayıtları da gider', async () => {
+    const d = await depo.defterAc('Silinecek', 'deri')
+    depo.defteriSec(d.id)
+    await depo.kayitEkle({ tarih: '2026-01-01', saat: '09:00', metin: 'gidecek' })
+    await db.calistir('DELETE FROM defter WHERE id = ?', [d.id])
+    expect(await depo.kayitSayisi()).toBe(0)
+  })
+
+  it('raf dizilişi saklanır', async () => {
+    const a = await depo.defterAc('A', 'deri')
+    const b = await depo.defterAc('B', 'bez')
+    await depo.rafiDiz([
+      { id: b.id, raf: 0, sira: 0 },
+      { id: a.id, raf: 1, sira: 0 },
+    ])
+    const hepsi = await depo.defterler()
+    const bulunan = hepsi.filter((d) => d.id === a.id || d.id === b.id)
+    expect(bulunan.find((d) => d.id === b.id)).toMatchObject({ raf: 0, sira: 0 })
+    expect(bulunan.find((d) => d.id === a.id)).toMatchObject({ raf: 1, sira: 0 })
+  })
+
+  it('defter kapatılabilir', async () => {
+    const d = await depo.defterAc('Kapanacak', 'deri')
+    await depo.defterKapat(d.id)
+    expect((await depo.defterGetir(d.id))?.kapandi).toBe(true)
+  })
+
+  it('kayıt sayısı defter başına doğru', async () => {
+    await depo.kayitEkle({ tarih: '2026-01-01', saat: '09:00', metin: 'bir' })
+    await depo.kayitEkle({ tarih: '2026-01-02', saat: '09:00', metin: 'iki' })
+    const d = await depo.defterGetir('defter-1')
+    expect(d?.kayitSayisi).toBe(2)
   })
 })
 
@@ -206,7 +267,7 @@ describe('sıfırlama — geliştirme aracı', () => {
     const k = await depo.kayitEkle({ tarih: '2026-08-29', saat: '10:00', metin: 'silinecek' })
     await depo.baslikYaz(k.id, 'başlık')
     await depo.kenarEkle(k.id, 'kenar', '29 ağustos 2026')
-    await depo.ciltAdiYaz(1, 'Cilt adı')
+    await depo.defterAdiYaz(depo.aktifDefterId, 'Yeni ad')
     await depo.ayarYaz('bir', 'iki')
     await depo.kapsulEkle('2026-08-29', '2026-12-01', 'mektup')
 
@@ -215,7 +276,6 @@ describe('sıfırlama — geliştirme aracı', () => {
     expect(await depo.kayitSayisi()).toBe(0)
     expect((await depo.basliklar()).size).toBe(0)
     expect((await depo.kenarlar()).size).toBe(0)
-    expect((await depo.ciltAdlari()).size).toBe(0)
     expect(await depo.ayarOku('bir')).toBeNull()
     expect(await depo.kapsuller()).toEqual([])
   })

@@ -74,7 +74,8 @@ describe('sayfalariKur — demoyla aynı bölünme', () => {
   it('kenar notu olmadan demoyla birebir aynı sayfaları üretir', () => {
     const { gunler, ham } = ornekVeri(120)
     const { sayfalar } = sayfalariKur({ gunler, kenarlar: new Map() })
-    expect(sayfalar.map(kayitlariAl)).toEqual(demoAkisi(ham, {}))
+    /* Sondaki boş yazma sayfası karşılaştırmaya girmez. */
+    expect(sayfalar.map(kayitlariAl).filter((k) => k.length)).toEqual(demoAkisi(ham, {}))
   })
 
   it('kenar notlarıyla da demoyla birebir aynı sayfaları üretir', () => {
@@ -90,7 +91,7 @@ describe('sayfalariKur — demoyla aynı bölünme', () => {
       demoKenar[g.tarih + '|1'] = { metin }
     })
     const { sayfalar } = sayfalariKur({ gunler, kenarlar })
-    expect(sayfalar.map(kayitlariAl)).toEqual(demoAkisi(ham, demoKenar))
+    expect(sayfalar.map(kayitlariAl).filter((k) => k.length)).toEqual(demoAkisi(ham, demoKenar))
   })
 
   it('sabitler demodan değişmedi', () => {
@@ -137,7 +138,16 @@ describe('sayfalariKur — sınır durumları', () => {
   it('yeni sayfaya taşan gün, gün başlığını tekrar yazar', () => {
     const { gunler } = ornekVeri(20)
     const { sayfalar } = sayfalariKur({ gunler, kenarlar: new Map() })
-    for (const s of sayfalar) expect(s.ogeler[0]!.tip).toBe('gun')
+    for (const s of sayfalar.filter((x) => x.ogeler.length)) expect(s.ogeler[0]!.tip).toBe('gun')
+  })
+
+  it('son sayfada yazma alanına yer kalır', () => {
+    for (const gun of [1, 7, 30, 120]) {
+      const { gunler } = ornekVeri(gun)
+      const { sayfalar } = sayfalariKur({ gunler, kenarlar: new Map() })
+      const son = sayfalar[sayfalar.length - 1]!
+      expect(son.hacim + 90).toBeLessThanOrEqual(SAYFA_HACIM)
+    }
   })
 
   it('cilt 45 sayfada dolar ve öncekiler kapalı işaretlenir', () => {

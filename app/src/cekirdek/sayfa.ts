@@ -1,14 +1,35 @@
 import type { Cilt, Gun, KenarNotu, Sayfa, SayfaOgesi } from './tipler.js'
 
-/** Bir sayfaya sığan yaklaşık karakter maliyeti. Demodan birebir. */
+/** Bir sayfaya sığan yaklaşık karakter maliyeti — ölçüm yokken. */
 export const SAYFA_HACIM = 620
 /** Bir cildin sayfa sayısı. Defteri defter yapan sınır. */
 export const CILT_SAYFA = 45
 
-/* Öğelerin karakter maliyeti — demodaki hesabın aynısı. */
-const GUN_BASLIGI_MALIYET = 44
-const KAYIT_SABIT_MALIYET = 22
-const KENAR_SABIT_MALIYET = 20
+/**
+ * Sayfanın taşıma kapasitesi ve öğelerin maliyeti.
+ *
+ * Sabit değil: aynı metin 680px'lik bir kağıtta ve 320px'lik bir telefon
+ * kağıdında çok farklı yer kaplar. Ekran katmanı sayfayı gerçekten ölçüp
+ * bu değerleri geçer (`ekran/olcum.ts`); çekirdek DOM bilmez, yalnızca
+ * sayı alır (KARARLAR.md · K-014).
+ */
+export interface SayfaOlcu {
+  hacim: number
+  gunBasligi: number
+  kayitSabit: number
+  kenarSabit: number
+  /** Son sayfanın altındaki yazma alanı. */
+  yazmaAlani: number
+}
+
+/** Ölçüm yapılamadığında kullanılan demo değerleri. */
+export const VARSAYILAN_OLCU: SayfaOlcu = {
+  hacim: SAYFA_HACIM,
+  gunBasligi: 44,
+  kayitSabit: 22,
+  kenarSabit: 20,
+  yazmaAlani: 90,
+}
 
 /**
  * Bir parçanın sayfada işgal etmesi anlamlı sayılan en az yer.
@@ -27,6 +48,8 @@ export interface AkisGirdi {
    * hesaplanır. Boşsa her şey yeniden akıtılır.
    */
   donmusSayfalar?: Sayfa[]
+  /** Ölçülmüş sayfa kapasitesi; verilmezse demo değerleri kullanılır. */
+  olcu?: SayfaOlcu
 }
 
 export interface Akis {
@@ -61,7 +84,16 @@ export function sozcuktenKes(metin: string, sinir: number): [string, string] {
  * `donmusSayfalar` ile verilirse aynen korunur; yalnızca açık cildin
  * sayfaları yeniden hesaplanır.
  */
-export function sayfalariKur({ gunler, kenarlar, donmusSayfalar = [] }: AkisGirdi): Akis {
+export function sayfalariKur({
+  gunler,
+  kenarlar,
+  donmusSayfalar = [],
+  olcu = VARSAYILAN_OLCU,
+}: AkisGirdi): Akis {
+  const SAYFA = olcu.hacim
+  const GUN_BASLIGI_MALIYET = olcu.gunBasligi
+  const KAYIT_SABIT_MALIYET = olcu.kayitSabit
+  const KENAR_SABIT_MALIYET = olcu.kenarSabit
   const donmus = donmusSayfalar.slice().sort((a, b) => a.no - b.no)
 
   /* Donmuş sayfalarda yer alan kayıtlar yeniden akıtılmaz. */
@@ -99,7 +131,7 @@ export function sayfalariKur({ gunler, kenarlar, donmusSayfalar = [] }: AkisGird
       for (;;) {
         const basMaliyet = basYok ? GUN_BASLIGI_MALIYET : 0
         const tamMaliyet = basMaliyet + KAYIT_SABIT_MALIYET + kalan.length + kenarMaliyet
-        const bosluk = SAYFA_HACIM - hacim
+        const bosluk = SAYFA - hacim
 
         const gunBasligiYaz = () => {
           if (!basYok) return
@@ -132,7 +164,7 @@ export function sayfalariKur({ gunler, kenarlar, donmusSayfalar = [] }: AkisGird
         /* 2 — temiz sayfaya sığıyor: bölmeden taşı (demodaki davranış). */
         const temizMaliyet =
           GUN_BASLIGI_MALIYET + KAYIT_SABIT_MALIYET + kalan.length + kenarMaliyet
-        if (ogeler.length && temizMaliyet <= SAYFA_HACIM) {
+        if (ogeler.length && temizMaliyet <= SAYFA) {
           sayfayiKapat()
           basYok = true
           continue
@@ -155,7 +187,7 @@ export function sayfalariKur({ gunler, kenarlar, donmusSayfalar = [] }: AkisGird
           parcaNo,
           sonParca: false,
         })
-        hacim = SAYFA_HACIM
+        hacim = SAYFA
         sayfayiKapat()
         basYok = true
         parcaNo++
@@ -164,6 +196,11 @@ export function sayfalariKur({ gunler, kenarlar, donmusSayfalar = [] }: AkisGird
     }
   }
   sayfayiKapat()
+
+  /* Son sayfada yazma alanına yer kalmadıysa temiz bir sayfa aç. */
+  const son = sayfalar[sayfalar.length - 1]
+  if (son && son.hacim + olcu.yazmaAlani > SAYFA)
+    sayfalar.push({ no: 0, cilt: 0, ciltSayfa: 0, ogeler: [], hacim: 0, anahtar: null })
 
   sayfalar.forEach((s, i) => {
     s.no = i + 1

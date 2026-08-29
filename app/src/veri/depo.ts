@@ -1,4 +1,4 @@
-import type { Cilt, Gun, Kapsul, Kayit, KenarNotu } from '../cekirdek/tipler.js'
+import type { DefterBilgi, Gun, Kapsul, Kayit, KenarNotu } from '../cekirdek/tipler.js'
 import type { TemaTanim } from '../cekirdek/sorgu.js'
 import { gunAdi, iso } from '../cekirdek/tr.js'
 import type { SqlSurucu } from './db.js'
@@ -39,7 +39,18 @@ const KAYIT_SECIM = `
  * tek yönlü: ekran -> depo -> çekirdek.
  */
 export class Depo {
+  /** Okuma ve yazmanın hangi deftere ait olduğu. */
+  private defterId = 'defter-1'
+
   constructor(private readonly db: SqlSurucu) {}
+
+  defteriSec(id: string): void {
+    this.defterId = id
+  }
+
+  get aktifDefterId(): string {
+    return this.defterId
+  }
 
   /** Birden çok yazmayı tek işlemde toplar. */
   islem<T>(f: () => Promise<T>): Promise<T> {
@@ -58,14 +69,14 @@ export class Depo {
     const t = simdi()
     const sonSira =
       (await this.db.tek<{ s: number | null }>(
-        'SELECT max(sira) AS s FROM kayit WHERE tarih = ?',
-        [girdi.tarih],
+        'SELECT max(sira) AS s FROM kayit WHERE defter_id = ? AND tarih = ?',
+        [this.defterId, girdi.tarih],
       ))?.s ?? -1
     await this.db.islem(async () => {
       await this.db.calistir(
-        `INSERT INTO kayit (id, tarih, saat, metin, sira, olusturma, guncelleme, duzenlendi)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
-        [id, girdi.tarih, girdi.saat, girdi.metin, sonSira + 1, t, t],
+        `INSERT INTO kayit (id, defter_id, tarih, saat, metin, sira, olusturma, guncelleme, duzenlendi)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+        [id, this.defterId, girdi.tarih, girdi.saat, girdi.metin, sonSira + 1, t, t],
       )
       await this.temalariYaz(id, girdi.temalar ?? [])
     })
@@ -102,7 +113,8 @@ export class Depo {
   /** Tüm kayıtlar, günlere gruplanmış ve zaman sırasında. */
   async gunler(): Promise<Gun[]> {
     const satirlar = await this.db.hepsi<KayitSatir>(
-      `${KAYIT_SECIM} ORDER BY k.tarih, k.sira, k.saat`,
+      `${KAYIT_SECIM} WHERE k.defter_id = ? ORDER BY k.tarih, k.sira, k.saat`,
+      [this.defterId],
     )
     const gunler: Gun[] = []
     let acik: Gun | null = null
@@ -117,7 +129,116 @@ export class Depo {
   }
 
   async kayitSayisi(): Promise<number> {
-    return (await this.db.tek<{ n: number }>('SELECT count(*) AS n FROM kayit'))?.n ?? 0
+    return (
+      (
+        await this.db.tek<{ n: number }>(
+          'SELECT count(*) AS n FROM kayit WHERE defter_id = ?',
+          [this.defterId],
+        )
+      )?.n ?? 0
+    )
+  }
+
+  /* ── kitaplık ──────────────────────────────────────────── */
+
+  /**
+   * Yeni defter açar.
+   *
+   * Bu adda bir defter zaten varsa yenisi onun bir sonraki cildi olur
+   * (K-016). Dönen değerde `cilt` kaçıncı cilt olduğunu söyler; arayüz
+   * bunu kullanıcıya önceden bildirir.
+   */
+  async defterAc(ad: string, kapak: string): Promise<DefterBilgi> {
+    const temiz = ad.trim() || 'Defter'
+    const id = kimlik()
+    const t = simdi()
+    const sonCilt =
+      (
+        await this.db.tek<{ c: number | null }>(
+          'SELECT max(cilt) AS c FROM defter WHERE ad = ?',
+          [temiz],
+        )
+      )?.c ?? 0
+    const cilt = sonCilt + 1
+    const sonSira =
+      (await this.db.tek<{ s: number | null }>('SELECT max(sira) AS s FROM defter WHERE raf = 0'))
+        ?.s ?? -1
+    await this.db.calistir(
+      `INSERT INTO defter (id, ad, cilt, kapak, raf, sira, olusturma, kapandi)
+       VALUES (?, ?, ?, ?, 0, ?, ?, 0)`,
+      [id, temiz, cilt, kapak, sonSira + 1, t],
+    )
+    return { id, ad: temiz, cilt, kapak, raf: 0, sira: sonSira + 1, kapandi: false, kayitSayisi: 0 }
+  }
+
+  /** Bu adda kaçıncı cilt açılacağını önden söyler; 1 ise yeni bir seri. */
+  async siradakiCilt(ad: string): Promise<number> {
+    const temiz = ad.trim() || 'Defter'
+    const son =
+      (
+        await this.db.tek<{ c: number | null }>(
+          'SELECT max(cilt) AS c FROM defter WHERE ad = ?',
+          [temiz],
+        )
+      )?.c ?? 0
+    return son + 1
+  }
+
+  /** Raftaki bütün defterler, dizildikleri sırayla. */
+  async defterler(): Promise<DefterBilgi[]> {
+    const satirlar = await this.db.hepsi<{
+      id: string
+      ad: string
+      cilt: number
+      kapak: string
+      raf: number
+      sira: number
+      kapandi: number
+      kayit_sayisi: number
+    }>(
+      `SELECT d.id, d.ad, d.cilt, d.kapak, d.raf, d.sira, d.kapandi,
+              (SELECT count(*) FROM kayit k WHERE k.defter_id = d.id) AS kayit_sayisi
+       FROM defter d ORDER BY d.raf, d.sira, d.cilt`,
+    )
+    return satirlar.map((r) => ({
+      id: r.id,
+      ad: r.ad,
+      cilt: r.cilt,
+      kapak: r.kapak,
+      raf: r.raf,
+      sira: r.sira,
+      kapandi: r.kapandi === 1,
+      kayitSayisi: r.kayit_sayisi,
+    }))
+  }
+
+  async defterGetir(id: string): Promise<DefterBilgi | null> {
+    return (await this.defterler()).find((d) => d.id === id) ?? null
+  }
+
+  async defterAdiYaz(id: string, ad: string): Promise<void> {
+    await this.db.calistir('UPDATE defter SET ad = ? WHERE id = ?', [ad.trim() || 'Defter', id])
+  }
+
+  async defterKapakYaz(id: string, kapak: string): Promise<void> {
+    await this.db.calistir('UPDATE defter SET kapak = ? WHERE id = ?', [kapak, id])
+  }
+
+  /** Kullanıcının raftaki dizilişini kaydeder. */
+  async rafiDiz(sirali: { id: string; raf: number; sira: number }[]): Promise<void> {
+    await this.islem(async () => {
+      for (const d of sirali)
+        await this.db.calistir('UPDATE defter SET raf = ?, sira = ? WHERE id = ?', [
+          d.raf,
+          d.sira,
+          d.id,
+        ])
+    })
+  }
+
+  /** Defter dolunca kapanır; töreni Faz 1.4, mekanizması burada. */
+  async defterKapat(id: string): Promise<void> {
+    await this.db.calistir('UPDATE defter SET kapandi = 1, kapanma = ? WHERE id = ?', [simdi(), id])
   }
 
   /* ── tema ──────────────────────────────────────────────── */
@@ -203,40 +324,6 @@ export class Depo {
     return new Map(satirlar.map((r) => [r.kayit_id, r.baslik] as const))
   }
 
-  /* ── cilt ──────────────────────────────────────────────── */
-
-  async ciltAdiYaz(no: number, ad: string): Promise<void> {
-    const temiz = ad.trim()
-    await this.db.calistir(
-      `INSERT INTO cilt (no, ad) VALUES (?, ?)
-       ON CONFLICT (no) DO UPDATE SET ad = excluded.ad`,
-      [no, temiz || null],
-    )
-  }
-
-  async ciltAdlari(): Promise<Map<number, string>> {
-    const satirlar = await this.db.hepsi<{ no: number; ad: string | null }>(
-      'SELECT no, ad FROM cilt WHERE ad IS NOT NULL',
-    )
-    return new Map(satirlar.map((r) => [r.no, r.ad!] as const))
-  }
-
-  /** Cilt kapanma töreni Faz 1.4'te; şema ve kayıt aralığı hazır (K-006). */
-  async ciltKapat(no: number, sonKayitId: string): Promise<void> {
-    await this.db.calistir(
-      `INSERT INTO cilt (no, kapandi, kapanma, son_kayit_id) VALUES (?, 1, ?, ?)
-       ON CONFLICT (no) DO UPDATE SET kapandi = 1, kapanma = excluded.kapanma,
-                                      son_kayit_id = excluded.son_kayit_id`,
-      [no, simdi(), sonKayitId],
-    )
-  }
-
-  async kapaliCiltler(): Promise<Pick<Cilt, 'no' | 'ad'>[]> {
-    return this.db.hepsi<{ no: number; ad: string | null }>(
-      'SELECT no, ad FROM cilt WHERE kapandi = 1 ORDER BY no',
-    )
-  }
-
   /* ── arama ─────────────────────────────────────────────── */
 
   /** FTS5 üstünde tam metin arama. Sonuçlar kayıt kimliği olarak döner. */
@@ -251,10 +338,10 @@ export class Depo {
     const satirlar = await this.db.hepsi<KayitSatir>(
       `${KAYIT_SECIM}
        JOIN kayit_fts f ON f.rowid = k.rowid
-       WHERE kayit_fts MATCH ?
+       WHERE kayit_fts MATCH ? AND k.defter_id = ?
        ORDER BY k.tarih DESC, k.sira DESC
        LIMIT ?`,
-      [sorgu, sinir],
+      [sorgu, this.defterId, sinir],
     )
     return satirlar.map(satirdanKayit)
   }

@@ -4,6 +4,8 @@ import { defteriBagla } from './ekran/defter.js'
 import { fihristiBagla } from './ekran/fihrist.js'
 import { kapsuleBagla } from './ekran/kapsul.js'
 import { kilidiBagla } from './ekran/kilit.js'
+import { kitapligiBagla } from './ekran/kitaplik.js'
+import { sayfaOlc } from './ekran/olcum.js'
 import { yakmayiBagla } from './ekran/yak.js'
 import { defteriAc } from './veri/db.js'
 import { Depo } from './veri/depo.js'
@@ -57,6 +59,11 @@ async function baslat(): Promise<void> {
 
   const durum = new Durum(depo)
   durum.sifreli = sifreli
+
+  /* Son açık defter geri gelsin. */
+  const sonDefter = await depo.ayarOku('aktifDefter')
+  if (sonDefter && (await depo.defterGetir(sonDefter))) depo.defteriSec(sonDefter)
+
   await durum.yenile()
   durum.aktifSayfa = durum.sonSayfa
 
@@ -64,7 +71,11 @@ async function baslat(): Promise<void> {
   const arsiv = arsiviBagla(durum, defter.sayfayaGit)
   const kapsul = kapsuleBagla(depo)
   fihristiBagla(durum, depo, defter.sayfayaGit)
-  kilidiBagla(durum)
+  const kitaplik = kitapligiBagla(durum, depo, () => {
+    defter.ciz()
+    arsiv.gecenYilCiz()
+  })
+  kilidiBagla(kitaplik.ac)
   yakmayiBagla()
 
   durum.dinle(() => {
@@ -75,6 +86,36 @@ async function baslat(): Promise<void> {
   defter.ciz()
   arsiv.gecenYilCiz()
   await kapsul.ciz()
+
+  /*
+   * Sayfa kapasitesi ekran ölçülerine bağlı. İlk çizimden sonra kağıt
+   * DOM'da olduğu için ölçülebiliyor; ölçüm değiştiyse sayfalar yeniden
+   * akıtılıyor. Ekran döndüğünde ya da pencere boyutlandığında tekrar.
+   */
+  const olcVeYenile = async (): Promise<void> => {
+    const yeni = sayfaOlc()
+    const eski = durum.olcu
+    if (
+      yeni.hacim === eski.hacim &&
+      yeni.gunBasligi === eski.gunBasligi &&
+      yeni.kayitSabit === eski.kayitSabit &&
+      yeni.kenarSabit === eski.kenarSabit &&
+      yeni.yazmaAlani === eski.yazmaAlani
+    )
+      return
+    durum.olcu = yeni
+    const sondaydi = durum.aktifSayfa === durum.sonSayfa
+    await durum.yenile()
+    if (sondaydi) durum.aktifSayfa = durum.sonSayfa
+    defter.ciz()
+  }
+  await olcVeYenile()
+
+  let olcumZaman: ReturnType<typeof setTimeout> | undefined
+  addEventListener('resize', () => {
+    clearTimeout(olcumZaman)
+    olcumZaman = setTimeout(() => void olcVeYenile(), 220)
+  })
 }
 
 void baslat().catch((e: unknown) => {

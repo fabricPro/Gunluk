@@ -1,0 +1,96 @@
+/* ══════ KİTAPLIK ══════
+   Defterler raflarda dik durur, sırtları görünür. Kapaklar tamamen CSS —
+   görsel dosya yok (KARARLAR.md · K-016). */
+
+#kitaplik{position:fixed;inset:0;z-index:60;display:none;flex-direction:column;
+  background:var(--masa);overflow:hidden}
+#kitaplik.acik{display:flex}
+
+.kit-ust{flex:none;display:flex;align-items:baseline;gap:14px;padding:22px 26px 10px}
+.kit-ust h2{margin:0;font-size:27px;font-weight:300;font-style:italic;color:#EFE2C6}
+.kit-ust .alt{font-family:var(--ui);font-size:11.5px;color:var(--ust3)}
+.kit-ust .kapat-btn{margin-left:auto}
+
+#raflar{flex:1;overflow-y:auto;padding:6px 26px 40px;max-width:1100px;width:100%;
+  margin:0 auto}
+
+.raf{margin-bottom:30px}
+/* Rafın arkalığı: kitapların arkasında duran karanlık boşluk. */
+.raf-tahta{display:flex;align-items:flex-end;gap:10px;min-height:176px;padding:20px 14px 0;
+  position:relative;border-radius:2px;
+  background:
+    linear-gradient(180deg,rgba(0,0,0,.42),rgba(0,0,0,.16) 40%,transparent 74%),
+    linear-gradient(180deg,#191410,#12100C);
+  box-shadow:inset 0 9px 18px -10px #000, inset 0 0 0 1px rgba(222,210,184,.045)}
+/* Tahtanın kendisi: kalınlığı ve üstündeki ışık olan bir ahşap. */
+.raf-tahta::after{content:'';position:absolute;left:0;right:0;bottom:-11px;height:11px;
+  border-radius:0 0 3px 3px;
+  background:linear-gradient(180deg,#5A452C,#3C2D1B 45%,#241A0F);
+  box-shadow:0 10px 20px -9px rgba(0,0,0,.95), inset 0 1px 0 rgba(233,205,150,.22)}
+.raf-tahta.hedef{background:
+    linear-gradient(180deg,rgba(0,0,0,.42),rgba(0,0,0,.16) 40%,transparent 74%),
+    linear-gradient(180deg,#221B14,#171310)}
+.raf-tahta.hedef::after{background:linear-gradient(180deg,#6D5433,#48351F 45%,#2B2012)}
+.raf-et{font-family:var(--ui);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ust3);padding:0 0 6px 3px}
+
+/* sırt */
+.sirt{position:relative;height:156px;touch-action:none;border-radius:2px 3px 3px 2px;cursor:pointer;
+  display:flex;flex-direction:column;justify-content:space-between;align-items:center;
+  padding:11px 0 9px;flex:none;transition:transform .18s ease, box-shadow .18s ease;
+  box-shadow:inset -3px 0 6px -3px rgba(0,0,0,.7), inset 2px 0 0 rgba(255,255,255,.07),
+    0 4px 10px -4px rgba(0,0,0,.8)}
+.sirt:hover{transform:translateY(-9px);box-shadow:inset -3px 0 6px -3px rgba(0,0,0,.7),
+  inset 2px 0 0 rgba(255,255,255,.09), 0 12px 20px -8px rgba(0,0,0,.9)}
+.sirt.suruklenen{opacity:.55;transform:translateY(-12px) rotate(-1.5deg);
+  box-shadow:0 18px 30px -10px rgba(0,0,0,.95);z-index:3}
+.sirt.aktif{box-shadow:inset -3px 0 6px -3px rgba(0,0,0,.7),
+  inset 0 0 0 1px var(--altin), 0 6px 14px -5px rgba(0,0,0,.9)}
+.sirt .ad{writing-mode:vertical-rl;text-orientation:mixed;font-family:var(--yazi);
+  font-size:14.5px;font-style:italic;letter-spacing:.02em;white-space:nowrap;
+  overflow:hidden;max-height:110px;text-shadow:0 1px 0 rgba(0,0,0,.35)}
+.sirt .cilt{font-family:var(--ui);font-size:8.5px;letter-spacing:.1em;opacity:.75}
+.sirt .kapali-im{position:absolute;top:5px;left:50%;transform:translateX(-50%);
+  width:13px;height:1px;background:currentColor;opacity:.45}
+
+/* kapak varyantları — sırtın rengi ve dokusu */
+.k-deri    {background:linear-gradient(97deg,#4A3524,#31220F 62%,#241708);color:#D9C49A}
+.k-bez     {background:linear-gradient(97deg,#4C5148,#3A3F37 62%,#2C312A);color:#D6D2BE}
+.k-kraft   {background:linear-gradient(97deg,#9C7C4E,#856439 62%,#6C5029);color:#3A2A12}
+.k-murekkep{background:linear-gradient(97deg,#2B3444,#1E2532 62%,#161B25);color:#BCC6D6}
+.k-kiraz   {background:linear-gradient(97deg,#6E2A22,#541D17 62%,#3E140F);color:#E4BDA8}
+.k-zeytin  {background:linear-gradient(97deg,#4F5230,#3C3F22 62%,#2C2F17);color:#D7D3A4}
+.k-gece    {background:linear-gradient(97deg,#22201C,#171512 62%,#0E0D0B);color:#A99C86}
+.k-altin   {background:linear-gradient(97deg,#7A5C1E,#5E4514 62%,#43310D);color:#F0DCA6}
+
+/* yeni defter yuvası */
+.yeni-sirt{height:156px;width:40px;border:1px dashed rgba(222,210,184,.24);border-radius:3px;
+  color:var(--ust3);display:flex;align-items:center;justify-content:center;flex:none;
+  font-size:19px;transition:.2s;background:none}
+.yeni-sirt:hover{border-color:var(--altin);color:var(--altin)}
+
+/* yeni defter kartı */
+#yeniDefter{position:fixed;inset:0;z-index:70;display:none;align-items:center;
+  justify-content:center;background:rgba(10,8,6,.72);padding:22px}
+#yeniDefter.acik{display:flex}
+.yd-kart{width:100%;max-width:430px;background:linear-gradient(160deg,var(--kagit),var(--kagit3));
+  border-radius:4px;padding:26px 26px 20px;color:var(--murekkep);
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.95)}
+.yd-kart h3{margin:0 0 4px;font-size:23px;font-weight:400;font-style:italic}
+.yd-kart .yd-alt{font-family:var(--ui);font-size:11.5px;color:var(--soluk);margin-bottom:16px}
+.yd-kart input{width:100%;background:rgba(44,33,24,.06);border:1px solid rgba(44,33,24,.22);
+  border-radius:2px;outline:none;font-family:var(--yazi);font-size:20px;font-style:italic;
+  color:var(--murekkep);padding:9px 11px;margin-bottom:6px}
+.yd-uyari{font-family:var(--ui);font-size:11px;color:var(--altin);min-height:16px;margin-bottom:12px}
+.yd-kapaklar{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:18px}
+.yd-kapak{width:38px;height:52px;border-radius:2px 3px 3px 2px;cursor:pointer;border:none;
+  box-shadow:inset -2px 0 5px -2px rgba(0,0,0,.7)}
+.yd-kapak[aria-pressed="true"]{outline:2px solid var(--altin);outline-offset:2px}
+.yd-dugmeler{display:flex;gap:8px;justify-content:flex-end}
+.yd-dugmeler button{font-family:var(--ui);font-size:12px;color:var(--murekkep2);
+  border:1px solid rgba(44,33,24,.25);border-radius:100px;padding:7px 15px}
+.yd-dugmeler .birincil{background:var(--murekkep);color:var(--kagit);border-color:var(--murekkep)}
+.yd-dugmeler button[disabled]{opacity:.4}
+
+.kit-bos{font-family:var(--yazi);font-size:17px;font-style:italic;color:var(--soluk);
+  padding:26px 6px;line-height:1.7}

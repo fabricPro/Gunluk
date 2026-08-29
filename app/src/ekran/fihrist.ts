@@ -17,7 +17,7 @@ export function fihristiBagla(
       const syf = durum.sayfalar.filter((x) => x.cilt === c.no && durum.baslik(x))
       h += `<div class="fih-cilt">Cilt ${romen(c.no)}${c.ad ? ' — ' + kacir(c.ad) : ''}
         <span>${c.sayfa} sayfa${c.kapali ? ' · kapalı' : ''}</span>
-        <button data-cilt="${c.no}">${c.ad ? 'adı değiştir' : 'cilde ad ver'}</button></div>`
+        <button data-cilt="${c.no}">${c.ad ? 'adı değiştir' : 'deftere ad ver'}</button></div>`
       if (!syf.length)
         h += `<div class="fih-bos">Bu ciltte başlık yok. Bir sayfanın üstüne dokunup ad verebilirsin.</div>`
       for (const s of syf)
@@ -36,10 +36,11 @@ export function fihristiBagla(
       }
     for (const b of $$<HTMLButtonElement>('#fihListe [data-cilt]'))
       b.onclick = async () => {
-        const c = Number(b.dataset.cilt)
-        const ad = prompt('Bu cilde ne ad vermek istersin?', durum.ciltAdlari.get(c) ?? '')
+        const defter = durum.aktifDefter
+        if (!defter) return
+        const ad = prompt('Bu deftere ne ad vermek istersin?', defter.ad)
         if (ad === null) return
-        await depo.ciltAdiYaz(c, ad)
+        await depo.defterAdiYaz(defter.id, ad)
         await durum.yenile()
         ciz()
       }

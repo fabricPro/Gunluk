@@ -1,4 +1,5 @@
 import baslangicSql from './sema/001_baslangic.sql?raw'
+import kitaplikSql from './sema/002_kitaplik.sql?raw'
 
 /**
  * Sürücüden bağımsız asgari SQL arayüzü.
@@ -55,7 +56,10 @@ export interface Goc {
 }
 
 /** Göçler sırayla uygulanır; uygulanan sürüm PRAGMA user_version'da tutulur. */
-export const GOCLER: Goc[] = [{ surum: 1, sql: baslangicSql }]
+export const GOCLER: Goc[] = [
+  { surum: 1, sql: baslangicSql },
+  { surum: 2, sql: kitaplikSql },
+]
 
 export const SON_SURUM = GOCLER[GOCLER.length - 1]!.surum
 
@@ -76,13 +80,30 @@ export async function gocleriUygula(db: SqlSurucu): Promise<number> {
         'Daha yeni bir sürümle yazılmış defter eski uygulamayla açılamaz.',
     )
   let uygulanan = 0
-  for (const g of GOCLER) {
-    if (g.surum <= mevcut) continue
-    await db.islem(async () => {
-      await db.betik(g.sql)
-      await db.calistir(`PRAGMA user_version = ${g.surum}`)
-    })
-    uygulanan++
+  /*
+   * Yabancı anahtarlar göç boyunca kapalı.
+   *
+   * SQLite'ta tablo yapısını değiştirmenin yolu tabloyu yeniden kurmak.
+   * Ama `DROP TABLE kayit` açık yabancı anahtarlarla birlikte ON DELETE
+   * CASCADE zincirini tetikliyor ve sayfa başlıklarını, kenar notlarını,
+   * tema bağlarını da siliyor. Bu, sessiz veri kaybı.
+   *
+   * `PRAGMA foreign_keys` işlem İÇİNDE yok sayılır, o yüzden burada —
+   * işlemin dışında — kapatılıp sonra geri açılıyor. SQLite'ın tablo
+   * değiştirme yordamının önerdiği sıra bu.
+   */
+  await db.calistir('PRAGMA foreign_keys = OFF')
+  try {
+    for (const g of GOCLER) {
+      if (g.surum <= mevcut) continue
+      await db.islem(async () => {
+        await db.betik(g.sql)
+        await db.calistir(`PRAGMA user_version = ${g.surum}`)
+      })
+      uygulanan++
+    }
+  } finally {
+    await db.calistir('PRAGMA foreign_keys = ON')
   }
   return uygulanan
 }
