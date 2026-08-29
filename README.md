@@ -27,6 +27,9 @@ Bağımlılık tek yönlü: `ekran → veri → cekirdek`.
 **https://fabricpro.github.io/Gunluk/**
 
 Her itmede otomatik derlenip yayınlanır (`.github/workflows/pages.yml`).
+Pages'in bir kez elle açılması gerekiyor: **Settings → Pages → Build and
+deployment → Source: GitHub Actions**. İş akışının belirteci site
+oluşturamıyor, bu yönetici yetkisi istiyor.
 Telefondan da açılır ve HTTPS olduğu için veri kalıcılığı orada da çalışır.
 
 Bu bir **önizleme**: tarayıcı derlemesi olduğu için veritabanı **şifresiz** ve

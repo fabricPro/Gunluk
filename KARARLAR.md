@@ -17,7 +17,11 @@ telefonda **veri kalıcılığı denenemiyordu**: OPFS güvenli bağlam istiyor,
 sayılmıyor. Pages HTTPS olduğu için bu boşluğu kapatıyor.
 
 Derleme `.github/workflows/pages.yml` ile her itmede yapılıyor; testler
-geçmeden yayına çıkmıyor. Taban yol (`/Gunluk/`) yalnızca iş akışının derleme
+geçmeden yayına çıkmıyor. Pages'in bir kez elle açılması gerekiyor
+(Settings → Pages → Source: GitHub Actions): `actions/configure-pages`
+`enablement: true` ile bunu kendisi denedi ve "Resource not accessible by
+integration" aldı — site oluşturmak yönetici yetkisi istiyor, iş akışının
+belirteci bunu almıyor. O yüzden `enablement` kullanılmıyor. Taban yol (`/Gunluk/`) yalnızca iş akışının derleme
 adımında `--base` ile veriliyor, `vite.config.ts`'e yazılmıyor — yerel
 geliştirme ve yerel derleme etkilenmiyor.
 

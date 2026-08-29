@@ -53,10 +53,11 @@ jobs:
       - name: Jekyll'i devre dışı bırak
         run: touch dist/.nojekyll
 
+      # Pages'in bir kez elle açılması gerekiyor:
+      # Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
+      # İş akışının belirteci site oluşturamıyor (yönetici yetkisi ister),
+      # bu yüzden enablement kullanılmıyor.
       - uses: actions/configure-pages@v5
-        with:
-          # İlk koşuda Pages'i kendisi etkinleştirir.
-          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
