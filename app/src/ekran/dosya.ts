@@ -54,6 +54,24 @@ export function dosyaSec(kabul: string): Promise<string | null> {
   })
 }
 
+/** Kullanıcıdan bir görsel ister; vazgeçerse null. */
+export function resimSec(): Promise<File | null> {
+  return new Promise((coz) => {
+    const g = document.createElement('input')
+    g.type = 'file'
+    /* Capacitor WebView'inde bu iOS'ta da Android'de de kamerayı sunuyor;
+       ayrı bir native eklenti ve ayrı bir izin gerekmiyor. */
+    g.accept = 'image/*'
+    g.style.display = 'none'
+    g.onchange = () => {
+      coz(g.files?.[0] ?? null)
+      g.remove()
+    }
+    document.body.appendChild(g)
+    g.click()
+  })
+}
+
 /** 'defter-yedek-2026-08-29' gibi bir dosya adı gövdesi. */
 export const dosyaAdi = (on: string): string =>
   `${on}-${new Date().toISOString().slice(0, 10)}`

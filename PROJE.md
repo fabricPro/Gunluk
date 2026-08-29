@@ -124,7 +124,7 @@ Sıra önemli. Her adım bir öncekine yaslanıyor.
 3. ~~**Cilt kapanma töreni.**~~ **Tamam.** Defter dolunca ad ver, kapak seç, uzat ya da kapat; kapanınca cildin özeti ve bir sonraki cilt. Sayfa sayısı artık her defterin kendi ölçüsü (KARARLAR.md · K-017, K-018).
 
 ### Faz 2 — Defterin geri kalanı
-5. Fotoğraf ve ek ekleme (bilet, ekran görüntüsü).
+5. ~~Fotoğraf ve ek ekleme (bilet, ekran görüntüsü).~~ **Tamam.** Kayıt başına bir ek, sayfaya yapıştırılmış gibi duruyor ve sayfa bütçesinden pay alıyor. Görsel küçültülüp yeniden kodlanıyor — EXIF de böylece düşüyor (KARARLAR.md · K-023).
 6. Kullanıcının kenar notu düşebilmesi (şu an sadece demo verisinde var).
 7. ~~Gerçek kilit — PIN + biyometri.~~ **Tamam** (KARARLAR.md · K-021).
 8. ~~Yedekleme ve dışa aktarma.~~ **Tamam.** Mühürlü yedek kurtarma kodundan türeyen anahtarla açılıyor; ayrıca şifresiz Markdown dışa aktarma var (KARARLAR.md · K-003, K-022).

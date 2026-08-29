@@ -1,4 +1,4 @@
-import type { DefterBilgi, Gun, KenarNotu } from './tipler.js'
+import type { DefterBilgi, Ek, Gun, KenarNotu } from './tipler.js'
 import { romen, tamTarih } from './tr.js'
 
 /**
@@ -14,6 +14,14 @@ export interface DefterDokum {
   gunler: Gun[]
   kenarlar: Map<string, KenarNotu>
   basliklar: Map<string, string>
+  /**
+   * Ekler gövdesiyle birlikte — `data:` URI olarak gömülüyorlar.
+   *
+   * Dosyayı şişiriyor ama K-003'ün sözü bunu gerektiriyor: bu uygulama
+   * var olmasa da günlük okunabilmeli. Ayrı klasöre yazılan görseller
+   * .md'den kolayca ayrı düşer; gömülü olan on yıl sonra da açılır.
+   */
+  ekler?: Map<string, Ek>
 }
 
 const baslik = (d: DefterBilgi): string =>
@@ -24,7 +32,7 @@ export function markdownAktar(defterler: DefterDokum[]): string {
   const tarih = new Date().toISOString().slice(0, 10)
   p.push(`*${tarih} tarihinde dışa aktarıldı.*`, '')
 
-  for (const { defter, gunler, kenarlar, basliklar } of defterler) {
+  for (const { defter, gunler, kenarlar, basliklar, ekler } of defterler) {
     p.push(`## ${baslik(defter)}`, '')
     const kayitSayisi = gunler.reduce((n, g) => n + g.kayitlar.length, 0)
     p.push(`*${gunler.length} gün · ${kayitSayisi} kayıt${defter.kapandi ? ' · kapalı' : ''}*`, '')
@@ -37,6 +45,8 @@ export function markdownAktar(defterler: DefterDokum[]): string {
         if (ad) p.push(`**${ad}**`, '')
         if (k.soru) p.push(`> ${k.soru}`, '')
         p.push(`**${k.saat}** — ${k.metin}${k.duzenlendi ? ' *(düzeltildi)*' : ''}`, '')
+        const ek = ekler?.get(k.id)
+        if (ek) p.push(`![ek](data:${ek.tur};base64,${ek.veri})`, '')
         const kenar = kenarlar.get(k.id)
         if (kenar) p.push(`> *Kenar notu (${kenar.tarih}):* ${kenar.metin}`, '')
       }

@@ -12,6 +12,14 @@ import { VARSAYILAN_OLCU } from '../cekirdek/sayfa.js'
  * doğru sonuç verir.
  */
 
+/** Ekin görseli sayfanın kullanılabilir yüksekliğinin en fazla bu kadarı. */
+const EK_SAYFA_PAYI = 0.42
+/**
+ * `.ek`'in dikey marjı. getBoundingClientRect marjı saymaz; sayılmazsa
+ * her ek sayfayı 20px taşırır.
+ */
+const EK_MARJIN = 20
+
 /* Ölçüm metni: Türkçe harf dağılımı ve sözcük uzunluğu gerçekçi olsun. */
 const ORNEK = (
   'Bugün yine erken kalktım ve pencereyi açtım, hava soğuktu. ' +
@@ -64,7 +72,27 @@ export function sayfaOlc(): SayfaOlcu {
   )
   /* 5 — kayda eşlik eden sorunun kendi payı. */
   const soru = olc(kagitIc, '<div class="kayit-soru">x</div>')
-  /* 6 — son sayfadaki yazma alanı. */
+  /*
+   * 6 — ek. İki ayrı ölçü gerekiyor çünkü maliyet orana bağlı: aynı
+   * genişlikte dikey bir fotoğraf yatay olanın iki katı yer kaplar.
+   * Önce çerçevenin kendi payı, sonra KARE bir görselin yüksekliği.
+   */
+  const ekSabitPiksel =
+    olc(kagitIc, '<div class="ek" style="--ek-tavan:0"><i></i></div>') + EK_MARJIN
+  const ekKarePiksel =
+    olc(kagitIc, '<div class="ek" style="--ek-tavan:99999px"><i style="aspect-ratio:1"></i></div>') -
+    ekSabitPiksel +
+    EK_MARJIN
+
+  /*
+   * Ekin görseli sayfanın bundan fazlasını yiyemez. Aynı piksel hem CSS'e
+   * (`--ek-tavan`) hem maliyet hesabına gidiyor; ikisi ayrılırsa sayfa
+   * sessizce taşıyor.
+   */
+  const ekTavanPiksel = Math.round(kullanilabilir * EK_SAYFA_PAYI)
+  document.documentElement.style.setProperty('--ek-tavan', ekTavanPiksel + 'px')
+
+  /* 7 — son sayfadaki yazma alanı. */
   const yazma = olc(
     kagitIc,
     '<div style="display:flex;gap:14px;padding:4px 0 26px">' +
@@ -99,5 +127,8 @@ export function sayfaOlc(): SayfaOlcu {
     kenarSabit: ktr(kenar),
     soruSabit: ktr(soru),
     yazmaAlani: ktr(yazma),
+    ekSabit: ktr(ekSabitPiksel),
+    ekKare: Math.max(1, ktr(ekKarePiksel)),
+    ekTavan: Math.max(1, ktr(ekTavanPiksel)),
   }
 }

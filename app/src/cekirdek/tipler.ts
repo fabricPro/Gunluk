@@ -22,6 +22,28 @@ export interface KenarNotu {
   tarih: string // kenar notunun düşüldüğü gün, okunur biçimde
 }
 
+/**
+ * Sayfaya iliştirilen ekin ÜSTVERİSİ — gövdesi yok.
+ *
+ * Sayfa akışı ve bellekteki model yalnızca bunu taşır. Gövde (base64)
+ * yalnızca görünen sayfa için, tek tek istenir: on yıllık bir defterin
+ * bütün fotoğraflarını bellekte tutmanın anlamı yok.
+ */
+export interface EkBilgi {
+  kayitId: string
+  tur: string
+  /** Maliyet orana bağlı olduğu için en ve boy akışa kadar gidiyor. */
+  en: number
+  boy: number
+  bayt: number
+}
+
+/** Üstveri + gövde. Yalnızca yazarken ve gösterirken kurulur. */
+export interface Ek extends EkBilgi {
+  /** base64 gövde, 'data:' öneki yok. */
+  veri: string
+}
+
 export interface Gun {
   tarih: string
   ad: string // 'pazartesi'
@@ -50,7 +72,7 @@ export interface KayitOgesi {
   metin: string
   /** 0 = kaydın başı. Saat damgası yalnızca burada görünür. */
   parcaNo: number
-  /** Kaydın son parçası mı — kenar notu buraya iliştirilir. */
+  /** Kaydın son parçası mı — kenar notu ve ek buraya iliştirilir. */
   sonParca: boolean
 }
 export interface KenarOgesi {
@@ -59,7 +81,18 @@ export interface KenarOgesi {
   metin: string
   tarih: string
 }
-export type SayfaOgesi = GunBasligi | KayitOgesi | KenarOgesi
+/**
+ * Kaydın son parçasından sonra basılan ek.
+ * Gövde burada değil: ekran base64'ü ayrıca ister.
+ */
+export interface EkOgesi {
+  tip: 'ek'
+  kayitId: string
+  tur: string
+  en: number
+  boy: number
+}
+export type SayfaOgesi = GunBasligi | KayitOgesi | KenarOgesi | EkOgesi
 
 export interface Sayfa {
   no: number // 1'den başlayan mutlak sayfa numarası

@@ -115,3 +115,33 @@ describe('002 — kitaplık göçü', () => {
     expect(await db.hepsi<{ id: string }>('SELECT id FROM defter')).toHaveLength(1)
   })
 })
+
+describe('005 — ek göçü', () => {
+  it('mevcut defter göçten sağ çıkıyor ve ek tablosu geliyor', async () => {
+    await eskiDefter(db)
+    const t = Date.now()
+    await db.calistir(
+      `INSERT INTO kayit (id, tarih, saat, metin, sira, olusturma, guncelleme)
+       VALUES ('k1', '2026-01-05', '09:00', 'göçten önce yazılmış', 0, ?, ?)`,
+      [t, t],
+    )
+    await db.calistir("INSERT INTO sayfa_baslik (kayit_id, baslik) VALUES ('k1', 'Başlangıç')")
+
+    await gocleriUygula(db)
+
+    expect((await db.tek<{ user_version: number }>('PRAGMA user_version'))?.user_version).toBe(
+      SON_SURUM,
+    )
+    expect((await db.tek<{ metin: string }>("SELECT metin FROM kayit WHERE id = 'k1'"))?.metin).toBe(
+      'göçten önce yazılmış',
+    )
+    expect(
+      (await db.tek<{ baslik: string }>("SELECT baslik FROM sayfa_baslik WHERE kayit_id = 'k1'"))
+        ?.baslik,
+    ).toBe('Başlangıç')
+
+    const depo = new Depo(db)
+    await depo.ekYaz({ kayitId: 'k1', tur: 'image/jpeg', veri: 'AAAA', en: 4, boy: 3, bayt: 3 })
+    expect((await depo.ekVeri('k1'))?.veri).toBe('AAAA')
+  })
+})

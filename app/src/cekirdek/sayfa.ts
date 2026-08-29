@@ -1,4 +1,4 @@
-import type { Cilt, Gun, KenarNotu, Sayfa, SayfaOgesi } from './tipler.js'
+import type { Cilt, EkBilgi, Gun, KenarNotu, Sayfa, SayfaOgesi } from './tipler.js'
 
 /** Bir sayfaya sığan yaklaşık karakter maliyeti — ölçüm yokken. */
 export const SAYFA_HACIM = 620
@@ -22,7 +22,30 @@ export interface SayfaOlcu {
   soruSabit: number
   /** Son sayfanın altındaki yazma alanı. */
   yazmaAlani: number
+  /** Ekin çerçeve, boşluk ve alt yazı payı. */
+  ekSabit: number
+  /** KARE bir ekin gösterim genişliğindeki maliyeti. */
+  ekKare: number
+  /** Ekin görselinin en fazla tutabileceği yer — CSS'teki `--ek-tavan`. */
+  ekTavan: number
 }
+
+/**
+ * Bir ekin sayfada kapladığı yer.
+ *
+ * Tek bir "ek sabiti" yanlış olurdu: dikey bir fotoğraf aynı genişlikte
+ * yatay olanın iki katı yer kaplar. Maliyet en-boy oranından çıkıyor —
+ * sabit SAYFA_HACIM hatasının aynısını tekrarlamamak için (K-014, K-023).
+ *
+ * `ekTavan` tek tavan ve CSS'le AYNI sayı: ölçüm katmanı hem bu değeri hem
+ * `--ek-tavan` özelliğini aynı pikselden üretiyor. Önce ikisi ayrıydı —
+ * maliyet kırpılıyor ama görsel kırpılmıyordu, sayfa da sessizce 110px
+ * taşıyordu. Tavan ayrıca akışın kilitlenmesini engelliyor: hiçbir sayfaya
+ * sığmayan bir ek, yerleştirilmeyi sonsuza kadar denerdi.
+ */
+export const ekMaliyeti = (ek: EkBilgi, olcu: SayfaOlcu): number =>
+  olcu.ekSabit +
+  Math.min(olcu.ekTavan, Math.round((olcu.ekKare * ek.boy) / Math.max(1, ek.en)))
 
 /** Ölçüm yapılamadığında kullanılan demo değerleri. */
 export const VARSAYILAN_OLCU: SayfaOlcu = {
@@ -32,6 +55,9 @@ export const VARSAYILAN_OLCU: SayfaOlcu = {
   kenarSabit: 20,
   soruSabit: 26,
   yazmaAlani: 90,
+  ekSabit: 24,
+  ekKare: 260,
+  ekTavan: 260,
 }
 
 /**
@@ -45,6 +71,8 @@ export interface AkisGirdi {
   gunler: Gun[]
   /** kayitId -> o kayda düşülmüş kenar notu */
   kenarlar: Map<string, KenarNotu>
+  /** kayitId -> o kayda iliştirilmiş ekin üstverisi (gövde yok). */
+  ekler?: Map<string, EkBilgi>
   /**
    * Kapanmış ciltlerin dondurulmuş sayfaları (KARARLAR.md · K-006).
    * Verilirse bu sayfalar olduğu gibi korunur, akış yalnızca sonrasında
@@ -90,6 +118,7 @@ export function sozcuktenKes(metin: string, sinir: number): [string, string] {
 export function sayfalariKur({
   gunler,
   kenarlar,
+  ekler = new Map(),
   donmusSayfalar = [],
   olcu = VARSAYILAN_OLCU,
 }: AkisGirdi): Akis {
@@ -121,9 +150,28 @@ export function sayfalariKur({
     for (const kayit of gun.kayitlar) {
       if (donmusKayitlar.has(kayit.id)) continue
       const kenar = kenarlar.get(kayit.id)
-      const kenarMaliyet = kenar ? kenar.metin.length + KENAR_SABIT_MALIYET : 0
+      const ek = ekler.get(kayit.id)
       /* Soru yalnızca kaydın başladığı sayfada, bir kez yer kaplar. */
       const soruMaliyet = kayit.soru ? kayit.soru.length + SORU_SABIT_MALIYET : 0
+
+      /*
+       * Kuyruk = kaydın son parçasıyla gelenler: ek ve kenar notu.
+       *
+       * Maliyetleri bölünen metinden düşülmüyor, çünkü metin biterken
+       * ödeniyorlar. Ama tavansız bırakılamazlar: kuyruk tek başına temiz
+       * bir sayfaya sığmıyorsa 1. koşul hiçbir zaman tutmaz, 2. koşul da
+       * atlanır, akış boş parçalar üretip sonsuza kadar döner. Yeterince
+       * uzun bir kenar notu bu döngüyü gerçekten kuruyordu.
+       */
+      const kuyrukTavan = Math.max(
+        0,
+        SAYFA - GUN_BASLIGI_MALIYET - KAYIT_SABIT_MALIYET - ASGARI_PARCA,
+      )
+      const kuyrukMaliyet = Math.min(
+        kuyrukTavan,
+        (ek ? ekMaliyeti(ek, olcu) : 0) +
+          (kenar ? kenar.metin.length + KENAR_SABIT_MALIYET : 0),
+      )
 
       let kalan = kayit.metin
       let parcaNo = 0
@@ -142,7 +190,7 @@ export function sayfalariKur({
           KAYIT_SABIT_MALIYET +
           (bastaMi ? soruMaliyet : 0) +
           kalan.length +
-          kenarMaliyet
+          kuyrukMaliyet
         const bosluk = SAYFA - hacim
 
         const gunBasligiYaz = () => {
@@ -162,6 +210,14 @@ export function sayfalariKur({
             parcaNo,
             sonParca: true,
           })
+          if (ek)
+            ogeler.push({
+              tip: 'ek',
+              kayitId: kayit.id,
+              tur: ek.tur,
+              en: ek.en,
+              boy: ek.boy,
+            })
           if (kenar)
             ogeler.push({
               tip: 'kenar',
@@ -179,7 +235,7 @@ export function sayfalariKur({
           KAYIT_SABIT_MALIYET +
           (bastaMi ? soruMaliyet : 0) +
           kalan.length +
-          kenarMaliyet
+          kuyrukMaliyet
         if (ogeler.length && temizMaliyet <= SAYFA) {
           sayfayiKapat()
           basYok = true

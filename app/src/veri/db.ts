@@ -2,6 +2,7 @@ import baslangicSql from './sema/001_baslangic.sql?raw'
 import kitaplikSql from './sema/002_kitaplik.sql?raw'
 import sayfaSiniriSql from './sema/003_sayfa_siniri.sql?raw'
 import soruSql from './sema/004_soru.sql?raw'
+import ekSql from './sema/005_ek.sql?raw'
 
 /**
  * Sürücüden bağımsız asgari SQL arayüzü.
@@ -63,6 +64,7 @@ export const GOCLER: Goc[] = [
   { surum: 2, sql: kitaplikSql },
   { surum: 3, sql: sayfaSiniriSql },
   { surum: 4, sql: soruSql },
+  { surum: 5, sql: ekSql },
 ]
 
 export const SON_SURUM = GOCLER[GOCLER.length - 1]!.surum

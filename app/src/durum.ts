@@ -3,7 +3,7 @@ import type { SayfaOlcu } from './cekirdek/sayfa.js'
 import { BASLANGIC, gununSorusu, havuzdanSor, havuzuIlerlet, ilkHaftaBitti, kayitYazildi } from './cekirdek/yonlendirme.js'
 import type { YonlendirmeDurum } from './cekirdek/yonlendirme.js'
 import type { TemaTanim } from './cekirdek/sorgu.js'
-import type { Cilt, DefterBilgi, Gun, KenarNotu, Sayfa } from './cekirdek/tipler.js'
+import type { Cilt, DefterBilgi, EkBilgi, Gun, KenarNotu, Sayfa } from './cekirdek/tipler.js'
 import type { Depo } from './veri/depo.js'
 
 /**
@@ -19,6 +19,12 @@ export class Durum {
   ciltler: Cilt[] = []
   basliklar = new Map<string, string>()
   kenarlar = new Map<string, KenarNotu>()
+  /**
+   * Eklerin yalnızca ÜSTVERİSİ. Gövde (base64) burada durmuyor: ekran
+   * görünen sayfanınkini `depo.ekVeri` ile tek tek istiyor. Yoksa
+   * "on yıllık defter birkaç megabayt" varsayımı fotoğrafla çökerdi.
+   */
+  ekler = new Map<string, EkBilgi>()
   temalar: TemaTanim[] = []
   /** Açık defter — kitaplıktan seçilen. */
   aktifDefter: DefterBilgi | null = null
@@ -86,6 +92,7 @@ export class Durum {
   async yenile(): Promise<void> {
     this.gunler = await this.depo.gunler()
     this.kenarlar = await this.depo.kenarlar()
+    this.ekler = await this.depo.ekler()
     this.basliklar = await this.depo.basliklar()
     this.temalar = await this.depo.temalar()
     this.yonlendirme = {
@@ -98,6 +105,7 @@ export class Durum {
     const akis = sayfalariKur({
       gunler: this.gunler,
       kenarlar: this.kenarlar,
+      ekler: this.ekler,
       olcu: this.olcu,
     })
     this.sayfalar = akis.sayfalar

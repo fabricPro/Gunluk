@@ -32,6 +32,15 @@ async function ornekDoldur(d: Depo): Promise<void> {
   await d.defterAdiYaz(d.aktifDefterId, 'Son yıl')
   await d.kapsulEkle('2026-01-01', '2030-01-01', 'Sevgili ben,')
   await d.ayarYaz('yonlendirme.gun', '3')
+  /* Ek base64 METİN olduğu için döküme kendiliğinden giriyor (K-023). */
+  await d.ekYaz({
+    kayitId: k1.id,
+    tur: 'image/jpeg',
+    veri: '/9j/4AAQSkZJRg' + 'B'.repeat(120),
+    en: 1200,
+    boy: 900,
+    bayt: 100,
+  })
 }
 
 describe('döküm', () => {
@@ -41,9 +50,20 @@ describe('döküm', () => {
     expect(d.bicim).toBe('defter-dokum')
     expect(d.semaSurum).toBe(SON_SURUM)
     expect(Object.keys(d.tablolar).sort()).toEqual(
-      ['ayar', 'defter', 'kapsul', 'kayit', 'kayit_tema', 'kenar', 'sayfa_baslik', 'tema'].sort(),
+      ['ayar', 'defter', 'ek', 'kapsul', 'kayit', 'kayit_tema', 'kenar', 'sayfa_baslik', 'tema'].sort(),
     )
     expect(d.tablolar.kayit).toHaveLength(2)
+  })
+
+  it('ek base64 gövdesiyle birebir geri geliyor', async () => {
+    await ornekDoldur(depo)
+    const once = (await depo.ekleriTam()).values().next().value!
+    const d = await dokumAl(db)
+    await dokumuYukle(db, d)
+    const sonra = (await depo.ekleriTam()).values().next().value!
+    expect(sonra.veri).toBe(once.veri)
+    expect(sonra.en).toBe(1200)
+    expect(sonra.boy).toBe(900)
   })
 
   it('geri yükleme her şeyi geri getiriyor', async () => {

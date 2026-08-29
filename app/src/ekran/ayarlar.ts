@@ -198,6 +198,7 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
         gunler: await depo.gunler(),
         kenarlar: await depo.kenarlar(),
         basliklar: await depo.basliklar(),
+        ekler: await depo.ekleriTam(),
       })
     }
     depo.defteriSec(eskiDefter)

@@ -87,7 +87,7 @@ uyarı yazar. Telefonda gerçek kalıcılığı denemek için Capacitor kabuğuy
 ### Derleme ve testler
 
 ```sh
-npm test               # 183 test
+npm test               # 199 test
 npm run build          # dist/ üretir
 npm run onizle         # derlenmiş sürümü 4173 portunda sunar
 ```
@@ -112,6 +112,23 @@ bir kez teklif ediliyor.
 Biyometri açmak, anahtarın açılabilir bir kopyasını cihazda bırakır —
 kullandığımız güvenli depo eklentisi öge bazında biyometrik erişim denetimi
 sunmuyor. Yalnızca PIN isteyen kullanıcı biyometriyi kapalı bırakmalı.
+
+## Ek — bilet, ekran görüntüsü, fotoğraf
+
+Kayıt başına **bir** ek; şemada birincil anahtar bunu zorluyor. Sayfaya
+yapıştırılmış gibi duruyor ve sayfa bütçesinden pay alıyor: bir fotoğraf
+sayfayı doldurursa akış temiz bir sayfa açar (KARARLAR.md · K-023).
+
+- **Base64 metin olarak veritabanında.** BLOB değil, çünkü Capacitor
+  köprüsü ikili veri taşımıyor ve mühürlü yedek JSON. Karşılığında ekler
+  yedeğe ve geri yüklemeye ek kod yazılmadan giriyor, SQLCipher da onları
+  kendiliğinden şifreliyor.
+- **İçeri alırken küçültülüyor** (uzun kenar 1400px, hedef 400 KB).
+  Canvas'a yeniden çizmek **EXIF'i düşürüyor** — konum ve cihaz bilgisi
+  fotoğrafla birlikte deftere girmiyor.
+- **Sayfa maliyeti en-boy oranına bağlı**, sabit değil. Tavanı `olcum.ts`
+  belirliyor ve aynı pikseli hem hesaba hem CSS'e (`--ek-tavan`) veriyor.
+- **Bırakılmayan ek diske değmiyor** — yalnızca bellekte durur.
 
 ## Yedekleme
 
@@ -148,5 +165,5 @@ karşılığı var:
 
 **Faz 1 tamam.** Kalıcılık, boş defter / onboarding, kitaplık ve cilt kapanma
 töreni çalışıyor; yazı tipleri gömülü. (El yazısı kapsam dışı — K-007.)
-Faz 2.7 (PIN + biyometri) ve Faz 2.8 (mühürlü yedek) tamam. Sırada:
-fotoğraf eki (2.5), kenar notu arayüzü (2.6).
+Faz 2.5 (fotoğraf ve ek), 2.7 (PIN + biyometri) ve 2.8 (mühürlü yedek)
+tamam. Sırada: kenar notu arayüzü (2.6).

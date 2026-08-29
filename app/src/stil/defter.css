@@ -82,7 +82,37 @@ body.odak .defter-ust{opacity:.08}
 .kenar span{display:block;font-style:normal;font-family:var(--ui);font-size:9.5px;
   color:var(--soluk);margin-top:4px;letter-spacing:.04em}
 
+/* ── ek · deftere sıkıştırılmış bir şey (K-023) ───────────── */
+/* Sayfaya bantlanmış gibi: dar, hafif eğik, ince beyaz kenarlı. Boy
+   oranının tavanı ekMaliyeti() ile aynı — iki yerde iki sayı olmasın. */
+.ek{width:58%;margin:6px 0 14px 48px;padding:7px 7px 9px;background:#FBF6EA;
+  border:1px solid rgba(44,33,24,.13);border-radius:2px;
+  box-shadow:0 2px 7px rgba(44,33,24,.13);transform:rotate(-.55deg);
+  transition:transform .22s,box-shadow .22s}
+.ek:hover{transform:rotate(0deg);box-shadow:0 4px 13px rgba(44,33,24,.2);cursor:zoom-in}
+.ek i,.ek img{display:block;width:100%;object-fit:cover;background:rgba(44,33,24,.06);
+  border-radius:1px;max-height:var(--ek-tavan,300px)}
+
+/* tam ekran */
+#ekTam{position:fixed;inset:0;z-index:60;display:none;place-items:center;padding:24px;
+  background:rgba(20,15,10,.92);cursor:zoom-out}
+#ekTam.acik{display:grid}
+#ekTam img{max-width:100%;max-height:100%;object-fit:contain;border-radius:2px;
+  box-shadow:0 8px 34px rgba(0,0,0,.5)}
+
+/* yazma alanındaki önizleme — henüz diske değmemiş ek */
+.ek-onizleme{position:relative;width:44%;margin:0 0 10px;padding:6px 6px 7px;
+  background:#FBF6EA;border:1px solid rgba(44,33,24,.13);border-radius:2px;
+  box-shadow:0 2px 7px rgba(44,33,24,.13);transform:rotate(-.55deg)}
+.ek-onizleme img{display:block;width:100%;max-height:150px;object-fit:cover}
+.ek-onizleme button{position:absolute;right:-7px;top:-9px;font-family:var(--ui);font-size:10px;
+  color:var(--soluk);border:1px solid rgba(44,33,24,.2);border-radius:100px;padding:3px 9px;
+  background:var(--kagit)}
+.ek-onizleme button:hover{color:var(--kirmizi);border-color:rgba(168,64,44,.45)}
+
 #yazma{display:flex;gap:14px;padding:4px 0 26px}
+#yazma .yazma-govde{flex:1;min-width:0}
+#yazma .yazma-govde #kalem{width:100%}
 #yazma .bosluk{width:34px;flex:none}
 #kalem{flex:1;background:none;border:none;resize:none;outline:none;color:var(--murekkep);
   font-family:var(--yazi);font-size:18.5px;line-height:1.74;font-weight:300;

@@ -1,4 +1,4 @@
-import type { DefterBilgi, Gun, Kapsul, Kayit, KenarNotu } from '../cekirdek/tipler.js'
+import type { DefterBilgi, Ek, EkBilgi, Gun, Kapsul, Kayit, KenarNotu } from '../cekirdek/tipler.js'
 import type { TemaTanim } from '../cekirdek/sorgu.js'
 import { gunAdi, iso } from '../cekirdek/tr.js'
 import type { SqlSurucu } from './db.js'
@@ -331,6 +331,95 @@ export class Depo {
     }>('SELECT id, kayit_id, metin, tarih FROM kenar'))
       m.set(r.kayit_id, { id: r.id, kayitId: r.kayit_id, metin: r.metin, tarih: r.tarih })
     return m
+  }
+
+  /* ── ek · bilet, ekran görüntüsü, fotoğraf (K-023) ─────── */
+
+  /**
+   * Kayda bir ek iliştirir. Kayıt başına yalnızca bir tane: ikincisi
+   * birincinin yerine geçer (şemada birincil anahtar).
+   */
+  async ekYaz(ek: Ek): Promise<void> {
+    await this.db.calistir(
+      `INSERT INTO ek (kayit_id, tur, veri, en, boy, bayt, eklenme)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (kayit_id) DO UPDATE SET
+         tur = excluded.tur, veri = excluded.veri, en = excluded.en,
+         boy = excluded.boy, bayt = excluded.bayt, eklenme = excluded.eklenme`,
+      [ek.kayitId, ek.tur, ek.veri, ek.en, ek.boy, ek.bayt, simdi()],
+    )
+  }
+
+  async ekSil(kayitId: string): Promise<void> {
+    await this.db.calistir('DELETE FROM ek WHERE kayit_id = ?', [kayitId])
+  }
+
+  /**
+   * Bütün eklerin ÜSTVERİSİ — gövde okunmuyor.
+   *
+   * `veri` sütunu bilerek seçilmiyor: sayfa akışının ihtiyacı yalnızca
+   * en-boy oranı, ve on yıllık bir defterin bütün fotoğraflarını belleğe
+   * çekmek o modeli çökertirdi.
+   */
+  async ekler(): Promise<Map<string, EkBilgi>> {
+    const satirlar = await this.db.hepsi<{
+      kayit_id: string
+      tur: string
+      en: number
+      boy: number
+      bayt: number
+    }>(
+      `SELECT e.kayit_id, e.tur, e.en, e.boy, e.bayt
+       FROM ek e JOIN kayit k ON k.id = e.kayit_id
+       WHERE k.defter_id = ?`,
+      [this.defterId],
+    )
+    return new Map(
+      satirlar.map((r) => [
+        r.kayit_id,
+        { kayitId: r.kayit_id, tur: r.tur, en: r.en, boy: r.boy, bayt: r.bayt },
+      ]),
+    )
+  }
+
+  /**
+   * Ekler, gövdeleriyle birlikte. Yalnızca dışa aktarma için.
+   *
+   * `ekler()`'in aksine base64'ü de okur; o yüzden ekranda değil, yalnızca
+   * kullanıcının açık eylemiyle çalışan yollarda kullanılır.
+   */
+  async ekleriTam(): Promise<Map<string, Ek>> {
+    const satirlar = await this.db.hepsi<{
+      kayit_id: string
+      tur: string
+      veri: string
+      en: number
+      boy: number
+      bayt: number
+    }>(
+      `SELECT e.kayit_id, e.tur, e.veri, e.en, e.boy, e.bayt
+       FROM ek e JOIN kayit k ON k.id = e.kayit_id
+       WHERE k.defter_id = ?`,
+      [this.defterId],
+    )
+    return new Map(
+      satirlar.map((r) => [
+        r.kayit_id,
+        { kayitId: r.kayit_id, tur: r.tur, veri: r.veri, en: r.en, boy: r.boy, bayt: r.bayt },
+      ]),
+    )
+  }
+
+  /** Tek bir ekin gövdesi — yalnızca görünen sayfa için istenir. */
+  async ekVeri(kayitId: string): Promise<Ek | null> {
+    const r = await this.db.tek<{
+      tur: string
+      veri: string
+      en: number
+      boy: number
+      bayt: number
+    }>('SELECT tur, veri, en, boy, bayt FROM ek WHERE kayit_id = ?', [kayitId])
+    return r ? { kayitId, tur: r.tur, veri: r.veri, en: r.en, boy: r.boy, bayt: r.bayt } : null
   }
 
   /* ── sayfa başlığı (kayıt kimliğine bağlı · K-005) ─────── */

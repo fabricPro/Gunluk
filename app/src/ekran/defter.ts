@@ -1,5 +1,7 @@
 import { SAYFA_HACIM } from '../cekirdek/sayfa.js'
-import type { Sayfa } from '../cekirdek/tipler.js'
+import type { Ek, Sayfa } from '../cekirdek/tipler.js'
+import { ekKaynak, gorseliHazirla } from './gorsel.js'
+import { resimSec } from './dosya.js'
 import { romen, saatSayi, tamTarih } from '../cekirdek/tr.js'
 import type { Durum } from '../durum.js'
 import type { Depo } from '../veri/depo.js'
@@ -26,6 +28,31 @@ export function defteriBagla(
   }
   sayfaIsigiBagla(sayfaIsik)
 
+  /*
+   * Gerçek en-boy oranı; tavanı CSS'teki `--ek-tavan` koyuyor ve aynı
+   * pikseli maliyet hesabı da kullanıyor (`ekMaliyeti`). Uzun bir ekran
+   * görüntüsü kırpılarak gösteriliyor, sayfayı yutmuyor.
+   */
+  const ekOran = (en: number, boy: number): string =>
+    `aspect-ratio:${Math.max(1, en)}/${Math.max(1, boy)}`
+
+  /**
+   * Bırakılmayı bekleyen ek. Yalnızca bellekte: kullanıcı yazmadan
+   * çıkarsa seçtiği görsel diske hiç değmez (ilke 2.2 ile aynı refleks).
+   */
+  let bekleyenEk: Ek | null = null
+
+  /**
+   * Yazılmakta olan, henüz bırakılmamış metin.
+   *
+   * `ciz()` kağıdı baştan kuruyor, yani textarea'yı da yeniden yaratıyor.
+   * Ek iliştirmek de sayfayı yeniden çizdiği için yazılan cümle siliniyordu:
+   * kullanıcı yarım cümlesini kaybediyordu. Taslak burada tutuluyor ve her
+   * çizimden sonra geri konuyor. Diske değmiyor — bırakılana kadar yalnızca
+   * bellekte.
+   */
+  let taslak = ''
+
   const vurgu = (m: string): string => {
     const g = kacir(m)
     if (!durum.aramaTerim) return g
@@ -45,18 +72,35 @@ export function defteriBagla(
       return `<div class="dolu-cagri"><p>Bu defter doldu.</p>
         <button id="torenAc">defteri kapat ya da uzat</button></div>`
     const soru = durum.aktifSoru ? `<div id="yazma-soru">${kacir(durum.aktifSoru)}</div>` : ''
+    /* Bekleyen ek yalnızca bellekte — bırakılmadıkça diske değmiyor. */
+    const on = bekleyenEk
+      ? `<div class="ek-onizleme"><img src="${ekKaynak(bekleyenEk.tur, bekleyenEk.veri)}" alt="">
+          <button id="ekKaldir">kaldır</button></div>`
+      : ''
     return `${soru}<div id="yazma"><div class="bosluk"></div>` +
-      `<textarea id="kalem" placeholder="${soru ? 'buraya yaz…' : 'yaz…'}"></textarea></div>`
+      `<div class="yazma-govde">${on}` +
+      `<textarea id="kalem" placeholder="${soru ? 'buraya yaz…' : 'yaz…'}"></textarea></div></div>`
   }
 
-  /* Faz 1.2'nin ekranı değil — yalnızca sıfır kayıtta çıplak kalmasın. */
-  const bosSayfaHtml = (): string => `<div class="kagit"><div class="kagit-ic">
-      <div class="bos-sayfa">
+  /*
+   * Boş defterin ilk sayfası.
+   *
+   * "Defter boş" yazısı yalnızca kullanıcı daha hiçbir şey yapmadıysa
+   * duruyor: taslak ya da bekleyen bir ek varsa iş başlamıştır, o yazının
+   * söyleyeceği kalmamıştır — ve sayfanın yarısını kaplayıp yazılanı
+   * aşağı itiyordu.
+   */
+  const bosSayfaHtml = (): string => {
+    const basladi = !!taslak || !!bekleyenEk
+    const not = basladi
+      ? ''
+      : `<div class="bos-sayfa">
         <p>Defter boş. İlk sayfa aşağıda başlıyor.</p>
         <small>yaz, sonra bırak</small>
-      </div>
-      ${altHtml()}
+      </div>`
+    return `<div class="kagit"><div class="kagit-ic">${not}${altHtml()}
     </div><div class="kagit-alt">1</div></div>`
+  }
 
   const sayfaHtml = (i: number): string => {
     const s = durum.sayfalar[i]
@@ -81,6 +125,12 @@ export function defteriBagla(
         ic += `<div class="satir${bas ? '' : ' devam'}" data-id="${o.kayitId}">
           <time>${bas ? b.kayit.saat : ''}</time><p>${vurgu(o.metin)}${o.sonParca ? iz : ''}</p>
           ${duzeltilebilir ? '<button class="kalem-btn">düzelt</button>' : ''}</div>`
+      } else if (o.tip === 'ek') {
+        /*
+         * Çerçeve şimdi, görsel sonra. En-boy oranı üstveriden bilindiği
+         * için yer baştan ayrılıyor; base64 gelince sayfa zıplamıyor.
+         */
+        ic += `<div class="ek" data-ek="${o.kayitId}"><i style="${ekOran(o.en, o.boy)}"></i></div>`
       } else {
         ic += `<div class="kenar">${kacir(o.metin)}<span>kenar notu · ${kacir(o.tarih)}</span></div>`
       }
@@ -120,6 +170,8 @@ export function defteriBagla(
     const son = durum.aktifSayfa === durum.sonSayfa
     $('#birak').style.display = son && durum.yazilabilir ? '' : 'none'
     $('#dikte').style.display = son && durum.yazilabilir ? '' : 'none'
+    $('#ekIlistir').style.display = son && durum.yazilabilir ? '' : 'none'
+    $('#ekIlistir').textContent = bekleyenEk ? 'başka bir şey iliştir' : 'bir şey iliştir'
     $('#soruIste').style.display = son && durum.soruIstenebilir ? '' : 'none'
     $('#soruIste').textContent = durum.aktifSoru ? 'başka bir şey sor' : 'bana bir şey sor'
     $('#bugune').style.display = son ? 'none' : ''
@@ -136,8 +188,67 @@ export function defteriBagla(
     const ozetBtn = document.getElementById('ozetGor')
     if (ozetBtn) ozetBtn.onclick = () => toreniAc()
 
+    ekleriBagla()
     kesitCiz()
     sayfaIsik()
+  }
+
+  /* ── ek ────────────────────────────────────────────────── */
+
+  /**
+   * Görünen sayfadaki eklerin gövdesini getirir.
+   *
+   * Base64 bellekte tutulmuyor (bkz. `Durum.ekler`); sayfa çizildikten
+   * sonra yalnızca ekranda duran ek okunuyor. Çerçeve zaten doğru oranda
+   * durduğu için görsel gelince sayfa kaymıyor.
+   */
+  function ekleriBagla(): void {
+    for (const el of $$('#kagit-kap .ek[data-ek]')) {
+      const id = el.dataset.ek
+      if (!id) continue
+      void depo.ekVeri(id).then((ek) => {
+        if (!ek || !el.isConnected) return
+        el.innerHTML =
+          `<img src="${ekKaynak(ek.tur, ek.veri)}" alt="" loading="lazy" ` +
+          `style="${ekOran(ek.en, ek.boy)}">`
+        el.onclick = () => ekTamAc(ek)
+      })
+    }
+    const kaldir = document.getElementById('ekKaldir')
+    if (kaldir)
+      kaldir.onclick = () => {
+        bekleyenEk = null
+        ciz()
+      }
+  }
+
+  /** Sayfadaki küçük görsel, dokununca tam ekran. */
+  function ekTamAc(ek: Ek): void {
+    const kat = $('#ekTam')
+    kat.innerHTML = `<img src="${ekKaynak(ek.tur, ek.veri)}" alt="">`
+    kat.classList.add('acik')
+    const kapa = () => {
+      kat.classList.remove('acik')
+      kat.innerHTML = ''
+      removeEventListener('keydown', esc)
+    }
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') kapa()
+    }
+    kat.onclick = kapa
+    addEventListener('keydown', esc)
+  }
+
+  /** Görsel seçtirir, küçültür, hazırsa geri döner. */
+  async function ekSec(): Promise<Ek | null> {
+    const dosya = await resimSec()
+    if (!dosya) return null
+    try {
+      return await gorseliHazirla(dosya)
+    } catch (e) {
+      console.error('[defter] görsel alınamadı', e)
+      return null
+    }
   }
 
   const sayfayaGit = (i: number, anim = true): void => {
@@ -210,10 +321,24 @@ export function defteriBagla(
   function kalemBagla(): void {
     const kalem = $<HTMLTextAreaElement>('#kalem')
     if (!kalem) return
-    kalem.addEventListener('input', () => {
-      odakVer()
+    const boyla = () => {
       kalem.style.height = 'auto'
       kalem.style.height = kalem.scrollHeight + 'px'
+    }
+    /*
+     * Yeniden çizim öncesindeki taslağı geri koy — ve göster. Ek
+     * iliştirdikten sonra sayfa başa sarıyordu: kullanıcı yazdığı cümleyi
+     * göremiyordu.
+     */
+    if (taslak && !kalem.value) {
+      kalem.value = taslak
+      boyla()
+      kalem.scrollIntoView({ block: 'nearest' })
+    }
+    kalem.addEventListener('input', () => {
+      odakVer()
+      taslak = kalem.value
+      boyla()
       kalem.scrollIntoView({ block: 'nearest' })
     })
     /*
@@ -243,13 +368,20 @@ export function defteriBagla(
     const m = kalem.value.trim()
     if (!m) return
     const gun = bugun()
-    await depo.kayitEkle({
-      tarih: gun,
-      saat: suanSaat(),
-      metin: m,
-      temalar: durum.temalariCikar(m),
-      soru: durum.aktifSoru,
+    const ek = bekleyenEk
+    /* Kayıt ve eki tek işlemde: yarısı yazılmış bir sayfa kalmasın. */
+    await depo.islem(async () => {
+      const kayit = await depo.kayitEkle({
+        tarih: gun,
+        saat: suanSaat(),
+        metin: m,
+        temalar: durum.temalariCikar(m),
+        soru: durum.aktifSoru,
+      })
+      if (ek) await depo.ekYaz({ ...ek, kayitId: kayit.id })
     })
+    bekleyenEk = null
+    taslak = ''
     kalem.value = ''
     await durum.yonlendirmeyiIlerlet(gun)
     await durum.yenile()
@@ -269,11 +401,14 @@ export function defteriBagla(
     const b = durum.kayitBul(kayitId)
     const el = document.querySelector<HTMLElement>(`.satir[data-id="${kayitId}"]`)
     if (!b || !el) return
+    /* Bileti sonradan bulan kullanıcı da koyabilsin. */
+    const ekliMi = durum.ekler.has(kayitId)
     el.innerHTML = `<time>${b.kayit.saat}</time><div class="duzelt-alan">
       <textarea></textarea>
       <div class="duzelt-arac">
         <button class="kaydet">kaydet</button>
         <button class="vaz">vazgeç</button>
+        <button class="ek-btn">${ekliMi ? 'eki kaldır' : 'bir şey iliştir'}</button>
         <span>düzeltme iz bırakır</span>
       </div></div>`
     const ta = el.querySelector('textarea')!
@@ -292,6 +427,16 @@ export function defteriBagla(
       ciz()
     }
     el.querySelector<HTMLButtonElement>('.vaz')!.onclick = () => ciz()
+    el.querySelector<HTMLButtonElement>('.ek-btn')!.onclick = async () => {
+      if (ekliMi) await depo.ekSil(kayitId)
+      else {
+        const ek = await ekSec()
+        if (!ek) return
+        await depo.ekYaz({ ...ek, kayitId })
+      }
+      await durum.yenile()
+      ciz()
+    }
   }
 
   /* ── bağlantılar ───────────────────────────────────────── */
@@ -300,6 +445,13 @@ export function defteriBagla(
   $('#bugune').onclick = () => sayfayaGit(durum.sonSayfa)
   $('#soruIste').onclick = async () => {
     await durum.baskaSoruIste()
+    ciz()
+    $<HTMLTextAreaElement>('#kalem')?.focus()
+  }
+  $('#ekIlistir').onclick = async () => {
+    const ek = await ekSec()
+    if (!ek) return
+    bekleyenEk = ek
     ciz()
     $<HTMLTextAreaElement>('#kalem')?.focus()
   }

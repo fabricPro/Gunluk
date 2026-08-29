@@ -9,6 +9,94 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · K-023 · Ek sayfaya sıkıştırılır, galeriye değil
+
+Faz 2.5 tamamlandı. PROJE.md "fotoğraf ve ek ekleme (bilet, ekran
+görüntüsü)" diyor ve parantez içi belirleyici oldu: bu bir medya galerisi
+değil, sayfaya sıkıştırılmış bir şey. Karar bu çerçeveden çıktı.
+
+**Kayıt başına bir ek, ve şema bunu zorluyor.** `ek` tablosunun birincil
+anahtarı `kayit_id`. İkinci bir fotoğraf birincinin yerine geçiyor. Sebep
+"kullanıcı bunu ikinci kez neden açsın" kuralının bir uzantısı: sayfaya üç
+fotoğraf koyulabildiği anda sayfa albüme dönüyor ve yazı ikincil oluyor.
+Üç fotoğrafı olan üç kayıt yazar; her biri kendi anına bağlı kalır.
+
+**Veri base64 METİN, BLOB değil.** Üç ayrı gerekçe aynı yere çıkıyor:
+
+1. Cihaz sürücüsü ikili veri taşımıyor. `@capacitor-community/sqlite`
+   parametreleri Capacitor köprüsünden JSON olarak geçiyor; bir
+   `Uint8Array` oradan sağ çıkmaz. Tarayıcıda çalışıp cihazda sessizce
+   bozulan bir yol olurdu — en kötü hata türü.
+2. Mühürlü yedek de JSON (K-022). Metin sütunu olduğu gibi geçiyor, yani
+   fotoğraflar yedeğe ve geri yüklemeye **tek satır ek kod yazmadan**
+   giriyor. `dokum.ts` ve `yedek.ts` bu turda hiç değişmedi.
+3. Cihazda dosyanın tamamı SQLCipher altında (K-002). Fotoğrafı diske ayrı
+   dosya olarak yazsaydık onu kendimiz AES-GCM'le şifreleyip ikinci bir
+   anahtar yolu açmamız gerekirdi. Kilit modeline (K-021) ikinci bir kapı
+   eklemek, kazandığından çok risk getirir.
+
+Bedeli base64'ün %33 şişmesi. Karşılığı içeri alırken ödeniyor: görsel
+canvas'ta yeniden çiziliyor, uzun kenar 1400px'e iniyor, JPEG ~0.82'den
+başlayıp 400 KB'ın altına inene kadar kalite kademeli düşüyor.
+
+**Yeniden kodlama EXIF'i düşürüyor.** Bu bir yan etki değil, istenen şey:
+kullanıcının bir fotoğrafı deftere koyması GPS izini, cihaz modelini ve
+çekim zamanını da koyması anlamına gelmemeli. Ham dosyayı saklasaydık
+konum verisi sessizce deftere girerdi.
+
+**Ekin sayfa maliyeti orana bağlı.** Tek bir "ek sabiti" SAYFA_HACIM=620
+hatasının aynısı olurdu: aynı genişlikte dikey bir fotoğraf yatay olanın
+iki katı yer kaplar. Ölçüm katmanı kare bir ekin maliyetini ölçüyor,
+çekirdek onu en-boy oranıyla çarpıyor. Çekirdek piksel görmemeye devam
+ediyor (K-014).
+
+Tavan tek ve CSS'le **aynı sayı**: `olcum.ts` hem `SayfaOlcu.ekTavan`'ı hem
+`--ek-tavan` özelliğini aynı pikselden üretiyor. Önce ikisi ayrıydı ve
+sonuç öğreticiydi — maliyet kırpılıyor ama görsel kırpılmıyordu, sayfa da
+geniş ekranda sessizce 110px taşıyordu. İki yerde iki sayı tutmanın bedeli
+her seferinde bu.
+
+**Base64 belleğe girmiyor.** `Durum` bugüne kadar "on yıllık defter birkaç
+megabayt" varsayımıyla her şeyi bellekte tutuyordu; fotoğrafla bu varsayım
+çöker. `durum.ekler` yalnızca üstveri (tür, en, boy, bayt) taşıyor; gövdeyi
+ekran, yalnızca görünen sayfa için tek tek istiyor. Çerçeve doğru oranda
+baştan çizildiği için görsel gelince sayfa zıplamıyor.
+
+**Markdown dışa aktarmaya `data:` URI olarak gömülüyor.** Dosyayı şişiriyor
+ama K-003'ün sözü bunu gerektiriyor: günlüğün okunabilirliği uygulamanın
+ömrüne bağlanamaz. Ayrı klasöre yazılan görseller .md'den bir taşınmada
+ayrı düşer; gömülü olan on yıl sonra da açılır.
+
+**`@capacitor/camera` eklenmedi.** `<input type="file" accept="image/*">`
+Capacitor WebView'inde iOS'ta da Android'de de kamerayı sunuyor. Yeni bir
+native bağımlılık ve yeni bir izin, bu ortamda test edilemeden eklenmiyor.
+
+**İlke 2.2 ile ilişki.** Bırakılmayan ek yalnızca bellekte: yazmadan çıkan
+kullanıcının seçtiği görsel diske hiç değmiyor. `ekran/yak.ts` hiçbir yeni
+import almadı, `test/yakma.test.ts`'in import taraması bunu koruyor.
+
+### Yol boyunca çıkan üç hata
+
+Üçü de ek yüzünden görünür oldu ama ikisi ekten eskiydi:
+
+1. **Akış sonsuz döngüye girebiliyordu.** Kaydın son parçasıyla gelenlerin
+   (kenar notu, ek) maliyeti bölünen metinden düşülmüyor — doğru, çünkü
+   metin biterken ödeniyorlar. Ama tavansızdılar: kuyruk tek başına temiz
+   bir sayfaya sığmıyorsa "sığıyor" koşulu hiçbir zaman tutmuyor, "temiz
+   sayfaya taşı" koşulu da atlanıyor, akış boş parçalar üretip sonsuza
+   kadar dönüyordu. Yeterince uzun bir kenar notu bunu kuruyordu; kenar
+   notu arayüzü henüz olmadığı için tetiklenmemişti. Faz 2.6'da
+   tetiklenecekti. Artık kuyruğun tavanı var ve bir test döngüyü
+   sabitliyor — tavan kaldırıldığında test gerçekten kilitleniyor.
+2. **Ek iliştirmek yazılan cümleyi siliyordu.** `ciz()` kağıdı baştan
+   kuruyor, yani textarea'yı da yeniden yaratıyor. Taslak artık bellekte
+   tutulup her çizimden sonra geri konuyor.
+3. **"Defter boş" yazısı yazılanı aşağı itiyordu.** Boş sayfanın yarısını
+   kaplayan not, taslak ya da bekleyen ek varken kaldırılıyor: iş
+   başladıysa o yazının söyleyeceği kalmamıştır.
+
+---
+
 ## 2026-08-29 · K-022 · Mühürlü yedek kurtarma kodundan açılır
 
 Faz 2.8 tamamlandı. K-003'te yedeğin iki yüzü olacağına karar vermiştik:
