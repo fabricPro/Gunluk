@@ -9,6 +9,28 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · K-012 · Geliştirme bayrakları ve dev sunucusu
+
+`npm run dev` çalışmıyordu — yalnızca `npm run build` çalışıyordu. Vite'ın
+bağımlılık ön paketlemesi `sqlite-wasm`'ı `node_modules/.vite/deps/` altına
+taşıyor ama yanındaki `sqlite3.wasm` dosyasını taşımıyor; wasm 404 dönüp
+uygulama açılmıyordu. `optimizeDeps.exclude` ile paket kendi klasöründen
+servis ediliyor. Üretim derlemesi etkilenmiyordu çünkü orada Vite wasm'ı
+varlık olarak yayıp adresi yeniden yazıyor.
+
+İki geliştirme bayrağı: `?tohum=1` (demo verisi, yalnızca defter boşken) ve
+`?sifirla=1` (defteri boşalt, şemayı yeniden kur).
+
+`?sifirla=1` çalıştıktan sonra kendini adresten siliyor. Sebep: adres
+çubuğunda kalınca her yenileme defteri tekrar boşaltıyordu — geliştirirken
+farkına varmadan veri kaybettiren bir tuzak.
+
+**Sıfırlamanın uygulamada düğmesi yok ve olmayacak.** Kullanıcının on yıllık
+defterini tek dokunuşla silen bir şey bu üründe bulunamaz. Silme, ileride
+gelecekse, tek tek ve geri dönüşü belli olacak biçimde gelir.
+
+---
+
 ## 2026-08-29 · K-011 · Yazı tipleri pakete gömüldü
 
 `index.html` üç etiketle Google Fonts'a bağlıydı. Kaldırıldı; woff2

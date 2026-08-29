@@ -9,12 +9,29 @@ import { defteriAc } from './veri/db.js'
 import { Depo } from './veri/depo.js'
 import { surucuSec } from './veri/surucu.js'
 
+/** Tek seferlik geliştirme bayrağını adresten temizler. */
+function bayrakDusur(ad: string): void {
+  const u = new URL(location.href)
+  u.searchParams.delete(ad)
+  history.replaceState(null, '', u.pathname + u.search + u.hash)
+}
+
 async function baslat(): Promise<void> {
   const { surucu, sifreli } = await surucuSec()
   const depo = new Depo(await defteriAc(surucu))
+  const bayrak = new URLSearchParams(location.search)
+
+  /* Geliştirme aracı: defteri boşalt. Uygulamada düğmesi yok. */
+  if (bayrak.has('sifirla')) {
+    const { defteriSifirla } = await import('./veri/sifirla.js')
+    await defteriSifirla(surucu)
+    /* Bayrağı adresten düşür: yoksa her yenileme defteri tekrar siler. */
+    bayrakDusur('sifirla')
+    console.info('[defter] sıfırlandı — defter boş.')
+  }
 
   /* Demo verisi yalnızca geliştirici bayrağıyla. Gerçek açılış sıfır kayıt. */
-  if (new URLSearchParams(location.search).has('tohum')) {
+  if (bayrak.has('tohum')) {
     const { tohumEk } = await import('./veri/tohum.js')
     await tohumEk(depo)
   }

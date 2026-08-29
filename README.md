@@ -24,21 +24,58 @@ Bağımlılık tek yönlü: `ekran → veri → cekirdek`.
 
 ## Çalıştırma
 
+Gereken: Node 20 veya üstü (burada 22 ile geliştirildi) ve npm. Başka hiçbir
+şey yok — veritabanı, yazı tipleri, her şey pakette.
+
 ```sh
-cd app
+git clone https://github.com/fabricPro/Gunluk.git
+cd Gunluk/app
 npm install
-npm run dev            # boş defterle açılır — gerçek kullanıcının gördüğü
-npm run dev -- --open  # tarayıcıda aç
-npm test               # 76 test
-npm run build
+npm run dev
 ```
 
-Geliştirirken demo verisiyle çalışmak için adrese `?tohum=1` ekle
-(352 kayıt, 56 sayfa, 2 cilt). Tohum yalnızca defter boşken çalışır.
+Tarayıcıda `http://localhost:5173` açılır. Kaydettiğin her dosya anında
+yansır (sıcak yenileme); CSS değişiklikleri sayfa yenilenmeden uygulanır.
 
-Uygulama çalışırken dış ağa hiç çıkmıyor. Yazı tipleri pakette
-(`src/yazitipi/`, 240 KB, OFL-1.1); CDN yok, çevrimdışı açılışta tipografi
-yerinde. Bir test bunu koruyor — CDN'e dönüş sessizce olamaz.
+### Geliştirme bayrakları
+
+| Adres | Ne yapar |
+|---|---|
+| `localhost:5173` | Boş defter — gerçek kullanıcının gördüğü |
+| `localhost:5173/?tohum=1` | 352 kayıtlık demo verisi yükler (yalnızca defter boşken) |
+| `localhost:5173/?sifirla=1` | Defteri tamamen boşaltır, şemayı yeniden kurar |
+
+`?sifirla=1` çalıştıktan sonra adresten kendini siler — yoksa her yenileme
+defteri tekrar boşaltırdı.
+
+### Veri nerede duruyor
+
+Tarayıcının OPFS deposunda, adrese (origin) bağlı. Yani `localhost:5173` ile
+`localhost:4173` ayrı defterler tutar. Sekmeyi kapatmak veriyi silmez;
+silmek için `?sifirla=1` ya da tarayıcının site verisini temizle.
+
+### Telefonda denemek
+
+```sh
+npm run dev -- --host
+```
+
+Terminalde çıkan `Network:` adresini telefonda aç.
+
+**Dikkat:** OPFS yalnızca güvenli bağlamda (secure context) çalışır.
+`localhost` güvenli sayılır ama `http://192.168.x.x` sayılmaz — telefonda
+uygulama açılır, tipografi ve tüm ekranlar çalışır, **ama veri kalıcı
+olmaz** (bellekte tutulur, yenilemede gider). Konsolda bunu söyleyen bir
+uyarı yazar. Telefonda gerçek kalıcılığı denemek için Capacitor kabuğuyla
+çalıştırmak gerekiyor.
+
+### Derleme ve testler
+
+```sh
+npm test               # 78 test
+npm run build          # dist/ üretir
+npm run onizle         # derlenmiş sürümü 4173 portunda sunar
+```
 
 ## Şifreleme — hangi derlemede ne oluyor
 

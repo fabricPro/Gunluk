@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { Depo } from '../src/veri/depo.js'
 import { SON_SURUM, defteriAc, gocleriUygula } from '../src/veri/db.js'
 import type { SqlSurucu } from '../src/veri/db.js'
+import { defteriSifirla } from '../src/veri/sifirla.js'
 import { testSurucusu } from './surucu.js'
 
 let db: SqlSurucu
@@ -197,5 +198,37 @@ describe('iç içe işlem', () => {
       }),
     ).rejects.toThrow('bilerek')
     expect(await depo.kayitSayisi()).toBe(0)
+  })
+})
+
+describe('sıfırlama — geliştirme aracı', () => {
+  it('defteri boşaltır ve şemayı yeniden kurar', async () => {
+    const k = await depo.kayitEkle({ tarih: '2026-08-29', saat: '10:00', metin: 'silinecek' })
+    await depo.baslikYaz(k.id, 'başlık')
+    await depo.kenarEkle(k.id, 'kenar', '29 ağustos 2026')
+    await depo.ciltAdiYaz(1, 'Cilt adı')
+    await depo.ayarYaz('bir', 'iki')
+    await depo.kapsulEkle('2026-08-29', '2026-12-01', 'mektup')
+
+    await defteriSifirla(db)
+
+    expect(await depo.kayitSayisi()).toBe(0)
+    expect((await depo.basliklar()).size).toBe(0)
+    expect((await depo.kenarlar()).size).toBe(0)
+    expect((await depo.ciltAdlari()).size).toBe(0)
+    expect(await depo.ayarOku('bir')).toBeNull()
+    expect(await depo.kapsuller()).toEqual([])
+  })
+
+  it('sıfırlamadan sonra şema çalışır durumda — arama dahil', async () => {
+    await depo.kayitEkle({ tarih: '2026-01-01', saat: '09:00', metin: 'eski' })
+    await defteriSifirla(db)
+    await depo.kayitEkle({ tarih: '2026-08-29', saat: '09:00', metin: 'sıfırlamadan sonra yazıldı' })
+    expect(await depo.kayitSayisi()).toBe(1)
+    expect(await depo.ara('sıfırlamadan')).toHaveLength(1)
+    expect(await depo.ara('eski')).toHaveLength(0)
+    expect((await db.tek<{ user_version: number }>('PRAGMA user_version'))?.user_version).toBe(
+      SON_SURUM,
+    )
   })
 })
