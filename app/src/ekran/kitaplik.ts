@@ -1,9 +1,10 @@
 import type { DefterBilgi } from '../cekirdek/tipler.js'
-import { romen } from '../cekirdek/tr.js'
+import { romen, tamTarih } from '../cekirdek/tr.js'
 import type { Durum } from '../durum.js'
 import type { Depo } from '../veri/depo.js'
 import { KAPAKLAR, VARSAYILAN_KAPAK } from './kapaklar.js'
 import { $, $$, kacir } from './ortak.js'
+import { markdownIndir } from './disaAktarma.js'
 
 /** Bir rafa sığan defter sayısı — üstü sonraki rafa taşar. */
 const RAF_KAPASITE = 8
@@ -70,6 +71,9 @@ export function kitapligiBagla(
     }
     if (!defterler.length)
       h += `<div class="kit-bos">Kitaplığın boş. Bir defter aç, adını ver, kapağını seç.</div>`
+    else
+      /* Basılı tutmak keşfedilmez; bir satır söylemek yeter. */
+      h += `<div class="kit-ipucu">sırtı sürükleyerek diz · basılı tutunca defterin kartı açılır</div>`
     $('#raflar').innerHTML = h
 
     for (const el of $$('#raflar .sirt'))
@@ -88,6 +92,71 @@ export function kitapligiBagla(
     defterAcildi()
   }
 
+  /* ── defter kartı ve silme (K-025) ───────────────────────── */
+
+  /**
+   * Silme onayı defterin içindekiyle ölçülüyor.
+   *
+   * Deneme için açılıp bırakılmış boş bir defterle on yıllık bir defter
+   * aynı soruyu hak etmiyor. Boş defter tek onayla gidiyor — yoksa raf
+   * denemelerle dolar ve kullanıcı temizleyemez. Dolu defter ancak ADI
+   * YAZILARAK gidiyor: "evet" demek refleks, bir ad yazmak karar.
+   */
+  const kartiAc = async (id: string): Promise<void> => {
+    const d = defterler.find((x) => x.id === id)
+    if (!d) return
+    const oz = await depo.defterOzeti(id)
+    const bos = oz.kayit === 0
+
+    $('#dkAd').textContent = d.ad + (d.cilt > 1 ? ` · Cilt ${romen(d.cilt)}` : '')
+    $('#dkOzet').innerHTML = bos
+      ? 'Bu defter boş — içinde hiç kayıt yok.'
+      : `İçinde <b>${oz.kayit} kayıt</b>, <b>${oz.gun} gün</b>` +
+        (oz.kenar ? `, <b>${oz.kenar} kenar notu</b>` : '') +
+        (oz.ek ? `, <b>${oz.ek} ek</b>` : '') +
+        (oz.ilk && oz.son
+          ? oz.ilk === oz.son
+            ? `.<br>${tamTarih(oz.ilk)} günü.`
+            : `.<br>${tamTarih(oz.ilk)} ile ${tamTarih(oz.son)} arası.`
+          : '.')
+    $('#dkUyari').textContent = bos
+      ? ''
+      : 'Bu geri alınamaz. Silmeden önce yedek almak istersen aşağıdan çıkarabilirsin.'
+
+    const onay = $<HTMLInputElement>('#dkOnay')
+    const sil = $<HTMLButtonElement>('#dkSil')
+    onay.hidden = bos
+    onay.value = ''
+    onay.placeholder = d.ad
+    $('#dkAktar').hidden = bos
+    sil.textContent = bos ? 'bu defteri sil' : 'sil'
+    sil.disabled = !bos
+
+    if (!bos) {
+      /* Tam ad yazılana kadar düğme kapalı. */
+      onay.oninput = () => {
+        sil.disabled = onay.value.trim().toLocaleLowerCase('tr') !== d.ad.toLocaleLowerCase('tr')
+      }
+    }
+
+    $<HTMLButtonElement>('#dkAktar').onclick = () => void markdownIndir(depo, id)
+    sil.onclick = async () => {
+      if (sil.disabled) return
+      await depo.defterSil(id)
+      $('#defterKarti').classList.remove('acik')
+      defterler = await depo.defterler()
+      const sonraki = defterler[0]
+      if (sonraki) await durum.defteriAc(sonraki.id)
+      else await durum.yenile()
+      ciz()
+      defterAcildi()
+    }
+    $('#defterKarti').classList.add('acik')
+    if (!bos) setTimeout(() => onay.focus(), 60)
+  }
+
+  const kartiKapat = () => $('#defterKarti').classList.remove('acik')
+
   /* ── sürükleyerek dizme ──────────────────────────────────── */
 
   /*
@@ -104,11 +173,31 @@ export function kitapligiBagla(
     for (const el of $$('#raflar .sirt')) el.onpointerdown = (e) => basla(el, e)
   }
 
+  /** Basılı tutma süresi — bunu aşan ve kıpırdamayan basış kartı açar. */
+  const BASILI_TUT = 520
+
   function basla(el: HTMLElement, e: PointerEvent): void {
     if (e.pointerType === 'mouse' && e.button !== 0) return
     const x0 = e.clientX
     const y0 = e.clientY
     let basladi = false
+
+    /*
+     * Basılı tutunca defter kartı. Sırtlar dar; her birine ayrı bir silme
+     * düğmesi koymak rafı arayüze çevirirdi. Basılı tutmak telefonun kendi
+     * dili ve sürükleme eşiğiyle çakışmıyor: kıpırdarsan sürükleme, durursan
+     * kart (K-025).
+     */
+    let bekleyen: ReturnType<typeof setTimeout> | undefined = setTimeout(() => {
+      bekleyen = undefined
+      if (basladi) return
+      surukleniyor = true
+      void kartiAc(el.dataset.id!)
+    }, BASILI_TUT)
+    const zamaniDur = () => {
+      if (bekleyen !== undefined) clearTimeout(bekleyen)
+      bekleyen = undefined
+    }
 
     /*
      * Dinleyiciler window'da, pointer yakalama yok.
@@ -121,6 +210,7 @@ export function kitapligiBagla(
     const hareket = (m: PointerEvent) => {
       if (!basladi) {
         if (Math.abs(m.clientX - x0) < ESIK && Math.abs(m.clientY - y0) < ESIK) return
+        zamaniDur()
         basladi = true
         surukleniyor = true
         el.classList.add('suruklenen')
@@ -130,10 +220,16 @@ export function kitapligiBagla(
     }
 
     const bitir = () => {
+      zamaniDur()
       window.removeEventListener('pointermove', hareket)
       window.removeEventListener('pointerup', bitir)
       window.removeEventListener('pointercancel', bitir)
-      if (!basladi) return
+      if (!basladi) {
+        /* Uzun basış kartı açtıysa bayrak burada düşer; yoksa takılı kalır
+           ve sonraki tıklamalar defteri açmaz. */
+        setTimeout(() => (surukleniyor = false), 0)
+        return
+      }
       el.classList.remove('suruklenen')
       for (const t of $$('#raflar .raf-tahta')) t.classList.remove('hedef')
       void diziliYaz()
@@ -249,6 +345,10 @@ export function kitapligiBagla(
   $('#yeniDefter').onclick = (e) => {
     if ((e.target as HTMLElement).id === 'yeniDefter')
       $('#yeniDefter').classList.remove('acik')
+  }
+  $('#dkVaz').onclick = kartiKapat
+  $('#defterKarti').onclick = (e) => {
+    if ((e.target as HTMLElement).id === 'defterKarti') kartiKapat()
   }
   $('#kitKapat').onclick = kapat
 

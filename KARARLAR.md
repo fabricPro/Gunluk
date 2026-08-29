@@ -9,6 +9,57 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · K-025 · Defter silinebilir, ama sürtünme içindekiyle ölçülür
+
+Kitaplıkta defter açılabiliyordu ama silinemiyordu. Deneme için açılan
+defterler rafta birikiyor ve kullanıcı onları temizleyemiyordu.
+
+Buradaki gerilim gerçek. `veri/sifirla.ts` şunu yazıyor: *"kullanıcının on
+yıllık defterini tek dokunuşla silen bir şey bu üründe bulunamaz."* Bu doğru
+ve duruyor. Ama silememek de bir cevap değil: kullanıcının kendi rafını
+temizleyememesi, verisinin sahibi olmadığı anlamına gelir.
+
+**Çözüm: sürtünme sabit değil, defterin içindekiyle ölçülüyor.**
+
+- **Boş defter** (sıfır kayıt) tek onayla gidiyor. Deneme için açılıp
+  bırakılmış bir defterden ad yazmasını istemek saygısızlık olurdu; kaybedilen
+  hiçbir şey yok.
+- **Dolu defter** ancak **adı yazılarak** gidiyor. "Evet" demek reflekstir,
+  bir ad yazmak karardır. Onay kutusu da yetmezdi — tıklanır geçilir.
+
+**Ne kaybedileceği gösteriliyor, "emin misin" diye sorulmuyor.** Kart kayıt
+sayısını, gün sayısını, kenar notu ve ek sayısını, ilk ve son tarihi
+söylüyor. "352 kayıt, 213 gün, 3 haziran 2025 ile 27 ağustos 2026 arası"
+cümlesi hiçbir uyarı metninin yapamayacağı şeyi yapıyor: kullanıcıya neye
+karar verdiğini gösteriyor. Bu, cilt özetiyle aynı refleks (K-018) — sayı
+yorumlamıyor, yalnızca duruyor.
+
+**Silmeden önce çıkış yolu var.** Kartta "önce Markdown olarak çıkar"
+düğmesi duruyor ve yalnızca o defteri çıkarıyor (K-003). Kullanıcıyı
+"silmek" ile "saklamak" arasında seçim yapmaya zorlamıyoruz; ikisini de
+yapabilir.
+
+**Kart basılı tutunca açılıyor.** Sırtlar dar; her birine ayrı bir silme
+düğmesi koymak rafı arayüze çevirirdi ve yanlışlıkla dokunma riskini
+artırırdı. Basılı tutmak telefonun kendi dili ve mevcut sürükleme eşiğiyle
+çakışmıyor: kıpırdarsan sürükleme, durursan kart. Keşfedilmesi zor olduğu
+için raf altında tek satırlık bir ipucu duruyor.
+
+**Silme geri alınamaz ve bu söyleniyor.** Çöp kutusu yok. Bir çöp kutusu
+"yakılan sayfa gerçekten yanar" ilkesiyle aynı evde durmakta zorlanırdı:
+uygulamanın sildiğini gerçekten silmesi gerekiyor. Silinen defterin kayıtları
+FTS indeksinden de düşüyor — bir test bunu sabitliyor.
+
+**Son defter silinirse kitaplık açık kalıyor.** Açılışta da defter yoksa
+kitaplık açılıyor: yazma alanı yetim bir defter kimliğine yazmaya çalışırdı.
+
+Teknik olarak tek `DELETE FROM defter` yetiyor: `kayit.defter_id` ON DELETE
+CASCADE, kayıt da başlık, kenar notu, ek ve tema bağlarını götürüyor. Şart,
+yabancı anahtarların açık olması (`pragmalariKur`) — kapalıyken yetim
+satırlar kalırdı.
+
+---
+
 ## 2026-08-29 · K-024 · Kenar notu: geçmiş benle konuşma
 
 Faz 2.6 tamamlandı. Veri katmanı ve sayfa akışı kenar notunu 1.

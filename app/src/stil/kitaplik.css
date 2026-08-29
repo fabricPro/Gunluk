@@ -101,5 +101,33 @@
 .yd-dugmeler .birincil{background:var(--murekkep);color:var(--kagit);border-color:var(--murekkep)}
 .yd-dugmeler button[disabled]{opacity:.4}
 
+.kit-ipucu{font-family:var(--ui);font-size:10.5px;color:var(--soluk);opacity:.7;
+  text-align:center;padding:2px 0 14px;letter-spacing:.03em}
 .kit-bos{font-family:var(--yazi);font-size:17px;font-style:italic;color:var(--soluk);
   padding:26px 6px;line-height:1.7}
+
+/* ── defter kartı · silme buradan geçer (K-025) ───────────── */
+#defterKarti{position:fixed;inset:0;z-index:70;display:none;align-items:center;
+  justify-content:center;padding:20px;background:rgba(12,9,6,.62)}
+#defterKarti.acik{display:flex}
+.dk-kart{width:100%;max-width:430px;background:linear-gradient(160deg,var(--kagit),var(--kagit3));
+  border-radius:4px;padding:22px 22px 18px;box-shadow:0 18px 50px rgba(0,0,0,.5);
+  color:var(--murekkep)}
+.dk-kart h3{margin:0 0 6px;font-size:23px;font-weight:400;font-style:italic}
+.dk-kart .dk-alt{font-family:var(--ui);font-size:11.5px;line-height:1.7;color:var(--soluk);
+  margin-bottom:14px}
+/* Kaybedilecek şeyin ağırlığı görünsün: sayılar soluk değil, mürekkep. */
+.dk-kart .dk-alt b{color:var(--murekkep2);font-weight:400}
+.dk-uyari{font-family:var(--ui);font-size:11.5px;line-height:1.7;color:var(--kirmizi);
+  margin-bottom:12px}
+.dk-kart input{width:100%;background:rgba(44,33,24,.06);border:1px solid rgba(168,64,44,.35);
+  border-radius:3px;outline:none;font-family:var(--yazi);font-size:17px;font-style:italic;
+  color:var(--murekkep);padding:9px 11px;margin-bottom:14px}
+.dk-dugmeler{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.dk-dugmeler button{font-family:var(--ui);font-size:12px;color:var(--murekkep2);
+  border:1px solid rgba(44,33,24,.25);border-radius:100px;padding:7px 15px;background:none}
+.dk-dugmeler button:hover:not(:disabled){border-color:rgba(44,33,24,.5)}
+.dk-dugmeler .yikici{color:var(--kirmizi);border-color:rgba(168,64,44,.4)}
+.dk-dugmeler .yikici:hover:not(:disabled){background:var(--kirmizi);color:var(--kagit);
+  border-color:var(--kirmizi)}
+.dk-dugmeler button:disabled{opacity:.4}

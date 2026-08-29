@@ -136,10 +136,16 @@ async function baslat(): Promise<void> {
       mevcutAnahtar: () => kilit.anaAnahtar,
       db: surucu,
       depo,
-      durum,
       degisti: () => defter.ciz(),
       yenidenYukle: () => location.reload(),
     })
+
+    /*
+     * Hiç defter yoksa kitaplık açılır. Son defter silindiğinde ya da
+     * kayıt hiç açılmadığında yazma alanı yetim bir defter kimliğine
+     * yazmaya çalışırdı (K-025).
+     */
+    if (!durum.aktifDefter) void kitaplik.ac()
 
     durum.dinle(() => {
       defter.ciz()

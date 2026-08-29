@@ -58,7 +58,7 @@ Uygulamanın tamamı burası.
 - **Kenar notu:** eski bir kayda sonradan düşülen not, kırmızı kalemle.
 - Düzeltme iz bırakır (`· düzeltildi`). Kullanıcı geçmişini sessizce yeniden yazamaz.
 - **Bugüne dön** düğmesi.
-- **Kitaplık:** defter kapanır, raflar görünür. Birden çok defter, ad ve kapak; aynı adlı defterler cilt cilt devam eder.
+- **Kitaplık:** defter kapanır, raflar görünür. Birden çok defter, ad ve kapak; aynı adlı defterler cilt cilt devam eder. Sırta basılı tutunca defterin kartı açılır; defter buradan silinir — boşsa tek onayla, doluysa ancak adı yazılarak (KARARLAR.md · K-025).
 
 ### ARŞİV
 Arama ve sorma. **Yorum yok.**

@@ -6,6 +6,11 @@ import { gocleriUygula, type SqlSurucu } from './db.js'
  * Geliştirme aracı: tohumla doldurduktan sonra boş deftere dönmenin yolu.
  * Uygulamada bir düğmesi yok ve olmayacak — kullanıcının on yıllık defterini
  * tek dokunuşla silen bir şey bu üründe bulunamaz.
+ *
+ * Kullanıcının silme yolu ayrı ve tek dokunuş değil: kitaplıkta defterin
+ * kartı açılıyor, ne kaybedileceği sayılarla gösteriliyor ve dolu bir
+ * defter ancak ADI YAZILARAK siliniyor (KARARLAR.md · K-025). Burası o yol
+ * değil; burası her şeyi topluca götürür.
  */
 export async function defteriSifirla(db: SqlSurucu, hedef?: number): Promise<void> {
   const nesneler = await db.hepsi<{ tip: string; ad: string }>(

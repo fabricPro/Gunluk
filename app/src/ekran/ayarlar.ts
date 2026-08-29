@@ -1,12 +1,11 @@
-import { markdownAktar } from '../cekirdek/disaAktar.js'
 import { kurtarmaUret } from '../cekirdek/kurtarma.js'
-import type { Durum } from '../durum.js'
 import type { Kilit } from '../kilitAkis.js'
 import type { Depo } from '../veri/depo.js'
 import { dokumAl, dokumuYukle } from '../veri/dokum.js'
 import type { SqlSurucu } from '../veri/db.js'
 import { muhruAc, muhurle } from '../veri/yedek.js'
 import { dosyaAdi, dosyaKaydet, dosyaSec } from './dosya.js'
+import { markdownIndir } from './disaAktarma.js'
 import { $, kacir } from './ortak.js'
 
 /**
@@ -19,14 +18,13 @@ export interface AyarBaglam {
   mevcutAnahtar: () => string | null
   db: SqlSurucu
   depo: Depo
-  durum: Durum
   degisti: () => void
   /** Geri yükleme sonrası uygulamayı baştan kurmak için. */
   yenidenYukle: () => void
 }
 
 export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
-  const { kilit, sifreli, mevcutAnahtar, db, depo, durum, degisti, yenidenYukle } = b
+  const { kilit, sifreli, mevcutAnahtar, db, depo, degisti, yenidenYukle } = b
   const kapat = () => $('#ayarlar').classList.remove('acik')
 
   /** PIN sorar; iptal edilirse null. */
@@ -118,7 +116,7 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       await geriYukle()
       return
     } else if (ad === 'mdAktar') {
-      await markdownIndir()
+      await markdownIndir(depo)
       return
     }
     await ciz()
@@ -185,29 +183,6 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Yedek açılamadı.')
     }
-  }
-
-  const markdownIndir = async (): Promise<void> => {
-    const defterler = await depo.defterler()
-    const eskiDefter = depo.aktifDefterId
-    const dokumler = []
-    for (const d of defterler) {
-      depo.defteriSec(d.id)
-      dokumler.push({
-        defter: d,
-        gunler: await depo.gunler(),
-        kenarlar: await depo.kenarlar(),
-        basliklar: await depo.basliklar(),
-        ekler: await depo.ekleriTam(),
-      })
-    }
-    depo.defteriSec(eskiDefter)
-    await dosyaKaydet(
-      `${dosyaAdi('defter')}.md`,
-      markdownAktar(dokumler),
-      'text/markdown;charset=utf-8',
-    )
-    void durum
   }
 
   $('#ayarlarBtn').onclick = () => void ac()

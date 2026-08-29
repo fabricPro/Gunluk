@@ -87,7 +87,7 @@ uyarı yazar. Telefonda gerçek kalıcılığı denemek için Capacitor kabuğuy
 ### Derleme ve testler
 
 ```sh
-npm test               # 208 test
+npm test               # 214 test
 npm run build          # dist/ üretir
 npm run onizle         # derlenmiş sürümü 4173 portunda sunar
 ```
@@ -112,6 +112,20 @@ bir kez teklif ediliyor.
 Biyometri açmak, anahtarın açılabilir bir kopyasını cihazda bırakır —
 kullandığımız güvenli depo eklentisi öge bazında biyometrik erişim denetimi
 sunmuyor. Yalnızca PIN isteyen kullanıcı biyometriyi kapalı bırakmalı.
+
+## Defter silme
+
+Kitaplıkta sırta **basılı tutunca** defterin kartı açılır. Silme sürtünmesi
+defterin içindekiyle ölçülür (KARARLAR.md · K-025):
+
+- **Boş defter** tek onayla gider — deneme için açılmış defterler rafta
+  birikmesin.
+- **Dolu defter** ancak **adı yazılarak** gider. Kart önce ne
+  kaybedileceğini sayar: kaç kayıt, kaç gün, kaç kenar notu, kaç ek, hangi
+  tarihler arası.
+- Kartta "önce Markdown olarak çıkar" duruyor — silmek ile saklamak
+  arasında seçim yaptırmıyoruz.
+- Çöp kutusu yok; silinen gerçekten siliniyor, FTS indeksinden de düşüyor.
 
 ## Kenar notu
 

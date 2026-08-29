@@ -267,6 +267,73 @@ export class Depo {
     ])
   }
 
+  /**
+   * Silmeden önce gösterilecek döküm: ne kaybedileceği.
+   *
+   * Kullanıcıya "emin misin" diye sormak yetmez, NEYE emin olduğunu
+   * göstermek gerekir. Deneme için açılmış boş bir defterle on yıllık bir
+   * defter arasındaki farkı bu sayılar kuruyor (KARARLAR.md · K-025).
+   */
+  async defterOzeti(id: string): Promise<{
+    kayit: number
+    gun: number
+    kenar: number
+    ek: number
+    ilk: string | null
+    son: string | null
+  }> {
+    const r = await this.db.tek<{
+      kayit: number
+      gun: number
+      ilk: string | null
+      son: string | null
+    }>(
+      `SELECT count(*) AS kayit, count(DISTINCT tarih) AS gun,
+              min(tarih) AS ilk, max(tarih) AS son
+       FROM kayit WHERE defter_id = ?`,
+      [id],
+    )
+    const kenar = await this.db.tek<{ n: number }>(
+      `SELECT count(*) AS n FROM kenar e
+       JOIN kayit k ON k.id = e.kayit_id WHERE k.defter_id = ?`,
+      [id],
+    )
+    const ek = await this.db.tek<{ n: number }>(
+      `SELECT count(*) AS n FROM ek e
+       JOIN kayit k ON k.id = e.kayit_id WHERE k.defter_id = ?`,
+      [id],
+    )
+    return {
+      kayit: r?.kayit ?? 0,
+      gun: r?.gun ?? 0,
+      kenar: kenar?.n ?? 0,
+      ek: ek?.n ?? 0,
+      ilk: r?.ilk ?? null,
+      son: r?.son ?? null,
+    }
+  }
+
+  /**
+   * Defteri ve içindekileri siler.
+   *
+   * `kayit.defter_id` ON DELETE CASCADE; kayıt da başlık, kenar notu, ek ve
+   * tema bağlarını götürüyor. Tek DELETE yeterli — ama yabancı anahtarlar
+   * açık olmak zorunda (`pragmalariKur`), yoksa yetim satırlar kalır.
+   *
+   * Bu yolu açan kapıyı ekran koruyor: dolu bir defter ancak adı yazılarak
+   * silinebiliyor (K-025).
+   */
+  async defterSil(id: string): Promise<void> {
+    await this.db.calistir('DELETE FROM defter WHERE id = ?', [id])
+    if (this.defterId === id) {
+      const kalan = await this.db.tek<{ id: string }>(
+        'SELECT id FROM defter ORDER BY raf, sira, cilt LIMIT 1',
+      )
+      this.defterId = kalan?.id ?? ''
+      if (kalan) await this.ayarYaz('aktifDefter', kalan.id)
+    }
+  }
+
   /** Defter kapanır — kapandıktan sonra yeni kayıt yazılamaz. */
   async defterKapat(id: string): Promise<void> {
     await this.db.calistir('UPDATE defter SET kapandi = 1, kapanma = ? WHERE id = ?', [simdi(), id])

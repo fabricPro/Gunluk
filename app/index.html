@@ -234,6 +234,24 @@
   <div id="raflar"></div>
 </div>
 
+<!--
+  Defter kartı: sırta basılı tutunca açılır. Silme buradan geçiyor ve
+  hiçbir zaman tek dokunuşla olmuyor (KARARLAR.md · K-025).
+-->
+<div id="defterKarti">
+  <div class="dk-kart">
+    <h3 id="dkAd"></h3>
+    <div class="dk-alt" id="dkOzet"></div>
+    <div class="dk-uyari" id="dkUyari"></div>
+    <input id="dkOnay" placeholder="" autocomplete="off" spellcheck="false" hidden>
+    <div class="dk-dugmeler">
+      <button id="dkVaz">vazgeç</button>
+      <button id="dkAktar" hidden>önce Markdown olarak çıkar</button>
+      <button class="yikici" id="dkSil"></button>
+    </div>
+  </div>
+</div>
+
 <div id="yeniDefter">
   <div class="yd-kart">
     <h3>Yeni defter</h3>
