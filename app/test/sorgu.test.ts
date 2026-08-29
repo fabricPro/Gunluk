@@ -208,3 +208,52 @@ describe('soruCoz — K-020 regresyonu', () => {
     expect(soruCoz('yürüyüşe', veri, TEMALAR).bos).toBe(false)
   })
 })
+
+/* ── Türkçe gövdeleme (K-027) ────────────────────────────────── */
+
+describe('soruCoz — gövdeleme', () => {
+  const VERI2: Gun[] = [
+    gun('2026-04-02', k('2026-04-02', '22:00', 'Bugün hiçbir şey hissetmedim.')),
+    gun('2026-04-09', k('2026-04-09', '08:00', 'Kitabı bitirdim, iyi geldi.')),
+  ]
+
+  it('"hissettiğim" sorusu "hissetmedim" kaydını buluyor', () => {
+    const s = soruCoz('hissettiğim günler', VERI2, TEMALAR)
+    expect(s.bos).toBe(false)
+    expect(s.kullanilan[0]!.kayit.metin).toContain('hissetmedim')
+  })
+
+  it('"kitap" sorusu "kitabı" kaydını buluyor — ünsüz yumuşaması', () => {
+    const s = soruCoz('kitap', VERI2, TEMALAR)
+    expect(s.bos).toBe(false)
+    expect(s.kullanilan[0]!.kayit.metin).toContain('Kitabı')
+  })
+
+  it('alakasız sorguyu hâlâ boş döndürüyor — gövdeleme her şeyi bağlamıyor', () => {
+    expect(soruCoz('barcelona tatili', VERI2, TEMALAR).bos).toBe(true)
+  })
+
+  it('vurgulama için aday gövdeleri döndürüyor', () => {
+    const s = soruCoz('hissettiğim', VERI2, TEMALAR)
+    expect(s.govdeler).toContain('hisset')
+  })
+
+  it('kenar notu da gövdeyle eşleşiyor', () => {
+    const id = VERI2[1]!.kayitlar[0]!.id
+    const kenarlar = new Map([
+      [id, [{ id: 'n1', kayitId: id, metin: 'Sonradan yürüyüşe başladım.', tarih: '2027-01-01', olusturma: 0 }]],
+    ])
+    const s = soruCoz('yürüyüş', VERI2, TEMALAR, kenarlar)
+    expect(s.bos).toBe(false)
+    expect(s.kullanilan[0]!.kenarlar).toHaveLength(1)
+  })
+
+  it('DURAK gövdelenmiyor — "kötü" düşer ama "hissettiğim" kalır', () => {
+    /* Listede hem "kötü" hem "kötüydüm" var; gövdeleyip karşılaştırsaydık
+       liste meşru sorgu sözcüklerini de yutardı. */
+    const s = soruCoz('kötü hissettiğim günler', VERI2, TEMALAR)
+    expect(s.bos).toBe(false)
+    expect(s.govdeler).toContain('hisset')
+    expect(s.govdeler).not.toContain('kötü')
+  })
+})

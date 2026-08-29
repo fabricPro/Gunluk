@@ -30,6 +30,11 @@ export class Durum {
   aktifDefter: DefterBilgi | null = null
   aktifSayfa = 0
   aramaTerim = ''
+  /**
+   * Arşivden gelen sorgunun aday gövdeleri. Vurgulama bunlarla yapılıyor:
+   * "kötü" arayan kullanıcı sayfada "kötüydüm"ü işaretli görsün (K-027).
+   */
+  aramaGovdeleri: string[] = []
   /** Tarayıcı derlemesinde false — veritabanı şifresiz. */
   sifreli = false
   /** Ölçülmüş sayfa kapasitesi; ekran katmanı doldurur. */

@@ -36,7 +36,7 @@ export function arsiviBagla(
   /** Göç öncesi okunur dizeler olduğu gibi basılır (K-024). */
   const kenarTarih = (t: string): string => (/^\d{4}-\d{2}-\d{2}$/.test(t) ? tamTarih(t) : t)
 
-  const kaynakBagla = (kap: HTMLElement, terim: string): void => {
+  const kaynakBagla = (kap: HTMLElement, terim: string, govdeler: string[] = []): void => {
     for (const el of kap.querySelectorAll<HTMLElement>('.kaynak,.gy-kayit'))
       el.onclick = () => {
         const id = el.dataset.id
@@ -44,6 +44,7 @@ export function arsiviBagla(
         const s = sayfaBul(durum.sayfalar, id)
         if (!s) return
         durum.aramaTerim = terim
+        durum.aramaGovdeleri = govdeler
         ekranAc('defter')
         sayfayaGit(s.no - 1, false)
       }
@@ -66,7 +67,7 @@ export function arsiviBagla(
       <div class="k-et">kullandığım kayıtlar</div>
       ${c.kullanilan.map(kaynakHtml).join('')}
       <p class="cevap-not">Kaydın üstüne dokun, defterde o sayfaya gider.</p></div>`
-    kaynakBagla(kutu, c.terim)
+    kaynakBagla(kutu, c.terim, c.govdeler)
   }
 
   const gecenYilCiz = (): void => {

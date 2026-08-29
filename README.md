@@ -87,7 +87,7 @@ uyarı yazar. Telefonda gerçek kalıcılığı denemek için Capacitor kabuğuy
 ### Derleme ve testler
 
 ```sh
-npm test               # 223 test
+npm test               # 257 test
 npm run build          # dist/ üretir
 npm run onizle         # derlenmiş sürümü 4173 portunda sunar
 ```
@@ -193,6 +193,18 @@ indeks yeniden düşünülecek (K-026).
 Havuza giren: kayıt metni ve kenar notları — ikisi de kullanıcının kendi
 sözleri. Girmeyen: `kayit.soru`, yani defterin kendi cümleleri (K-020).
 Bu ayrımı iki test koruyor, biri FTS yolunda biri `soruCoz`'da.
+
+**Türkçe gövdeleme** (`cekirdek/govde.ts`, K-027). Eşleşme düz alt-dize
+değil: her sözcük bir *aday gövde kümesine* iniyor ve kümeler kesişiyorsa
+eşleşiyor. Sözlük yok, tahmin yok — `kitabı` → `{kitab, kitap}`, `kitap` →
+`{kitap}`, kesişirler. Böylece "hissettiğim" araması "hissetmedim"
+kaydını, "kitap" araması "kitabı"yı buluyor; defterde de çekimli biçim
+vurgulanıyor. Alt-dize yolu duruyor, gövdeleme yalnızca kazanç ekliyor.
+
+Bir sonraki adım cihaz-içi gömü modeli. İlke 2.3 ham metnin cihazdan
+çıkmasını yasakladığı için embedding cihazda hesaplanmak zorunda; Türkçe
+için işe yarar en küçük çok dilli modeller ~100-130 MB, yani isteğe bağlı
+ve açıkça onaylanan bir indirme olacak.
 
 ## Değişmez ilkeler ve kodda karşılıkları
 

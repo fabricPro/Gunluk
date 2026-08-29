@@ -1,4 +1,5 @@
 import { SAYFA_HACIM } from '../cekirdek/sayfa.js'
+import { govdeler, ortakGovde } from '../cekirdek/govde.js'
 import type { Ek, KenarNotu, Sayfa } from '../cekirdek/tipler.js'
 import { ekKaynak, gorseliHazirla } from './gorsel.js'
 import { resimSec } from './dosya.js'
@@ -62,11 +63,22 @@ export function defteriBagla(
    */
   let taslak = ''
 
+  /*
+   * Arama vurgusu gövde farkındalı: "kötü" arayan kullanıcı sayfada
+   * "kötüydüm"ü de işaretli görüyor (K-027). Sözcük sözcük geziliyor,
+   * ham dize araması değil — yoksa çekimli biçim vurgusuz kalırdı.
+   */
   const vurgu = (m: string): string => {
     const g = kacir(m)
-    if (!durum.aramaTerim) return g
-    const kacan = durum.aramaTerim.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    return g.replace(new RegExp('(' + kacan + ')', 'gi'), '<mark>$1</mark>')
+    if (!durum.aramaTerim && !durum.aramaGovdeleri.length) return g
+    const aranan = new Set(durum.aramaGovdeleri)
+    return g.replace(/[\p{L}\p{N}]+/gu, (sozcuk) => {
+      const dusuk = sozcuk.toLocaleLowerCase('tr')
+      const eslesti =
+        (durum.aramaTerim && dusuk.includes(durum.aramaTerim.toLocaleLowerCase('tr'))) ||
+        (aranan.size > 0 && ortakGovde(govdeler(sozcuk), aranan))
+      return eslesti ? `<mark>${sozcuk}</mark>` : sozcuk
+    })
   }
 
   /**

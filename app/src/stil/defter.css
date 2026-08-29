@@ -70,7 +70,11 @@ body.odak .defter-ust{opacity:.08}
   flex:1;min-width:0;overflow-wrap:anywhere;color:var(--murekkep)}
 /* devam parçası: aynı kaydın sonraki sayfadaki gövdesi, saat damgası yok */
 .satir.devam{padding-top:0}
-.satir mark{background:rgba(168,64,44,.22);border-radius:2px;padding:0 2px;color:var(--murekkep)}
+/* Vurgu kağıdın her yerinde aynı: kayıt gövdesi de kenar notu da.
+   Yalnızca .satir'a bağlıyken kenar notundaki eşleşme tarayıcının sarı
+   varsayılanına düşüyordu (K-027). */
+.kagit-ic mark{background:rgba(168,64,44,.22);border-radius:2px;padding:0 2px;
+  color:inherit;text-decoration:none}
 .satir .duz{opacity:.6;font-style:italic;font-size:.85em}
 /*
  * Kaydın araçları: dokununca açılır, bir seferde tek kayıtta.

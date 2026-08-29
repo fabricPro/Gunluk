@@ -1,4 +1,5 @@
 import type { Gun, Kayit, KenarNotu } from './tipler.js'
+import { govdeler, metinGovdeleri, ortakGovde } from './govde.js'
 import { AY_SIRA, ayAnahtar, ayEk, bas, sayiEk, saatSayi, tamTarih } from './tr.js'
 
 export interface TemaTanim {
@@ -27,6 +28,11 @@ export interface SorguSonuc {
   kullanilan: Bulgu[]
   /** Defterde işaretlenecek arama terimi. */
   terim: string
+  /**
+   * Sorgu sözcüklerinin aday gövdeleri — defterdeki vurgulama bunları
+   * kullanıyor, böylece "kötü" arayan sayfada "kötüydüm"ü işaretli görüyor.
+   */
+  govdeler: string[]
 }
 
 /** Soru metninde anlam taşımayan sözcükler. */
@@ -40,7 +46,7 @@ const DURAK = new Set([
   'kavgalarım', 'kavga',
 ])
 
-const BOS: SorguSonuc = { bos: true, paragraflar: [], kullanilan: [], terim: '' }
+const BOS: SorguSonuc = { bos: true, paragraflar: [], kullanilan: [], terim: '', govdeler: [] }
 
 /** Sorudaki ay adını yakalar ve o aya ait tüm ay anahtarlarını döndürür. */
 function donemBul(soru: string, mevcutAylar: string[]): { aylar: string[]; ad: string } | null {
@@ -94,6 +100,9 @@ export function soruCoz(
     .split(/\s+/)
     .filter((k) => k.length > 3 && !DURAK.has(k))
 
+  /* Sorgu sözcüklerinin aday gövdeleri bir kez üretiliyor. */
+  const sorguGovde = new Map(kelimeler.map((k) => [k, govdeler(k)] as const))
+
   const havuz = donem ? gunler.filter((g) => donem.aylar.includes(ayAnahtar(g.tarih))) : gunler
   const temaKilidi = eslesenTemalar.map((t) => t.id)
 
@@ -114,9 +123,20 @@ export function soruCoz(
        * yazılıp bir kez de not düşülen konuyu haksız yere öne çıkarırdı.
        */
       const eslesenNotlar: KenarNotu[] = []
+      /*
+       * Gövdeler kayıt başına bir kez. Alt-dize yolu duruyor: bugünkü
+       * davranış aynen korunsun, gövdeleme yalnızca KAZANÇ eklesin
+       * (KARARLAR.md · K-027).
+       */
+      const kayitGovde = metinGovdeleri(kayit.metin)
       for (const k of kelimeler) {
-        const kayitta = metin.includes(k)
-        const nottakiler = notlar.filter((n) => n.metin.toLocaleLowerCase('tr').includes(k))
+        const aday = sorguGovde.get(k)!
+        const kayitta = metin.includes(k) || ortakGovde(aday, kayitGovde)
+        const nottakiler = notlar.filter(
+          (n) =>
+            n.metin.toLocaleLowerCase('tr').includes(k) ||
+            ortakGovde(aday, metinGovdeleri(n.metin)),
+        )
         for (const n of nottakiler) if (!eslesenNotlar.includes(n)) eslesenNotlar.push(n)
         if (kayitta || nottakiler.length) puan += 2
       }
@@ -158,7 +178,11 @@ export function soruCoz(
   const yalnizNot = bulgular.filter(
     (b) =>
       b.kenarlar.length &&
-      !kelimeler.some((k) => b.kayit.metin.toLocaleLowerCase('tr').includes(k)),
+      !kelimeler.some(
+        (k) =>
+          b.kayit.metin.toLocaleLowerCase('tr').includes(k) ||
+          ortakGovde(sorguGovde.get(k)!, metinGovdeleri(b.kayit.metin)),
+      ),
   ).length
   if (yalnizNot)
     p.push(
@@ -185,5 +209,6 @@ export function soruCoz(
     paragraflar: p,
     kullanilan,
     terim: kelimeler[0] ?? eslesenTemalar[0]?.ad ?? '',
+    govdeler: [...new Set(kelimeler.flatMap((k) => [...sorguGovde.get(k)!]))],
   }
 }

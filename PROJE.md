@@ -130,7 +130,7 @@ Sıra önemli. Her adım bir öncekine yaslanıyor.
 8. ~~Yedekleme ve dışa aktarma.~~ **Tamam.** Mühürlü yedek kurtarma kodundan türeyen anahtarla açılıyor; ayrıca şifresiz Markdown dışa aktarma var (KARARLAR.md · K-003, K-022).
 
 ### Faz 3 — Arşiv ve AI
-9. Embedding tabanlı arama. Şu an anahtar kelime eşleşmesi; "kötü hissettiğim günler" gibi sorular çalışmaz.
+9. **Arama.** ~~Anahtar kelime eşleşmesi.~~ Türkçe gövdeleme geldi: "hissettiğim" artık "hissetmedim" kaydını, "kitap" da "kitabı"yı buluyor (KARARLAR.md · K-027). Sırada cihaz-içi gömü modeli — ilke 2.3 gereği embedding cihazda hesaplanmak zorunda, bu da ~100-130 MB'lık isteğe bağlı bir indirme demek.
 10. Soru-cevap için model çağrısı — **kaynak kayıtlar her zaman gösterilecek.**
 11. Kriz sınıflandırıcısı ve akışı (2.1).
 12. İsteğe bağlı: her yazıdan sonra **tek soru.** Yorum değil, soru. ~200 token. Yorum açıklamaya çalışır, soru yazdırır.

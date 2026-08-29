@@ -9,6 +9,86 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · K-027 · Önce dil, sonra anlam: sözlüksüz Türkçe gövdeleme
+
+Yol haritasının 9. maddesi "embedding tabanlı arama" diyor ve örnek olarak
+"kötü hissettiğim günler"i veriyor. O cümledeki kırık iki katmanlı ve
+alttaki katman anlam değil, dil.
+
+Arama bugüne kadar `metin.includes(k)` ile çalışıyordu — düz alt-dize.
+Türkçede asimetrik kırılıyordu:
+
+- "kötü" arayan "kötüydüm"ü buluyordu (alt-dize), "kötüydüm" arayan
+  "kötü"yü **bulamıyordu**;
+- "hissettiğim" arayan "hissetmedim"i hiç bulamıyordu;
+- "kitap" arayan "kitabı"yı bulamıyordu.
+
+Bunların hiçbiri model gerektirmiyor. Gövdeleme sıfır indirme, sıfır pil,
+tamamen `cekirdek/`'te ve tamamen test edilebilir.
+
+**Gömü modeli neden bu turda değil.** İlke 2.3 ham metnin cihazdan
+çıkmasını yasaklıyor, yani embedding cihazda hesaplanmak zorunda; Türkçe
+için işe yarar en küçük çok dilli modeller ~100-130 MB. Bir günlük
+uygulaması için bu, kullanıcının açıkça onaylaması gereken bir bedel ve
+ayrı bir tur. Bu turun gövdeleyicisi o turda da kullanılacak — boşa iş
+değil.
+
+**Sözlük yok, aday gövde kümesi var.** Tam morfolojik çözümleme (Zemberek
+sınıfı) bu ürün için fazla; ama tek bir gövde tahmin etmek de yanlış.
+`kitabı` → `kitab` mı `kitap` mı? Tahmin edersen ve yanlış tahmin edersen
+kayıt kaybolur. Her sözcük bir **kümeye** iniyor ve iki sözcük kümeleri
+kesişiyorsa eşleşiyor:
+
+```
+kitabı → {kitab, kitap}   kitap → {kitap}   → kesişir
+adı    → {ad, at}         ad    → {ad}      → kesişir
+```
+
+Tahmin etmek zorunda kalmıyoruz. Bedeli seyrek ve zararsız bir yanlış
+eşleşme (`at` ile `adı`).
+
+**Simetrik aşırı gövdeleme zararsız.** `teslim` dilbilgisel olarak
+`teslim`dir, gövdeleyici `tesl`e indiriyor. İki taraf da aynı indirgemeyi
+yaşadığı için eşleşme bozulmuyor. Doğruluk değil, simetri önemli.
+
+**Bütün ekler deneniyor, yalnızca en uzunu değil.** "kereme" hem `kere+me`
+(olumsuz fiil) hem `kerem+e` (yönelme) okunabiliyor; sözlük olmadan
+hangisinin doğru olduğu bilinemez. En uzun eki seçmek `kere`yi verip
+`kerem`i kaçırıyordu. Hepsini aday saymak seçimi ortadan kaldırıyor —
+eşleşme küme kesişmesi olduğu için fazladan aday yalnızca erişimi artırır.
+
+**Ünlü uyumu ekin İLK ünlüsüne bakıyor**, sonuncusuna değil. "-iyorum"
+ekinin içindeki `o` değişmez; sona bakan kontrol "bekliyorum"u kalın sayıp
+eki hiç düşürmüyordu.
+
+**Alt-dize yolu duruyor.** Bir sözcük ya eski kuralla ya gövde
+kesişmesiyle eşleşiyor. Böylece mevcut davranış ve altı regresyon testi
+aynen geçiyor; gövdeleme yalnızca **kazanç** ekliyor, hiçbir şeyi
+götürmüyor.
+
+**`DURAK` gövdelenmiyor.** Durak listesinde hem `kötü` hem `kötüydüm` var.
+Gövdeleyip karşılaştırsaydık liste kendiliğinden genişler ve meşru sorgu
+sözcüklerini yutardı — "kötü hissettiğim günler" sorusunda `hissettiğim`
+de düşerdi.
+
+**Ünlü düşmesi kural değil istisna.** `burun`/`burnu`, `akıl`/`aklı` — ~20
+sözcüklük küçük bir tablo. Kapsamlı olduğunu iddia etmiyoruz.
+
+**Kısa sözcükler kapsam dışı.** Gövde `MIN_UZUNLUK` (3) altına inmiyor,
+yani `ev`/`evde` buluşmuyor. Sorgu sözcükleri zaten 3 karakterden uzun
+olmak zorunda, o yüzden pratikte görünmüyor.
+
+**Vurgulama da gövde farkındalı.** Arşivden bir kayda gidince sayfada
+sorgunun çekimli biçimi işaretleniyor: "kitap" arayan kullanıcı kenar
+notundaki "kitabı"yı vurgulu görüyor. Vurgu kuralı `.satir`a değil
+kağıdın tamamına bağlandı — kenar notundaki eşleşme tarayıcının sarı
+varsayılanına düşüyordu.
+
+**Ölçüm:** 352 kayıtlık tohum verisinde ilk sorgu 7 ms, sonrakiler 1-2 ms.
+Gövdeler önbellekte; bir günlükte sözcükler ağır tekrar ediyor.
+
+---
+
 ## 2026-08-29 · K-026 · Kenar notu aramaya girer, ama kaydın parçası olarak
 
 K-024'te açık bırakılmıştı: kenar notları kullanıcının kendi sözleri ama

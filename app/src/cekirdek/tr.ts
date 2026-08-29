@@ -43,13 +43,13 @@ export const bas = (s: string): string =>
 /* ── sesli/sessiz ve kalın/ince ────────────────────────────── */
 
 const KALIN = new Set(['a', 'ı', 'o', 'u'])
-const INCE = new Set(['e', 'i', 'ö', 'ü'])
-const SESLI = new Set([...KALIN, ...INCE])
+export const INCE = new Set(['e', 'i', 'ö', 'ü'])
+export const SESLI = new Set([...KALIN, ...INCE])
 /** Ünsüz yumuşaması olmayan sert ünsüzler (fıstıkçı şahap). */
-const SERT = new Set(['f', 's', 't', 'k', 'ç', 'ş', 'h', 'p'])
+export const SERT = new Set(['f', 's', 't', 'k', 'ç', 'ş', 'h', 'p'])
 
-/** Sözcüğün son sesli harfi; yoksa null. */
-const sonSesli = (s: string): string | null => {
+/** Sözcüğün son sesli harfi; yoksa null. Gövdeleyici de kullanıyor. */
+export const sonSesli = (s: string): string | null => {
   const k = s.toLocaleLowerCase('tr')
   for (let i = k.length - 1; i >= 0; i--) if (SESLI.has(k[i]!)) return k[i]!
   return null
