@@ -9,6 +9,35 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · K-013 · GitHub Pages önizlemesi
+
+Uygulama yalnızca depo klonlanıp `npm run dev` ile açılabiliyordu ve
+telefonda **veri kalıcılığı denenemiyordu**: OPFS güvenli bağlam istiyor,
+`localhost` güvenli sayılıyor ama LAN üzerinden `http://192.168.x.x`
+sayılmıyor. Pages HTTPS olduğu için bu boşluğu kapatıyor.
+
+Derleme `.github/workflows/pages.yml` ile her itmede yapılıyor; testler
+geçmeden yayına çıkmıyor. Taban yol (`/Gunluk/`) yalnızca iş akışının derleme
+adımında `--base` ile veriliyor, `vite.config.ts`'e yazılmıyor — yerel
+geliştirme ve yerel derleme etkilenmiyor.
+
+**Yayınlanan sürüm şifresiz olduğunu söylüyor.** Tarayıcı derlemesinde
+SQLCipher yok (K-002) ve kilit yok (Faz 2.7). Adresi bilen herkesin
+açabildiği bir yerde bunu söylemeden geçmek, ürünün kendi ilkeleriyle
+çelişirdi. İşaret, üst şeritteki mevcut marka yazısına eklenen iki kelime:
+`defter · önizleme`. Yeni bir kutu, uyarı çubuğu veya modal yok — tasarım
+diline yeni bir öge sokmadan söylenebilecek en az şey. Derleme zamanı
+bayrağı (`VITE_ONIZLEME`) yalnızca iş akışında veriliyor; yerel derlemede
+yazı `defter` kalıyor.
+
+Taban yolun iki şeyi kırma ihtimali vardı ve ikisi de denendi: worker
+(`new URL('./sqlite-isci.ts', import.meta.url)`) ve emscripten'in kendi
+adresine göre aradığı `sqlite3.wasm`. Dev sunucusunda tam olarak bu ikincisi
+kırılmıştı (K-012). `vite preview --base=/Gunluk/` ile birebir taklit edilip
+doğrulandı: ikisi de çalışıyor.
+
+---
+
 ## 2026-08-29 · K-012 · Geliştirme bayrakları ve dev sunucusu
 
 `npm run dev` çalışmıyordu — yalnızca `npm run build` çalışıyordu. Vite'ın

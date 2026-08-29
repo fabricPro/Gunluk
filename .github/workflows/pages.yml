@@ -1,0 +1,73 @@
+# Defter'i GitHub Pages'e yayınlar.
+#
+# Yayınlanan sürüm tarayıcı derlemesidir: veritabanı ŞİFRESİZ ve kilidi yok
+# (KARARLAR.md · K-002, K-013). Bu yüzden üst şeritte "önizleme" yazar.
+# Gerçek şifreleme cihaz derlemesinde, SQLCipher ile.
+
+name: Pages
+
+on:
+  push:
+    branches:
+      - claude/defter-architecture-decisions-lxsg1q
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Aynı anda tek yayın; süren bir yayın iptal edilmez.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  derle:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Bağımlılıklar
+        run: npm ci
+
+      - name: Testler
+        run: npm test
+
+      - name: Derle
+        # Taban yol yalnızca burada veriliyor; yerel geliştirme etkilenmiyor.
+        run: npm run build -- --base=/Gunluk/
+        env:
+          VITE_ONIZLEME: '1'
+
+      - name: Jekyll'i devre dışı bırak
+        run: touch dist/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          # İlk koşuda Pages'i kendisi etkinleştirir.
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/dist
+
+  yayinla:
+    needs: derle
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.yayin.outputs.page_url }}
+    steps:
+      - id: yayin
+        uses: actions/deploy-pages@v4

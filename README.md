@@ -22,6 +22,18 @@ app/              üretim uygulaması
 **Katman kuralı:** `cekirdek/` hiçbir zaman `veri/` veya `ekran/` import etmez.
 Bağımlılık tek yönlü: `ekran → veri → cekirdek`.
 
+## Açılır adres
+
+**https://fabricpro.github.io/Gunluk/**
+
+Her itmede otomatik derlenip yayınlanır (`.github/workflows/pages.yml`).
+Telefondan da açılır ve HTTPS olduğu için veri kalıcılığı orada da çalışır.
+
+Bu bir **önizleme**: tarayıcı derlemesi olduğu için veritabanı **şifresiz** ve
+**kilidi yok**. Veri kimseyle paylaşılmaz, sunucuya gitmez — kendi
+tarayıcınızda durur — ama gerçek günlük tutulacak yer burası değil. Üst
+şeritte `defter · önizleme` yazması bunun için.
+
 ## Çalıştırma
 
 Gereken: Node 20 veya üstü (burada 22 ile geliştirildi) ve npm. Başka hiçbir

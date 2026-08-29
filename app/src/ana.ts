@@ -9,6 +9,24 @@ import { defteriAc } from './veri/db.js'
 import { Depo } from './veri/depo.js'
 import { surucuSec } from './veri/surucu.js'
 
+/**
+ * Yayınlanan önizleme derlemesini işaretler.
+ *
+ * Tarayıcı derlemesinde veritabanı şifresiz ve kilit yok; bu, adresi bilen
+ * herkesin açabildiği bir yerde söylenmeden geçilemez. Yeni bir kutu ya da
+ * uyarı çubuğu değil — üst şeritteki mevcut marka yazısına eklenen iki
+ * kelime (KARARLAR.md · K-013).
+ */
+function onizlemeyiIsaretle(): void {
+  if (!import.meta.env.VITE_ONIZLEME) return
+  const marka = document.querySelector('.marka')
+  if (marka) marka.textContent = 'defter · önizleme'
+  console.warn(
+    '[defter] Önizleme derlemesi: veritabanı şifresiz, kilit yok. ' +
+      'Gerçek günlük için değil.',
+  )
+}
+
 /** Tek seferlik geliştirme bayrağını adresten temizler. */
 function bayrakDusur(ad: string): void {
   const u = new URL(location.href)
@@ -17,6 +35,7 @@ function bayrakDusur(ad: string): void {
 }
 
 async function baslat(): Promise<void> {
+  onizlemeyiIsaretle()
   const { surucu, sifreli } = await surucuSec()
   const depo = new Depo(await defteriAc(surucu))
   const bayrak = new URLSearchParams(location.search)
