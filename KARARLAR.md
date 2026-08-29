@@ -9,6 +9,54 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · K-011 · Yazı tipleri pakete gömüldü
+
+`index.html` üç etiketle Google Fonts'a bağlıydı. Kaldırıldı; woff2
+dosyaları `app/src/yazitipi/` altında, `@font-face` kuralları kendi
+yazdığımız `src/stil/yazitipi.css` içinde.
+
+**Neden:**
+
+1. **Çevrimdışı çalışmıyordu.** Ağ yoksa tipografi Georgia yedeğine
+   düşüyordu. Bu üründe tipografi süs değil — PROJE.md §4 "kağıt gerçekten
+   kağıt" diyor ve o etkiyi Newsreader kuruyor.
+2. **Her açılışta dışarıya istek gidiyordu.** Ham metin çıkmıyordu (ilke 2.3
+   duruyordu) ama uygulamanın ne zaman açıldığı ve kullanıcının IP'si üçüncü
+   tarafa gidiyordu. Sunucusu olmayan bir günlükte bu tutarsız.
+3. PROJE.md §7 demonun sıfır dış bağımlılık sadeliğini korunmaya değer
+   buluyor; üretim sürümü bunu daha ilk günden bozmuştu.
+
+**npm paketi (@fontsource) yerine depo:** hangi kesimin gittiğini birebir
+biz seçiyoruz, paketin dosya düzeni yarın değişse derleme kırılmıyor ve on
+yıl sonra depoyu klonlayan aynı sonucu alıyor. Bedeli elle güncelleme —
+nadiren olacak bir iş, yöntemi `src/yazitipi/BENIOKU.md`'de.
+
+**Kesimler latin + latin-ext.** Türkçe için latin-ext şart (ğ ş İ orada),
+ı ise latin kesiminde. İkisi birlikte İngilizce yerelleştirmeyi de
+karşılıyor. Yunanca/Kiril/Vietnamca alınmadı.
+
+**Optik boyut (`opsz`) ekseni alınmadı.** Demodaki Google bağlantısı
+`opsz@6..72` istiyordu, yani kavram bu ekseni varsayarak tasarlanmıştı. Ama
+opsz'li dosyalar 263 KB daha büyük (503 KB yerine 240 KB) ve defterde
+Newsreader yalnızca 14–29px arasında kullanılıyor. opsz'nin asıl kazancı
+6–72px gibi geniş aralıklarda çıkıyor; bu dar aralıkta farkı görmek için iki
+sürümü yan yana koymak gerekir. Geri gelmek isterse: yazı tipinin daha geniş
+bir boyut aralığında kullanılması gerekiyor olmalı.
+
+**Instrument Sans italik alınmadı** — arayüz yazı tipiyle italik hiçbir
+yerde birlikte kullanılmıyor (CSS taranarak doğrulandı).
+
+**`font-display: block`.** Dosyalar yerel, yükleme anlık; `swap` burada
+yalnızca Georgia'dan Newsreader'a görünür bir sıçrama yaratırdı. Sayfanın
+ilk izlenimi tipografiyle kuruluyor, o sıçrama pahalı.
+
+`test/yazitipi.test.ts` CDN'e sessiz dönüşü engelliyor: `index.html` ve
+stil dosyalarında Google Fonts adresleri aranıyor, `@font-face`'lerin
+gösterdiği her dosyanın gerçekten var olduğu ve depoda kullanılmayan woff2
+birikmediği doğrulanıyor.
+
+---
+
 ## 2026-08-29 · Milestone 1 kararları (K-008 … K-010)
 
 Kalıcılık uygulanırken çıkan üç karar.

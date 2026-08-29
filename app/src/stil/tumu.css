@@ -1,4 +1,5 @@
 /* Defter · tasarım dili. Bölünme PROJE.md §4 sırasını izler. */
+@import './yazitipi.css';
 @import './belirtec.css';
 @import './masa.css';
 @import './defter.css';

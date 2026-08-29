@@ -15,6 +15,7 @@ app/              üretim uygulaması
   src/veri/       şema, göçler, depo, şifreleme, sürücüler
   src/ekran/      defter · arşiv · kapsül · fihrist · yakılan sayfa · kilit
   src/stil/       tasarım dili, PROJE.md §4 sırasıyla bölünmüş
+  src/yazitipi/   gömülü woff2 dosyaları + OFL lisansları
   test/           birim ve regresyon testleri
 ```
 
@@ -28,12 +29,16 @@ cd app
 npm install
 npm run dev            # boş defterle açılır — gerçek kullanıcının gördüğü
 npm run dev -- --open  # tarayıcıda aç
-npm test               # 65 test
+npm test               # 76 test
 npm run build
 ```
 
 Geliştirirken demo verisiyle çalışmak için adrese `?tohum=1` ekle
 (352 kayıt, 56 sayfa, 2 cilt). Tohum yalnızca defter boşken çalışır.
+
+Uygulama çalışırken dış ağa hiç çıkmıyor. Yazı tipleri pakette
+(`src/yazitipi/`, 240 KB, OFL-1.1); CDN yok, çevrimdışı açılışta tipografi
+yerinde. Bir test bunu koruyor — CDN'e dönüş sessizce olamaz.
 
 ## Şifreleme — hangi derlemede ne oluyor
 
@@ -64,5 +69,5 @@ karşılığı var:
 
 ## Durum
 
-Faz 1.1 (kalıcılık) tamam. Sırada Faz 1.2 (boş defter / onboarding) —
+Faz 1.1 (kalıcılık) tamam, yazı tipleri gömüldü. Sırada Faz 1.2 (boş defter / onboarding) —
 şu an yalnızca çökmeyen bir yer tutucu var.
