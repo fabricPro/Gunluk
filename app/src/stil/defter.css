@@ -66,7 +66,10 @@ body.odak .defter-ust{opacity:.08}
 .g-bas::after{content:'';flex:1;height:1px;background:var(--cizgi)}
 .satir{display:flex;gap:14px;padding:8px 0;position:relative}
 .satir time{font-family:var(--ui);font-size:10px;color:var(--soluk);width:34px;flex:none;padding-top:7px}
-.satir p{margin:0;font-size:18.5px;line-height:1.74;font-weight:300;white-space:pre-wrap;flex:1;color:var(--murekkep)}
+.satir p{margin:0;font-size:18.5px;line-height:1.74;font-weight:300;white-space:pre-wrap;
+  flex:1;min-width:0;overflow-wrap:anywhere;color:var(--murekkep)}
+/* devam parçası: aynı kaydın sonraki sayfadaki gövdesi, saat damgası yok */
+.satir.devam{padding-top:0}
 .satir mark{background:rgba(168,64,44,.22);border-radius:2px;padding:0 2px;color:var(--murekkep)}
 .satir .duz{opacity:.6;font-style:italic;font-size:.85em}
 .satir .kalem-btn{position:absolute;right:-4px;top:5px;opacity:0;transition:.2s;
@@ -111,3 +114,7 @@ body.odak .arac{opacity:.1}
 .duzelt-arac button{font-family:var(--ui);font-size:11px;color:var(--murekkep2);
   border:1px solid rgba(44,33,24,.25);border-radius:100px;padding:5px 13px}
 .duzelt-arac span{font-family:var(--ui);font-size:10px;color:var(--soluk);margin-left:auto}
+
+/* kısayol etiketi — düğmenin içinde, sessiz */
+.arac kbd{font-family:var(--ui);font-size:10px;opacity:.5;margin-left:5px;
+  letter-spacing:.02em;font-weight:400}

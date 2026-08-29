@@ -51,11 +51,13 @@ export function defteriBagla(durum: Durum, depo: Depo): DefterArayuz {
       } else if (o.tip === 'kayit') {
         const b = durum.kayitBul(o.kayitId)
         if (!b) continue
-        ic += `<div class="satir" data-id="${o.kayitId}">
-          <time>${b.kayit.saat}</time><p>${vurgu(b.kayit.metin)}${
-            b.kayit.duzenlendi ? ' <span class="duz">· düzeltildi</span>' : ''
-          }</p>
-          <button class="kalem-btn">düzelt</button></div>`
+        /* Sayfaya düşen parça yazılır, kaydın tamamı değil (K-014).
+           Saat ve düzelt düğmesi yalnızca kaydın başladığı parçada. */
+        const bas = o.parcaNo === 0
+        const iz = bas && b.kayit.duzenlendi ? ' <span class="duz">· düzeltildi</span>' : ''
+        ic += `<div class="satir${bas ? '' : ' devam'}" data-id="${o.kayitId}">
+          <time>${bas ? b.kayit.saat : ''}</time><p>${vurgu(o.metin)}${o.sonParca ? iz : ''}</p>
+          ${bas ? '<button class="kalem-btn">düzelt</button>' : ''}</div>`
       } else {
         ic += `<div class="kenar">${kacir(o.metin)}<span>kenar notu · ${kacir(o.tarih)}</span></div>`
       }
@@ -180,6 +182,23 @@ export function defteriBagla(durum: Durum, depo: Depo): DefterArayuz {
       kalem.style.height = kalem.scrollHeight + 'px'
       kalem.scrollIntoView({ block: 'nearest' })
     })
+    /*
+     * Enter satır başı yapar — paragraf yazmak bu ürünün asıl işi.
+     * Bırakma kısayolu Ctrl+Enter (Mac'te Cmd+Enter). Esc yazmadan çıkar.
+     * (KARARLAR.md · K-015)
+     */
+    kalem.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault()
+        void birak()
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        kalem.blur()
+        odakBirak()
+      }
+    })
   }
 
   const birak = async (): Promise<void> => {
@@ -197,6 +216,12 @@ export function defteriBagla(durum: Durum, depo: Depo): DefterArayuz {
     await durum.yenile()
     durum.aktifSayfa = durum.sonSayfa
     ciz()
+    /* Bırakınca odak yeni kalemde kalsın: kullanıcı hemen devam edebilsin. */
+    const yeni = $<HTMLTextAreaElement>('#kalem')
+    if (yeni) {
+      yeni.focus()
+      yeni.scrollIntoView({ block: 'nearest' })
+    }
   }
 
   /* ── düzeltme — iz bırakır ─────────────────────────────── */
@@ -234,6 +259,8 @@ export function defteriBagla(durum: Durum, depo: Depo): DefterArayuz {
   $('#ileri').onclick = () => sayfayaGit(durum.aktifSayfa + 1)
   $('#bugune').onclick = () => sayfayaGit(durum.sonSayfa)
   $('#birak').onclick = () => void birak()
+  $('#birak').innerHTML =
+    `bırak <kbd>${/Mac|iPhone|iPad/.test(navigator.userAgent) ? '\u2318' : 'Ctrl'}\u23CE</kbd>`
 
   addEventListener('keydown', (e) => {
     if ($('#kilit').classList.contains('acik') || $('#yak').classList.contains('acik')) return

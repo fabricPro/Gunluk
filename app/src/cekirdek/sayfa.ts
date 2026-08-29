@@ -10,6 +10,13 @@ const GUN_BASLIGI_MALIYET = 44
 const KAYIT_SABIT_MALIYET = 22
 const KENAR_SABIT_MALIYET = 20
 
+/**
+ * Bir parçanın sayfada işgal etmesi anlamlı sayılan en az yer.
+ * Sayfanın dibinde bundan az yer kaldıysa parça oraya sıkıştırılmaz,
+ * sayfa kapatılıp temiz bir sayfadan başlanır.
+ */
+const ASGARI_PARCA = 80
+
 export interface AkisGirdi {
   gunler: Gun[]
   /** kayitId -> o kayda düşülmüş kenar notu */
@@ -28,11 +35,31 @@ export interface Akis {
 }
 
 /**
+ * Metni verilen sınıra kadar, mümkünse sözcük sınırından ikiye ayırır.
+ *
+ * Dönen iki parça birleştirildiğinde özgün metni **birebir** verir: ayırma
+ * noktasındaki boşluk baş parçanın sonunda kalır. Sınır içinde hiç boşluk
+ * yoksa (kırılamayan uzun bir dizi) karakterden kesilir — yoksa akış sonsuz
+ * döngüye girer.
+ */
+export function sozcuktenKes(metin: string, sinir: number): [string, string] {
+  if (sinir >= metin.length) return [metin, '']
+  if (sinir < 1) return [metin.slice(0, 1), metin.slice(1)]
+
+  /* Sınırın hemen sonrasında boşluk varsa tam orada kesmek en temizi. */
+  const pencere = metin.slice(0, sinir + 1)
+  const bosluk = Math.max(pencere.lastIndexOf(' '), pencere.lastIndexOf('\n'))
+  if (bosluk > 0) return [metin.slice(0, bosluk + 1), metin.slice(bosluk + 1)]
+  return [metin.slice(0, sinir), metin.slice(sinir)]
+}
+
+/**
  * Kayıtları karakter maliyetine göre sayfalara akıtır.
  *
- * Kapanmış ciltlere ait sayfalar `donmusSayfalar` ile verilirse aynen
- * korunur; yalnızca açık cildin sayfaları yeniden hesaplanır. Sebep: eski
- * bir kayıt düzeltilip uzayınca kapanmış cildin içeriği değişmesin.
+ * Bir sayfaya sığmayan kayıt kesilir ve sonraki sayfadan devam eder; hiçbir
+ * kayıt kağıdın dışına taşmaz. Kapanmış ciltlere ait sayfalar
+ * `donmusSayfalar` ile verilirse aynen korunur; yalnızca açık cildin
+ * sayfaları yeniden hesaplanır.
  */
 export function sayfalariKur({ gunler, kenarlar, donmusSayfalar = [] }: AkisGirdi): Akis {
   const donmus = donmusSayfalar.slice().sort((a, b) => a.no - b.no)
@@ -58,24 +85,82 @@ export function sayfalariKur({ gunler, kenarlar, donmusSayfalar = [] }: AkisGird
     for (const kayit of gun.kayitlar) {
       if (donmusKayitlar.has(kayit.id)) continue
       const kenar = kenarlar.get(kayit.id)
-      const maliyet =
-        kayit.metin.length +
-        KAYIT_SABIT_MALIYET +
-        (basYok ? GUN_BASLIGI_MALIYET : 0) +
-        (kenar ? kenar.metin.length + KENAR_SABIT_MALIYET : 0)
+      const kenarMaliyet = kenar ? kenar.metin.length + KENAR_SABIT_MALIYET : 0
 
-      if (hacim + maliyet > SAYFA_HACIM && ogeler.length) {
+      let kalan = kayit.metin
+      let parcaNo = 0
+
+      /*
+       * Kayıt bu sayfaya sığıyorsa bütün yazılır. Sığmıyor ama temiz bir
+       * sayfaya sığıyorsa olduğu gibi sonraki sayfaya taşınır — kısa
+       * kayıtların davranışı demodaki gibi kalsın diye. Yalnızca tek
+       * başına bir sayfaya sığmayan kayıt bölünür (K-014).
+       */
+      for (;;) {
+        const basMaliyet = basYok ? GUN_BASLIGI_MALIYET : 0
+        const tamMaliyet = basMaliyet + KAYIT_SABIT_MALIYET + kalan.length + kenarMaliyet
+        const bosluk = SAYFA_HACIM - hacim
+
+        const gunBasligiYaz = () => {
+          if (!basYok) return
+          ogeler.push({ tip: 'gun', tarih: gun.tarih, ad: gun.ad })
+          basYok = false
+        }
+
+        /* 1 — sığıyor: bütün yaz. */
+        if (tamMaliyet <= bosluk) {
+          gunBasligiYaz()
+          ogeler.push({
+            tip: 'kayit',
+            kayitId: kayit.id,
+            tarih: gun.tarih,
+            metin: kalan,
+            parcaNo,
+            sonParca: true,
+          })
+          if (kenar)
+            ogeler.push({
+              tip: 'kenar',
+              kayitId: kayit.id,
+              metin: kenar.metin,
+              tarih: kenar.tarih,
+            })
+          hacim += tamMaliyet
+          break
+        }
+
+        /* 2 — temiz sayfaya sığıyor: bölmeden taşı (demodaki davranış). */
+        const temizMaliyet =
+          GUN_BASLIGI_MALIYET + KAYIT_SABIT_MALIYET + kalan.length + kenarMaliyet
+        if (ogeler.length && temizMaliyet <= SAYFA_HACIM) {
+          sayfayiKapat()
+          basYok = true
+          continue
+        }
+
+        /* 3 — tek başına bir sayfaya sığmıyor: sözcük sınırından böl. */
+        const yer = bosluk - basMaliyet - KAYIT_SABIT_MALIYET
+        if (ogeler.length && yer < ASGARI_PARCA) {
+          sayfayiKapat()
+          basYok = true
+          continue
+        }
+        const [parca, geri] = sozcuktenKes(kalan, Math.max(yer, ASGARI_PARCA))
+        gunBasligiYaz()
+        ogeler.push({
+          tip: 'kayit',
+          kayitId: kayit.id,
+          tarih: gun.tarih,
+          metin: parca,
+          parcaNo,
+          sonParca: false,
+        })
+        hacim = SAYFA_HACIM
         sayfayiKapat()
-        basYok = true /* yeni sayfada gün başlığı tekrar yazılır */
+        basYok = true
+        parcaNo++
+        kalan = geri
       }
-      if (basYok) {
-        ogeler.push({ tip: 'gun', tarih: gun.tarih, ad: gun.ad })
-        basYok = false
-      }
-      ogeler.push({ tip: 'kayit', kayitId: kayit.id, tarih: gun.tarih })
-      if (kenar)
-        ogeler.push({ tip: 'kenar', kayitId: kayit.id, metin: kenar.metin, tarih: kenar.tarih })
-      hacim += maliyet
     }
   }
   sayfayiKapat()
@@ -84,8 +169,12 @@ export function sayfalariKur({ gunler, kenarlar, donmusSayfalar = [] }: AkisGird
     s.no = i + 1
     s.cilt = Math.floor(i / CILT_SAYFA) + 1
     s.ciltSayfa = (i % CILT_SAYFA) + 1
-    const ilk = s.ogeler.find((o) => o.tip === 'kayit')
-    /* Başlık sayfa numarasına değil ilk kaydın kimliğine bağlı (K-005). */
+    /*
+     * Başlık anahtarı yalnızca bir kaydın BAŞLADIĞI sayfaya verilir
+     * (K-005 + K-014). Devam sayfası yeni bir başlangıç değildir; aksi
+     * hâlde aynı anahtar iki sayfaya düşer ve başlık ikisine birden yazılır.
+     */
+    const ilk = s.ogeler.find((o) => o.tip === 'kayit' && o.parcaNo === 0)
     s.anahtar = ilk && ilk.tip === 'kayit' ? ilk.kayitId : null
   })
 
@@ -110,6 +199,11 @@ export function ciltleriKur(sayfalar: Sayfa[], adlar: Map<number, string>): Cilt
   return ciltler
 }
 
-/** Bir kaydın hangi sayfada olduğunu bulur. */
+/**
+ * Bir kaydın BAŞLADIĞI sayfayı bulur.
+ * Arşivden bir kayda tıklayan onun başına gitsin, ortasına değil.
+ */
 export const sayfaBul = (sayfalar: Sayfa[], kayitId: string): Sayfa | null =>
-  sayfalar.find((s) => s.ogeler.some((o) => o.tip === 'kayit' && o.kayitId === kayitId)) ?? null
+  sayfalar.find((s) =>
+    s.ogeler.some((o) => o.tip === 'kayit' && o.kayitId === kayitId && o.parcaNo === 0),
+  ) ?? null

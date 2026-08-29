@@ -29,10 +29,23 @@ export interface GunBasligi {
   tarih: string
   ad: string
 }
+/**
+ * Sayfaya düşen kayıt parçası.
+ *
+ * Akışın atomu kayıt değil parçadır: bir sayfaya sığmayan kayıt sözcük
+ * sınırından kesilip sonraki sayfadan devam eder (KARARLAR.md · K-014).
+ * Parçalar birleştirildiğinde özgün metin birebir geri gelir.
+ */
 export interface KayitOgesi {
   tip: 'kayit'
   kayitId: string
   tarih: string
+  /** Bu sayfaya düşen metin parçası. */
+  metin: string
+  /** 0 = kaydın başı. Saat damgası yalnızca burada görünür. */
+  parcaNo: number
+  /** Kaydın son parçası mı — kenar notu buraya iliştirilir. */
+  sonParca: boolean
 }
 export interface KenarOgesi {
   tip: 'kenar'
