@@ -1,5 +1,7 @@
 import { CILT_SAYFA, VARSAYILAN_OLCU, ciltleriKur, sayfalariKur } from './cekirdek/sayfa.js'
 import type { SayfaOlcu } from './cekirdek/sayfa.js'
+import { BASLANGIC, gununSorusu, havuzdanSor, havuzuIlerlet, ilkHaftaBitti, kayitYazildi } from './cekirdek/yonlendirme.js'
+import type { YonlendirmeDurum } from './cekirdek/yonlendirme.js'
 import type { TemaTanim } from './cekirdek/sorgu.js'
 import type { Cilt, DefterBilgi, Gun, KenarNotu, Sayfa } from './cekirdek/tipler.js'
 import type { Depo } from './veri/depo.js'
@@ -26,6 +28,10 @@ export class Durum {
   sifreli = false
   /** Ölçülmüş sayfa kapasitesi; ekran katmanı doldurur. */
   olcu: SayfaOlcu = VARSAYILAN_OLCU
+  /** İlk hafta yönlendirmesinin durumu. */
+  yonlendirme: YonlendirmeDurum = BASLANGIC
+  /** Şu an ekranda duran soru — yazılınca kayda iliştirilir. */
+  aktifSoru: string | null = null
 
   private dinleyiciler: (() => void)[] = []
 
@@ -82,6 +88,11 @@ export class Durum {
     this.kenarlar = await this.depo.kenarlar()
     this.basliklar = await this.depo.basliklar()
     this.temalar = await this.depo.temalar()
+    this.yonlendirme = {
+      gun: Number((await this.depo.ayarOku('yonlendirme.gun')) ?? 0),
+      sonTarih: (await this.depo.ayarOku('yonlendirme.sonTarih')) ?? null,
+      havuzIndeks: Number((await this.depo.ayarOku('yonlendirme.havuz')) ?? 0),
+    }
     this.aktifDefter = await this.depo.defterGetir(this.depo.aktifDefterId)
 
     const akis = sayfalariKur({
@@ -95,6 +106,50 @@ export class Durum {
     if (this.aktifSayfa > this.sonSayfa) this.aktifSayfa = this.sonSayfa
     for (const f of this.dinleyiciler) f()
   }
+
+  /* ── yönlendirme ──────────────────────────────────────── */
+
+  /** Bugün gösterilecek soruyu belirler ve `aktifSoru`ya yazar. */
+  soruyuTazele(bugun: string): void {
+    /* Kapalı ya da dolu deftere yazılamaz; soru sormanın anlamı yok. */
+    if (!this.yazilabilir) {
+      this.aktifSoru = null
+      return
+    }
+    this.aktifSoru = gununSorusu(this.yonlendirme, bugun, this.krizVar)
+  }
+
+  /** Kullanıcı "bana bir şey sor" dedi. */
+  async baskaSoruIste(): Promise<void> {
+    if (!this.yazilabilir) return
+    this.aktifSoru = havuzdanSor(this.yonlendirme, this.krizVar)
+    this.yonlendirme = havuzuIlerlet(this.yonlendirme)
+    await this.depo.ayarYaz('yonlendirme.havuz', String(this.yonlendirme.havuzIndeks))
+  }
+
+  /** Kayıt yazıldıktan sonra yönlendirmeyi ilerletir. */
+  async yonlendirmeyiIlerlet(tarih: string): Promise<void> {
+    this.yonlendirme = kayitYazildi(this.yonlendirme, tarih)
+    await this.depo.ayarYaz('yonlendirme.gun', String(this.yonlendirme.gun))
+    await this.depo.ayarYaz('yonlendirme.sonTarih', tarih)
+    this.aktifSoru = null
+  }
+
+  /**
+   * "Bana bir şey sor" düğmesi görünsün mü.
+   *
+   * Soru duruyorken de görünür: gelen soru tutmadıysa kullanıcı başkasını
+   * isteyebilmeli, yoksa tek bir soruya mahkûm oluyor.
+   */
+  get soruIstenebilir(): boolean {
+    return this.yazilabilir && ilkHaftaBitti(this.yonlendirme)
+  }
+
+  /**
+   * Kriz işareti — ilke 2.1. Sınıflandırıcı Faz 3.11'de gelecek; kanca
+   * şimdiden burada ki geldiğinde soru sorma yolları tek yerden sussun.
+   */
+  krizVar = false
 
   kayitBul(id: string): { gun: Gun; kayit: Gun['kayitlar'][number] } | null {
     for (const gun of this.gunler)

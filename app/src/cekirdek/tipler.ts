@@ -7,6 +7,12 @@ export interface Kayit {
   metin: string
   temalar: string[]
   duzenlendi: boolean
+  /**
+   * Bu kayıt yazılırken defterin sorduğu soru.
+   * `metin`'den ayrı durur: arama ve arşiv yalnızca kullanıcının kendi
+   * yazdığını görür (KARARLAR.md · K-020).
+   */
+  soru: string | null
 }
 
 export interface KenarNotu {

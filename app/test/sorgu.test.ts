@@ -17,6 +17,7 @@ const k = (tarih: string, saat: string, metin: string, temalar: string[] = []) =
   metin,
   temalar,
   duzenlendi: false,
+  soru: null,
 })
 
 const gun = (tarih: string, ...kayitlar: ReturnType<typeof k>[]): Gun => ({

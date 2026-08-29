@@ -44,7 +44,9 @@ export function defteriBagla(
     if (durum.dolu)
       return `<div class="dolu-cagri"><p>Bu defter doldu.</p>
         <button id="torenAc">defteri kapat ya da uzat</button></div>`
-    return `<div id="yazma"><div class="bosluk"></div><textarea id="kalem" placeholder="yaz…"></textarea></div>`
+    const soru = durum.aktifSoru ? `<div id="yazma-soru">${kacir(durum.aktifSoru)}</div>` : ''
+    return `${soru}<div id="yazma"><div class="bosluk"></div>` +
+      `<textarea id="kalem" placeholder="${soru ? 'buraya yaz…' : 'yaz…'}"></textarea></div>`
   }
 
   /* Faz 1.2'nin ekranı değil — yalnızca sıfır kayıtta çıplak kalmasın. */
@@ -72,6 +74,8 @@ export function defteriBagla(
         /* Sayfaya düşen parça yazılır, kaydın tamamı değil (K-014).
            Saat ve düzelt düğmesi yalnızca kaydın başladığı parçada. */
         const bas = o.parcaNo === 0
+        /* Soru kaydın başladığı yerde, gövdesinin üstünde. */
+        if (bas && b.kayit.soru) ic += `<div class="kayit-soru">${kacir(b.kayit.soru)}</div>`
         const duzeltilebilir = bas && !durum.kapali
         const iz = bas && b.kayit.duzenlendi ? ' <span class="duz">· düzeltildi</span>' : ''
         ic += `<div class="satir${bas ? '' : ' devam'}" data-id="${o.kayitId}">
@@ -114,8 +118,10 @@ export function defteriBagla(
     $<HTMLButtonElement>('#ileri').disabled = durum.aktifSayfa >= durum.sonSayfa
 
     const son = durum.aktifSayfa === durum.sonSayfa
-    $('#birak').style.display = son ? '' : 'none'
-    $('#dikte').style.display = son ? '' : 'none'
+    $('#birak').style.display = son && durum.yazilabilir ? '' : 'none'
+    $('#dikte').style.display = son && durum.yazilabilir ? '' : 'none'
+    $('#soruIste').style.display = son && durum.soruIstenebilir ? '' : 'none'
+    $('#soruIste').textContent = durum.aktifSoru ? 'başka bir şey sor' : 'bana bir şey sor'
     $('#bugune').style.display = son ? 'none' : ''
 
     kalemBagla()
@@ -236,14 +242,18 @@ export function defteriBagla(
     if (!kalem) return
     const m = kalem.value.trim()
     if (!m) return
+    const gun = bugun()
     await depo.kayitEkle({
-      tarih: bugun(),
+      tarih: gun,
       saat: suanSaat(),
       metin: m,
       temalar: durum.temalariCikar(m),
+      soru: durum.aktifSoru,
     })
     kalem.value = ''
+    await durum.yonlendirmeyiIlerlet(gun)
     await durum.yenile()
+    durum.soruyuTazele(gun)
     durum.aktifSayfa = durum.sonSayfa
     ciz()
     /* Bırakınca odak yeni kalemde kalsın: kullanıcı hemen devam edebilsin. */
@@ -288,6 +298,11 @@ export function defteriBagla(
   $('#geri').onclick = () => sayfayaGit(durum.aktifSayfa - 1)
   $('#ileri').onclick = () => sayfayaGit(durum.aktifSayfa + 1)
   $('#bugune').onclick = () => sayfayaGit(durum.sonSayfa)
+  $('#soruIste').onclick = async () => {
+    await durum.baskaSoruIste()
+    ciz()
+    $<HTMLTextAreaElement>('#kalem')?.focus()
+  }
   $('#birak').onclick = () => void birak()
   $('#birak').innerHTML =
     `bırak <kbd>${/Mac|iPhone|iPad/.test(navigator.userAgent) ? '\u2318' : 'Ctrl'}\u23CE</kbd>`

@@ -62,7 +62,9 @@ export function sayfaOlc(): SayfaOlcu {
     kagitIc,
     '<div class="syf-baslik"><button class="ekle">başlık ekle</button></div>',
   )
-  /* 5 — son sayfadaki yazma alanı. */
+  /* 5 — kayda eşlik eden sorunun kendi payı. */
+  const soru = olc(kagitIc, '<div class="kayit-soru">x</div>')
+  /* 6 — son sayfadaki yazma alanı. */
   const yazma = olc(
     kagitIc,
     '<div style="display:flex;gap:14px;padding:4px 0 26px">' +
@@ -95,6 +97,7 @@ export function sayfaOlc(): SayfaOlcu {
     gunBasligi: ktr(gunBasligi),
     kayitSabit: ktr(bosSatir) + Math.round(satirKarakter / 2),
     kenarSabit: ktr(kenar),
+    soruSabit: ktr(soru),
     yazmaAlani: ktr(yazma),
   }
 }

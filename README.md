@@ -87,7 +87,7 @@ uyarı yazar. Telefonda gerçek kalıcılığı denemek için Capacitor kabuğuy
 ### Derleme ve testler
 
 ```sh
-npm test               # 111 test
+npm test               # 128 test
 npm run build          # dist/ üretir
 npm run onizle         # derlenmiş sürümü 4173 portunda sunar
 ```
@@ -117,10 +117,13 @@ karşılığı var:
   sonrası veritabanı dosyalarının bayt taraması.
 - **Arşiv uydurmaz.** `soruCoz` cevabı yalnızca bulunan kayıtlardan kurar ve
   kullanılan kayıtları cilt/sayfa numarasıyla döndürür. Kayıt yoksa cevap
-  sabittir: *"Yazmadığın bir şeyi uydurmam."*
+  sabittir: *"Yazmadığın bir şeyi uydurmam."* Defterin sorduğu sorular ayrı
+  bir sütunda durur ve arama havuzuna hiç girmez — uygulama kendi
+  cümlelerinden cevap kuramaz.
 
 ## Durum
 
-Faz 1.1 (kalıcılık) ve Faz 1.4 (cilt kapanma töreni) tamam, yazı tipleri
-gömüldü, kitaplık çalışıyor. Sırada Faz 1.2 — boş defter / onboarding. Sırada Faz 1.2 (boş defter / onboarding) —
+**Faz 1 tamam.** Kalıcılık, boş defter / onboarding, kitaplık ve cilt kapanma
+töreni çalışıyor; yazı tipleri gömülü. (El yazısı kapsam dışı — K-007.)
+Sırada Faz 2: fotoğraf eki, kenar notu arayüzü, PIN + biyometri, yedekleme. Sırada Faz 1.2 (boş defter / onboarding) —
 şu an yalnızca çökmeyen bir yer tutucu var.

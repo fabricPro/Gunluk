@@ -118,3 +118,15 @@ body.odak .arac{opacity:.1}
 /* kısayol etiketi — düğmenin içinde, sessiz */
 .arac kbd{font-family:var(--ui);font-size:10px;opacity:.5;margin-left:5px;
   letter-spacing:.02em;font-weight:400}
+
+/* ── defterin sorduğu soru ──────────────────────────────────
+   Mürekkep değil, basılı bir yönerge gibi: daha küçük, daha soluk,
+   arayüz yazı tipiyle. Kullanıcının yazdığıyla bir daha karışmasın
+   (KARARLAR.md · K-020). */
+.kayit-soru{font-family:var(--ui);font-size:12px;line-height:1.6;color:var(--soluk);
+  letter-spacing:.01em;margin:0 0 6px 48px;padding-left:11px;
+  border-left:1px solid rgba(44,33,24,.18)}
+.satir + .kayit-soru{margin-top:10px}
+/* yazma alanının üstünde duran, henüz cevaplanmamış soru */
+#yazma-soru{font-family:var(--ui);font-size:12.5px;line-height:1.6;color:var(--murekkep2);
+  margin:14px 0 2px 48px;padding-left:11px;border-left:1px solid rgba(168,64,44,.4)}

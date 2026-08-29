@@ -120,7 +120,7 @@ Sıra önemli. Her adım bir öncekine yaslanıyor.
 
 ### Faz 1 — Temel (önce bunlar)
 1. **Kalıcılık.** SQLite + SQLCipher, cihazda şifreli (KARARLAR.md · K-002). Şu an sayfa yenilenince her şey gidiyor.
-2. **Boş defter / onboarding.** En zor ekran ve hiç tasarlanmadı. Demo 437 kayıtla açılıyor, gerçek kullanıcı sıfırla açacak. İlk 7 gün yönlendirilmiş sorular olmalı.
+2. ~~**Boş defter / onboarding.**~~ **Tamam.** Karşılama ekranı yok: defter boş sayfayla açılıyor, yazma alanının üstünde günün sorusu duruyor. Yedi soru, sabit liste, yazılan güne göre ilerliyor. Sonrasında sorular susuyor, istenirse çağrılıyor (KARARLAR.md · K-019, K-020).
 3. ~~**Cilt kapanma töreni.**~~ **Tamam.** Defter dolunca ad ver, kapak seç, uzat ya da kapat; kapanınca cildin özeti ve bir sonraki cilt. Sayfa sayısı artık her defterin kendi ölçüsü (KARARLAR.md · K-017, K-018).
 
 ### Faz 2 — Defterin geri kalanı

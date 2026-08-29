@@ -17,6 +17,7 @@ interface KayitSatir {
   saat: string
   metin: string
   duzenlendi: number
+  soru: string | null
   temalar: string | null
 }
 
@@ -26,11 +27,12 @@ const satirdanKayit = (r: KayitSatir): Kayit => ({
   saat: r.saat,
   metin: r.metin,
   duzenlendi: r.duzenlendi === 1,
+  soru: r.soru,
   temalar: r.temalar ? r.temalar.split(',') : [],
 })
 
 const KAYIT_SECIM = `
-  SELECT k.id, k.tarih, k.saat, k.metin, k.duzenlendi,
+  SELECT k.id, k.tarih, k.saat, k.metin, k.duzenlendi, k.soru,
          (SELECT group_concat(kt.tema_id) FROM kayit_tema kt WHERE kt.kayit_id = k.id) AS temalar
   FROM kayit k`
 
@@ -64,6 +66,8 @@ export class Depo {
     saat: string
     metin: string
     temalar?: string[]
+    /** O an ekranda duran soru; yoksa null. */
+    soru?: string | null
   }): Promise<Kayit> {
     const id = kimlik()
     const t = simdi()
@@ -74,9 +78,11 @@ export class Depo {
       ))?.s ?? -1
     await this.db.islem(async () => {
       await this.db.calistir(
-        `INSERT INTO kayit (id, defter_id, tarih, saat, metin, sira, olusturma, guncelleme, duzenlendi)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-        [id, this.defterId, girdi.tarih, girdi.saat, girdi.metin, sonSira + 1, t, t],
+        `INSERT INTO kayit
+           (id, defter_id, tarih, saat, metin, sira, olusturma, guncelleme, duzenlendi, soru)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+        [id, this.defterId, girdi.tarih, girdi.saat, girdi.metin, sonSira + 1, t, t,
+         girdi.soru ?? null],
       )
       await this.temalariYaz(id, girdi.temalar ?? [])
     })
@@ -87,6 +93,7 @@ export class Depo {
       metin: girdi.metin,
       temalar: girdi.temalar ?? [],
       duzenlendi: false,
+      soru: girdi.soru ?? null,
     }
   }
 

@@ -58,6 +58,7 @@ function ornekVeri(gunSayisi: number, kayitSayisi = 3) {
         metin,
         temalar: [],
         duzenlendi: false,
+        soru: null,
       })
       hamK.push({ metin })
     }
@@ -225,6 +226,7 @@ describe('K-014 — uzun kayıt sayfalara bölünür', () => {
     metin,
     temalar: [] as string[],
     duzenlendi: false,
+    soru: null,
   })
 
   const tekGun = (...metinler: string[]): Gun[] => [

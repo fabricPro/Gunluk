@@ -292,3 +292,33 @@ describe('sıfırlama — geliştirme aracı', () => {
     )
   })
 })
+
+describe('kayda eşlik eden soru (K-020)', () => {
+  it('soru kayıtla saklanır ve geri okunur', async () => {
+    const k = await depo.kayitEkle({
+      tarih: '2026-08-29',
+      saat: '10:00',
+      metin: 'Çünkü bir yere yazmam gerekiyordu.',
+      soru: 'Bu defteri neden açtın?',
+    })
+    expect((await depo.kayitGetir(k.id))?.soru).toBe('Bu defteri neden açtın?')
+  })
+
+  it('sorusuz kayıtta null kalır', async () => {
+    const k = await depo.kayitEkle({ tarih: '2026-08-29', saat: '11:00', metin: 'düz kayıt' })
+    expect((await depo.kayitGetir(k.id))?.soru).toBeNull()
+  })
+
+  it('SORU ARAMAYA GİRMEZ — arşiv yalnızca kullanıcının yazdığını görür', async () => {
+    await depo.kayitEkle({
+      tarih: '2026-08-29',
+      saat: '12:00',
+      metin: 'Bugün yürüyüşe çıktım.',
+      soru: 'Bugün kimseye söylemediğin ne oldu?',
+    })
+    /* Sorunun içindeki sözcükler aramada eşleşmemeli. */
+    expect(await depo.ara('söylemediğin')).toHaveLength(0)
+    expect(await depo.ara('kimseye')).toHaveLength(0)
+    expect(await depo.ara('yürüyüşe')).toHaveLength(1)
+  })
+})

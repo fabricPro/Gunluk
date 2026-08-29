@@ -9,6 +9,58 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · K-019 · İlk hafta takvimle değil, yazılan günle sayılır
+
+Faz 1.2 tamamlandı. Yedi soru, sabit liste, sırayla.
+
+**"İlk 7 gün" yazdığın 7 gün demek.** Takvimle sayılsaydı bir hafta uğramayan
+biri döndüğünde 7. soruyla karşılaşır, soruların çoğunu hiç görmezdi. Hedef
+kitle tam olarak "günlük tutmak isteyip tutamayan" insanlar; onlar için
+takvim yanlış saat. Aynı güne ikinci kayıt sayacı ilerletmez — gün sayılır,
+kayıt değil. Yazdıktan sonra o gün başka soru gelmez.
+
+**İlk açılışta karşılama ekranı yok.** Tanıtım, kurulum sihirbazı, adım adım
+anlatım hiçbiri yok. Defter açılır, boş sayfa durur, yazma alanının üstünde
+"Bu defteri neden açtın?" yazar. Ürün kendini açıklamaz, kullandırır.
+
+**Yedi gün bitince sorular susar** ama araç çubuğunda sessiz bir "bana bir
+şey sor" düğmesi kalır. Tıkanan kullanıcı kendi isteğiyle çağırır. Düğme
+**model çağırmaz** — yazılmış bir listeden sırayla çeker, çevrimdışı çalışır.
+Aksi hâlde ilke 2.3'ü sessizce delen bir düğme olurdu. Soru duruyorken de
+görünür ve "başka bir şey sor"a döner: gelen soru tutmadıysa kullanıcı tek
+bir soruya mahkûm kalmamalı.
+
+**Kriz kancası şimdiden yerinde.** `gununSorusu` ve `havuzdanSor` bir `kriz`
+bayrağı alıyor; true olduğunda ikisi de null dönüyor. Sınıflandırıcı Faz
+3.11'de gelecek ama ilke 2.1 "kriz anında uygulama susar" diyor ve soru
+sormak da konuşmaktır — o gün geldiğinde susma tek yerden takılacak.
+
+**Soruların sesi:** soru olay sorar, duygu sormaz. "Bugün nasıl hissettin"
+soyut ve hiçbir şey yazdırmıyor; "bugün kimseye söylemediğin ne oldu"
+yazdırıyor. Duygu varsayan soru ("bugün zor muydu") varsaydığı an yorum
+yapmış olur. Bir test destekleyici-AI diline (minnettarlık, "harikasın",
+puanlama) kaçmadığını sabitliyor.
+
+---
+
+## 2026-08-29 · K-020 · Soru kayıtla saklanır ama metne karışmaz
+
+Soru, yazıldığı kayıtla birlikte kalıyor: yıllar sonra açtığında defterin o
+gün ne sorduğunu görüyorsun.
+
+Bunun bir bedeli var ve bedel şurada ödendi: soru `kayit.soru` diye **ayrı
+bir sütunda** duruyor, `metin`'in içinde değil. FTS indeksi ve `soruCoz`
+yalnızca `metin`'i görüyor. Soru `metin`'in içinde olsaydı arşiv,
+uygulamanın kendi cümlelerinden cevap kurmaya başlardı — "arşiv uydurmaz"
+ilkesi tam orada aşınırdı. Bir test bunu koruyor: sorunun sözcükleri aramada
+eşleşmiyor, kullanıcının yazdığı eşleşiyor.
+
+Ekranda da ayrı duruyor: mürekkep değil, basılı bir yönerge gibi — arayüz
+yazı tipi, daha küçük, daha soluk, ince bir çizgiyle. Kullanıcının yazdığı
+ile defterin sorduğu bir daha karışmıyor.
+
+---
+
 ## 2026-08-29 · K-017 · Defterin ölçüsü kullanıcıya ait
 
 Sayfa sayısı tek bir sabit değil artık; her defterin kendi sınırı var. Yeni

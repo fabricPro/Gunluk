@@ -18,6 +18,8 @@ export interface SayfaOlcu {
   gunBasligi: number
   kayitSabit: number
   kenarSabit: number
+  /** Kayda eşlik eden sorunun satır payı. */
+  soruSabit: number
   /** Son sayfanın altındaki yazma alanı. */
   yazmaAlani: number
 }
@@ -28,6 +30,7 @@ export const VARSAYILAN_OLCU: SayfaOlcu = {
   gunBasligi: 44,
   kayitSabit: 22,
   kenarSabit: 20,
+  soruSabit: 26,
   yazmaAlani: 90,
 }
 
@@ -94,6 +97,7 @@ export function sayfalariKur({
   const GUN_BASLIGI_MALIYET = olcu.gunBasligi
   const KAYIT_SABIT_MALIYET = olcu.kayitSabit
   const KENAR_SABIT_MALIYET = olcu.kenarSabit
+  const SORU_SABIT_MALIYET = olcu.soruSabit
   const donmus = donmusSayfalar.slice().sort((a, b) => a.no - b.no)
 
   /* Donmuş sayfalarda yer alan kayıtlar yeniden akıtılmaz. */
@@ -118,6 +122,8 @@ export function sayfalariKur({
       if (donmusKayitlar.has(kayit.id)) continue
       const kenar = kenarlar.get(kayit.id)
       const kenarMaliyet = kenar ? kenar.metin.length + KENAR_SABIT_MALIYET : 0
+      /* Soru yalnızca kaydın başladığı sayfada, bir kez yer kaplar. */
+      const soruMaliyet = kayit.soru ? kayit.soru.length + SORU_SABIT_MALIYET : 0
 
       let kalan = kayit.metin
       let parcaNo = 0
@@ -130,7 +136,13 @@ export function sayfalariKur({
        */
       for (;;) {
         const basMaliyet = basYok ? GUN_BASLIGI_MALIYET : 0
-        const tamMaliyet = basMaliyet + KAYIT_SABIT_MALIYET + kalan.length + kenarMaliyet
+        const bastaMi = parcaNo === 0
+        const tamMaliyet =
+          basMaliyet +
+          KAYIT_SABIT_MALIYET +
+          (bastaMi ? soruMaliyet : 0) +
+          kalan.length +
+          kenarMaliyet
         const bosluk = SAYFA - hacim
 
         const gunBasligiYaz = () => {
@@ -163,7 +175,11 @@ export function sayfalariKur({
 
         /* 2 — temiz sayfaya sığıyor: bölmeden taşı (demodaki davranış). */
         const temizMaliyet =
-          GUN_BASLIGI_MALIYET + KAYIT_SABIT_MALIYET + kalan.length + kenarMaliyet
+          GUN_BASLIGI_MALIYET +
+          KAYIT_SABIT_MALIYET +
+          (bastaMi ? soruMaliyet : 0) +
+          kalan.length +
+          kenarMaliyet
         if (ogeler.length && temizMaliyet <= SAYFA) {
           sayfayiKapat()
           basYok = true
@@ -171,7 +187,7 @@ export function sayfalariKur({
         }
 
         /* 3 — tek başına bir sayfaya sığmıyor: sözcük sınırından böl. */
-        const yer = bosluk - basMaliyet - KAYIT_SABIT_MALIYET
+        const yer = bosluk - basMaliyet - KAYIT_SABIT_MALIYET - (bastaMi ? soruMaliyet : 0)
         if (ogeler.length && yer < ASGARI_PARCA) {
           sayfayiKapat()
           basYok = true

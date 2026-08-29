@@ -67,6 +67,7 @@ async function baslat(): Promise<void> {
 
   await durum.yenile()
   durum.aktifSayfa = durum.sonSayfa
+  durum.soruyuTazele(new Date().toISOString().slice(0, 10))
 
   let toren: { ac: () => void } | null = null
   const defter = defteriBagla(durum, depo, () => toren?.ac())
@@ -106,6 +107,7 @@ async function baslat(): Promise<void> {
       yeni.gunBasligi === eski.gunBasligi &&
       yeni.kayitSabit === eski.kayitSabit &&
       yeni.kenarSabit === eski.kenarSabit &&
+      yeni.soruSabit === eski.soruSabit &&
       yeni.yazmaAlani === eski.yazmaAlani
     )
       return
