@@ -121,6 +121,8 @@ const TR: Metinler = {
   'kilit.alt': 'kilitli',
   'kilit.biyo': 'biyometriyle aç',
   'kilit.parola': 'parola kullan',
+  'kilit.pin': 'PIN kullan',
+  'kilit.kurAlt': 'parola belirle',
 
   /* ayarlar */
   'ay.baslik': 'Ayarlar',
@@ -274,6 +276,13 @@ const TR: Metinler = {
   'kil.beklemeDk': 'Çok fazla deneme. {n} dakika sonra tekrar dene.',
   'kil.beklemeSn': 'Çok fazla deneme. {n} saniye sonra tekrar dene.',
   'kil.yanlis': 'Olmadı. Bir daha dene.',
+  'kil.kurSor':
+    'Bu tarayıcıdaki defterini bu parola açacak — en az {n} karakter. ' +
+    'Unutursan defter bir daha açılmaz; bizde bir kopyası yok.',
+  'kil.kurKisa': 'En az {n} karakter.',
+  'kil.kurTekrar': 'Bir daha yaz.',
+  'kil.kurUymadi': 'İkisi aynı değil. Baştan.',
+  'kil.kurBekle': 'Anahtar hazırlanıyor…',
 
   /* ölçüm örneği — arayüzde görünmüyor, sayfa kapasitesi bununla ölçülüyor */
   'olcum.ornek':
@@ -306,14 +315,19 @@ const TR: Metinler = {
   'ay.biyoKapat': 'biyometriyi kapat',
   'ay.kilitKaldir': 'kilidi kaldır',
   'ay.notSifresiz':
-    'Bu tarayıcı derlemesinde veritabanı <b>şifresiz</b>. Kilit burada yalnızca bir ' +
-    'ekran; koruduğu bir şey yok. Cihaz derlemesinde veritabanının tamamı şifreli.',
+    'Kilit kurulu olmadığı için veritabanı <b>şifresiz</b> duruyor. Tarayıcıda ' +
+    'defteri şifreleyen şey kilidin ta kendisi: parola olmadan mühürlenemez.',
+  'ay.notTarayiciMuhur':
+    'Bu tarayıcıda defter, parolandan türeyen anahtarla <b>mühürlü</b> duruyor; ' +
+    'diskte açık hâli yok. Parolayı unutursan bu defter bir daha açılmaz — ' +
+    'bizde kopyası yok. İki kaçış yolu var: mühürlü yedek dosyası ve senkron ' +
+    'açıksa Defter Kimliği.',
   'ay.notBiyo':
     'Biyometri hızlıdır ama anahtarın açılabilir bir kopyasını cihazda bırakır. ' +
     'Yalnızca PIN istiyorsan biyometriyi kapalı bırak.',
   'ay.notModelAnahtar':
-    'Tarayıcı derlemesinde model anahtarı da <b>korumasız</b> duruyor (localStorage). ' +
-    'Gerçek anahtarını yalnızca cihaz derlemesine gir.',
+    'Kilit kurulu olmadığı için model anahtarı <b>korumasız</b> duruyor. Kilit ' +
+    'kurunca o da mühürleniyor.',
   'ay.notPinUnutma':
     'PIN’i unutursan biyometri yolu açık kaldığı sürece defterine erişebilirsin. ' +
     'İkisini de kaybedersen defter açılmaz.',
@@ -420,9 +434,8 @@ const TR: Metinler = {
     'Bu cihazdaki defterin olduğu gibi kalıyor.',
   'ay.senkronKilitli': 'Defter kilitliyken senkron durur — anahtar bellekte değil.',
   'ay.senkronTarayici':
-    'Tarayıcı derlemesinde Defter Kimliği <b>korumasız</b> duruyor (localStorage) ' +
-    've çerez kısıtları senkronu engelleyebilir. Gerçek kullanım için cihaz ' +
-    'uygulamasını kullan.',
+    'Kilit kurulu olmadığı için Defter Kimliği <b>korumasız</b> duruyor. Kilit ' +
+    'kurunca o da mühürleniyor.',
 
   /* Defter Kimliği kartı */
   'sk.et': 'Defter Kimliği',
@@ -559,6 +572,8 @@ const EN: Metinler = {
   'kilit.alt': 'locked',
   'kilit.biyo': 'unlock with biometrics',
   'kilit.parola': 'use a passphrase',
+  'kilit.pin': 'use a PIN',
+  'kilit.kurAlt': 'set a passphrase',
 
   'ay.baslik': 'Settings',
   'ay.kilit': 'Lock',
@@ -696,6 +711,14 @@ const EN: Metinler = {
   'kil.beklemeDk': 'Too many attempts. Try again in {n} minutes.',
   'kil.beklemeSn': 'Too many attempts. Try again in {n} seconds.',
   'kil.yanlis': "That didn't work. Try again.",
+  'kil.kurSor':
+    'This passphrase will open your notebook in this browser — at least {n} ' +
+    'characters. If you forget it the notebook cannot be opened again; we ' +
+    'hold no copy of it.',
+  'kil.kurKisa': 'At least {n} characters.',
+  'kil.kurTekrar': 'Type it once more.',
+  'kil.kurUymadi': "Those two don't match. Start over.",
+  'kil.kurBekle': 'Preparing the key…',
 
   'olcum.ornek':
     'I got up early again and opened the window; the air was cold. ' +
@@ -726,14 +749,19 @@ const EN: Metinler = {
   'ay.biyoKapat': 'turn off biometrics',
   'ay.kilitKaldir': 'remove the lock',
   'ay.notSifresiz':
-    'In this browser build the database is <b>unencrypted</b>. The lock here is just a ' +
-    'screen; it protects nothing. On device the whole database is encrypted.',
+    'With no lock set the database sits <b>unencrypted</b>. In a browser the lock ' +
+    'is the encryption: without a passphrase there is nothing to seal it with.',
+  'ay.notTarayiciMuhur':
+    'In this browser the notebook is <b>sealed</b> with a key derived from your ' +
+    'passphrase; no open copy is on disk. Forget the passphrase and this notebook ' +
+    'cannot be opened again — we hold no copy. Two ways out: a sealed backup file, ' +
+    'and, if sync is on, your Notebook Key.',
   'ay.notBiyo':
     'Biometrics are fast, but they leave an openable copy of the key on the device. ' +
     'If you want the PIN alone, leave biometrics off.',
   'ay.notModelAnahtar':
-    'In the browser build the model key is also <b>unprotected</b> (localStorage). ' +
-    'Only enter your real key in the device build.',
+    'With no lock set the model key sits <b>unprotected</b>. Setting a lock seals ' +
+    'it too.',
   'ay.notPinUnutma':
     'If you forget the PIN you can still get in while the biometric path is on. ' +
     'Lose both and the notebook will not open.',
@@ -837,9 +865,8 @@ const EN: Metinler = {
     'The notebook on this device stays exactly as it is.',
   'ay.senkronKilitli': 'Sync pauses while the notebook is locked — the key is not in memory.',
   'ay.senkronTarayici':
-    'In the browser build the Notebook Key is stored <b>unprotected</b> ' +
-    '(localStorage) and cookie restrictions may block sync. Use the device app ' +
-    'for real use.',
+    'With no lock set your Notebook Key sits <b>unprotected</b>. Setting a lock ' +
+    'seals it too.',
 
   'sk.et': 'Notebook Key',
   'sk.baslik': 'Write this down somewhere',

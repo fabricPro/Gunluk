@@ -101,7 +101,23 @@ async function baslat(): Promise<void> {
   })
 
   if (kilit.durum === 'kilitli') {
-    await kilitEkrani.goster()
+    await kilitEkrani.goster('ac')
+    return
+  }
+
+  /*
+   * Tarayıcıda kilit ZORUNLU (KARARLAR.md · K-037).
+   *
+   * Cihazda SQLCipher zaten devrede ve kilit isteğe bağlı bir ek katman.
+   * Tarayıcıda öyle bir taban yok: anahtar olmadan defter diske mühürlü
+   * yazılamaz, yani parola belirlemek "istersen" değil, şifrelemenin
+   * kendisi. Bu ekran atlanamıyor.
+   *
+   * Şifresiz eski defter varsa kaybolmuyor: mühürlü sürücü açılışta onu
+   * bulup taşıyor ve düz kopyayı siliyor.
+   */
+  if (!nativeMi && kilit.durum === 'kurulusuz') {
+    await kilitEkrani.goster('kur')
     return
   }
   await uygulamayiKur()
@@ -111,6 +127,24 @@ async function baslat(): Promise<void> {
   async function uygulamayiKur(): Promise<void> {
     const acilis = await surucuSec()
     surucu = acilis.surucu
+
+    /*
+     * Mühür diske borçlandırmalı yazılıyor (son yazmadan ~1.5 sn sonra).
+     * Sekme kapanırken ya da arka plana geçerken bekleyen varsa hemen
+     * yazılsın: aradaki yazı kaybolmasın.
+     *
+     * Tam güvence değil ve öyle anlatılmıyor — sekme ÇÖKERSE son mühürden
+     * sonrası gider. Yakalanabilen iki an bunlar (KARARLAR.md · K-037).
+     * Düz yolda `muhurleSimdi` hiçbir şey yapmıyor.
+     */
+    const muhurle = (): void => void acilis.muhurleSimdi()
+    window.addEventListener('pagehide', muhurle)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') muhurle()
+    })
+
+    if (acilis.tasindi)
+      console.info('[defter] Sifresiz eski defter muhurluye tasindi; duz kopya silindi.')
     const depo = new Depo(await defteriAc(surucu))
     depo.dil = secilenDil
     const bayrak = new URLSearchParams(location.search)
@@ -249,6 +283,7 @@ async function baslat(): Promise<void> {
     ayarlariBagla({
       kilit,
       sifreli: acilis.sifreli,
+      tarayiciMi: !nativeMi,
       /*
        * Kilit kurulurken sarmalanacak anahtar: defterin ŞU AN şifreli
        * olduğu anahtar.

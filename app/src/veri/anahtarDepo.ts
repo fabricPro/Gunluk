@@ -22,6 +22,10 @@ export const MODEL_ANAHTARI = 'defter.model.anahtar'
  */
 export const SENKRON_KODU = 'defter.senkron.kod'
 
+import { aesAnahtar, b64Oku, b64Yaz, onaltilikOku } from '../cekirdek/gizle.js'
+import { muhruAc, muhurMu, muhurle } from '../cekirdek/muhur.js'
+import { dayatilanAnahtar } from './kripto.js'
+
 export interface AnahtarDepo {
   oku(): Promise<string | null>
   yaz(a: string): Promise<void>
@@ -29,22 +33,67 @@ export interface AnahtarDepo {
 }
 
 /**
- * Tarayıcı önizlemesi — localStorage.
+ * Tarayıcı — localStorage, ama SARMALANMIŞ.
  *
- * Burada gerçek bir koruma yok, tıpkı veritabanının şifresiz olması gibi
- * (K-013). Ayar kağıdı bunu açıkça söylüyor.
+ * Eskiden burada düz metin duruyordu ve ayar kağıdı bunu açıkça
+ * söylüyordu (K-013). Artık değer, kilidin ana anahtarıyla mühürleniyor:
+ * kilit kapalıyken localStorage'ı okuyan biri yalnızca şifreli bayt
+ * görüyor (KARARLAR.md · K-037).
+ *
+ * Cihazın karşılığı Keychain / Android Keystore; orada işletim sistemi
+ * yapıyor, burada biz.
  */
-export const tarayiciAnahtarDepo = (ad = MODEL_ANAHTARI): AnahtarDepo => ({
-  async oku() {
-    return localStorage.getItem(ad)
-  },
-  async yaz(a) {
-    localStorage.setItem(ad, a)
-  },
-  async sil() {
-    localStorage.removeItem(ad)
-  },
-})
+const kodla = new TextEncoder()
+const cozumle = new TextDecoder()
+
+/** Bellekteki ana anahtardan AES anahtarı; kilitliyken `null`. */
+async function sarmalayan(): Promise<CryptoKey | null> {
+  const av = dayatilanAnahtar()
+  return av ? aesAnahtar(onaltilikOku(av)) : null
+}
+
+/** base64 olmayan değerde `atob` atıyor; eski düz metinler öyle. */
+function baytlar(ham: string): Uint8Array | null {
+  try {
+    return b64Oku(ham)
+  } catch {
+    return null
+  }
+}
+
+export const tarayiciAnahtarDepo = (ad = MODEL_ANAHTARI): AnahtarDepo => {
+  const depo: AnahtarDepo = {
+    async oku() {
+      const ham = localStorage.getItem(ad)
+      if (!ham) return null
+      const anahtar = await sarmalayan()
+      /* Kilitliyken okunmuyor — sarmalamanın bütün anlamı bu. */
+      if (!anahtar) return null
+
+      const bayt = baytlar(ham)
+      if (!bayt || !muhurMu(bayt)) {
+        /*
+         * Sarmalamadan önce yazılmış düz değer. Sessizce kaybolmasın:
+         * mühürlenip geri yazılıyor ve bu açılıştan sonra düz kopya
+         * kalmıyor.
+         */
+        await depo.yaz(ham)
+        return ham
+      }
+      const acik = await muhruAc(bayt, anahtar)
+      return acik ? cozumle.decode(acik) : null
+    },
+    async yaz(a) {
+      const anahtar = await sarmalayan()
+      if (!anahtar) throw new Error('anahtar-yok')
+      localStorage.setItem(ad, b64Yaz(await muhurle(kodla.encode(a), anahtar)))
+    },
+    async sil() {
+      localStorage.removeItem(ad)
+    },
+  }
+  return depo
+}
 
 export async function cihazAnahtarDepo(ad = MODEL_ANAHTARI): Promise<AnahtarDepo> {
   const { SecureStorage } = await import('@aparajita/capacitor-secure-storage')

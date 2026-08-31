@@ -20,6 +20,8 @@ import { $, $$, S, kacir } from './ortak.js'
 export interface AyarBaglam {
   kilit: Kilit
   sifreli: boolean
+  /** Tarayıcı mı — mühür notu yalnızca orada anlamlı. */
+  tarayiciMi: boolean
   /**
    * Defterin şu an şifreli olduğu anahtar; kilit kurulurken bu sarmalanır.
    * Yeni anahtar ÜRETİLMEZ — üretilirse cihazdaki veritabanı bir daha
@@ -109,7 +111,8 @@ const boyutYaz = (b: number): string =>
   b < 1024 ? `${b} B` : b < 1024 * 1024 ? `${Math.round(b / 1024)} KB` : `${(b / 1048576).toFixed(1)} MB`
 
 export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
-  const { kilit, sifreli, mevcutAnahtar, db, depo, degisti, yenidenYukle, gomu, model } = b
+  const { kilit, sifreli, tarayiciMi, mevcutAnahtar, db, depo, degisti, yenidenYukle, gomu, model } =
+    b
   const dilD = b.dil
   const senkron = b.senkron
   const kapat = () => $('#ayarlar').classList.remove('acik')
@@ -161,6 +164,9 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       notlar.push(
         S('ay.notSifresiz'),
       )
+    /* Tarayıcıda şifreleme kilidin kendisi; unutulan parolanın bedeli
+       cihazdakinden ağır ve söylenmek zorunda (KARARLAR.md · K-037). */
+    if (sifreli && tarayiciMi) notlar.push(S('ay.notTarayiciMuhur'))
     if (kilit.biyometriAcik)
       notlar.push(
         S('ay.notBiyo'),

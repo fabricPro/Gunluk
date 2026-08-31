@@ -2,17 +2,32 @@ import type { Kilit } from '../kilitAkis.js'
 import { $, $$, S } from './ortak.js'
 
 /**
- * Kilit ekranı.
+ * Kilit ekranı — iki kip.
  *
- * Defter kilitliyken ana anahtar bellekte olmadığı için arkada uygulama
- * yok — veritabanı bile açılmamış durumda (KARARLAR.md · K-021).
+ * **`ac`**: defter kilitli. Ana anahtar bellekte olmadığı için arkada
+ * uygulama yok, veritabanı bile açılmamış durumda (KARARLAR.md · K-021).
+ *
+ * **`kur`**: kilit hiç kurulmamış. Tarayıcıda bu ekran atlanamıyor:
+ * anahtar olmadan defter diske MÜHÜRLÜ yazılamaz, yani parola belirlemek
+ * "istersen" değil, şifrelemenin kendisi (KARARLAR.md · K-037). Cihazda
+ * durum değişmedi — orada SQLCipher zaten devrede ve kilit isteğe bağlı.
+ *
+ * Kurulumda parola İKİ KEZ soruluyor. Yanlış yazılan bir parola, defteri
+ * bir daha açılmamak üzere kapatır; tek yazımla geçmek kabul edilemez.
  */
+const EN_AZ = 8
+
+export type KilitKipi = 'ac' | 'kur'
+
 export function kilitEkraniBagla(
   kilit: Kilit,
   cozuldu: (anaAnahtar: string) => Promise<void>,
-): { goster: () => Promise<void>; gizle: () => void } {
+): { goster: (kip?: KilitKipi) => Promise<void>; gizle: () => void } {
   let parolaKipi = false
   let girilen = ''
+  let kip: KilitKipi = 'ac'
+  /** Kurulumda ilk yazılan parola; ikincisiyle karşılaştırılıyor. */
+  let ilkParola: string | null = null
 
   const alan = () => $<HTMLInputElement>('#kilPin')
 
@@ -37,6 +52,25 @@ export function kilitEkraniBagla(
         ? S('kil.beklemeDk', { n: Math.ceil(sn / 60) })
         : S('kil.beklemeSn', { n: sn }),
     )
+  }
+
+  /** Kurulum: parolayı iki kez alır, sonra kilidi kurar. */
+  const kur = async (yazilan: string): Promise<void> => {
+    alan().value = ''
+    if (ilkParola === null) {
+      if (yazilan.length < EN_AZ) return uyari(S('kil.kurKisa', { n: EN_AZ }))
+      ilkParola = yazilan
+      return uyari(S('kil.kurTekrar'))
+    }
+    if (yazilan !== ilkParola) {
+      ilkParola = null
+      return uyari(S('kil.kurUymadi'))
+    }
+    uyari(S('kil.kurBekle'))
+    const av = await kilit.kur(ilkParola)
+    ilkParola = null
+    uyari('')
+    await cozuldu(av)
   }
 
   const dene = async (pin: string): Promise<void> => {
@@ -66,7 +100,8 @@ export function kilitEkraniBagla(
   })
 
   alan().addEventListener('keydown', (e) => {
-    if ((e as KeyboardEvent).key === 'Enter' && alan().value) void dene(alan().value)
+    if ((e as KeyboardEvent).key !== 'Enter' || !alan().value) return
+    void (kip === 'kur' ? kur(alan().value) : dene(alan().value))
   })
 
   /* PIN kipinde alan görünmez; noktalara dokunmak klavyeyi geri getirsin. */
@@ -80,7 +115,7 @@ export function kilitEkraniBagla(
     girilen = ''
     alan().type = parolaKipi ? 'password' : 'text'
     alan().setAttribute('inputmode', parolaKipi ? 'text' : 'numeric')
-    $('#kilParola').textContent = parolaKipi ? 'PIN kullan' : 'parola kullan'
+    $('#kilParola').textContent = S(parolaKipi ? 'kilit.pin' : 'kilit.parola')
     noktalariCiz()
     alan().focus()
   }
@@ -94,7 +129,8 @@ export function kilitEkraniBagla(
   }
   $('#kilBiyo').onclick = () => void biyometriDene()
 
-  const goster = async (): Promise<void> => {
+  const goster = async (istenen: KilitKipi = 'ac'): Promise<void> => {
+    kip = istenen
     /*
      * Çözülmüş metin DOM'da kalmasın. Kilit ekranı üstünü örtüyor ama
      * defterin içeriği ağaçta durmaya devam ederdi; kilitlemek onu da
@@ -108,15 +144,27 @@ export function kilitEkraniBagla(
 
     girilen = ''
     alan().value = ''
-    uyari('')
+    ilkParola = null
+
+    /* Kurulumda ekran parola kipinde açılıyor; PIN'e geçiş ve biyometri
+       burada anlamsız, ikisi de gizli. */
+    parolaKipi = kip === 'kur'
+    $('#kilitEkrani').classList.toggle('parola', parolaKipi)
+    alan().type = parolaKipi ? 'password' : 'text'
+    alan().setAttribute('inputmode', parolaKipi ? 'text' : 'numeric')
+    $('#kilAlt').textContent = S(kip === 'kur' ? 'kilit.kurAlt' : 'kilit.alt')
+    uyari(kip === 'kur' ? S('kil.kurSor', { n: EN_AZ }) : '')
     noktalariCiz()
-    $('#kilBiyo').style.display = kilit.biyometriAcik ? '' : 'none'
+
+    $('#kilBiyo').style.display =
+      kip === 'ac' && kilit.biyometriAcik ? '' : 'none'
+    $('#kilParola').style.display = kip === 'kur' ? 'none' : ''
     $('#kilitEkrani').classList.add('acik')
     /* Diğer katmanlar kapalı kalsın: kilitliyken hiçbiri anlamlı değil. */
     for (const k of ['#toren', '#kitaplik', '#yeniDefter', '#fihrist', '#yak', '#ayarlar'])
       $$(k).forEach((e) => e.classList.remove('acik'))
     setTimeout(() => alan().focus(), 80)
-    if (kilit.biyometriAcik) void biyometriDene()
+    if (kip === 'ac' && kilit.biyometriAcik) void biyometriDene()
   }
 
   const gizle = (): void => {

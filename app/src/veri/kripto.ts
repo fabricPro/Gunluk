@@ -57,6 +57,14 @@ export function anahtariDayat(anahtar: string | null): void {
   dayatilan = anahtar
 }
 
+/**
+ * Bellekteki ana anahtar — kilit açıkken var, kilitliyken `null`.
+ *
+ * `anahtarDepo.ts` tarayıcıda saklanan sırları bununla sarmalıyor:
+ * kilitliyken okunamamaları gerekiyor (KARARLAR.md · K-037).
+ */
+export const dayatilanAnahtar = (): string | null => dayatilan
+
 export async function veritabaniAnahtari(): Promise<AnahtarSonuc> {
   if (dayatilan) return { anahtar: dayatilan, sifreli: true }
   if (!depo) {

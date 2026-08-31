@@ -9,7 +9,8 @@
     "onizle": "vite preview",
     "test": "vitest run",
     "test:izle": "vitest",
-    "gorsel": "node arac/ekranGoruntusu.mjs"
+    "gorsel": "node arac/ekranGoruntusu.mjs",
+    "muhur": "node arac/muhurDenemesi.mjs"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.0",

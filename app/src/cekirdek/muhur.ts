@@ -58,6 +58,19 @@ export async function paketiAc(b: Uint8Array, nasil: Sikistirma): Promise<Uint8A
   return new Uint8Array(await new Response(akis).arrayBuffer())
 }
 
+/**
+ * Bu baytlar bizim mührümüz mü.
+ *
+ * Mühürlemeden ÖNCE yazılmış düz değerleri tanımak için: `anahtarDepo`
+ * eskiden localStorage'a düz metin yazıyordu ve o değerler sessizce
+ * kaybolmamalı (KARARLAR.md · K-037).
+ */
+export function muhurMu(bayt: Uint8Array): boolean {
+  if (bayt.length <= GOVDE_YER) return false
+  for (let i = 0; i < SIHIR.length; i++) if (bayt[i] !== SIHIR[i]) return false
+  return true
+}
+
 /** Baytları mühürler. */
 export async function muhurle(bayt: Uint8Array, anahtar: CryptoKey): Promise<Uint8Array> {
   const { govde, nasil } = await paketle(bayt)
@@ -84,8 +97,7 @@ export async function muhurle(bayt: Uint8Array, anahtar: CryptoKey): Promise<Uin
  * şey söyleniyor.
  */
 export async function muhruAc(muhur: Uint8Array, anahtar: CryptoKey): Promise<Uint8Array | null> {
-  if (muhur.length <= GOVDE_YER) return null
-  for (let i = 0; i < SIHIR.length; i++) if (muhur[i] !== SIHIR[i]) return null
+  if (!muhurMu(muhur)) return null
 
   const ic = await acHam(
     { iv: muhur.slice(IV_YER, GOVDE_YER), govde: muhur.slice(GOVDE_YER) },
