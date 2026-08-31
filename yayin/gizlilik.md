@@ -80,6 +80,12 @@ değil mantıksal bir sayaç kullanılır.
 Kimlik doğrulaması, Defter Kimliği'nden türetilen ve hiçbir yere
 ulaşmayan sentetik bir adresle yapılır.
 
+*Tarayıcı sürümünde defteriniz de şifrelidir.* İlk açılışta bir parola
+istenir; veritabanı yalnızca bellekte açılır ve diske o paroladan türeyen
+anahtarla mühürlenmiş hâlde yazılır. Defter Kimliği ve model anahtarınız
+da aynı anahtarla sarmalanır. Parolayı unutursanız o tarayıcıdaki defter
+bir daha açılmaz; bizde bir kopyası yoktur.
+
 *Tarayıcı sürümünde bir ara durak var.* `defter-umber.vercel.app`
 adresinden kullandığınızda senkron istekleri veritabanına doğrudan değil,
 bizim Vercel'deki ince bir vekilimiz üzerinden gider. Sebebi teknik:
@@ -230,6 +236,12 @@ service or social SDK. There are no third-party trackers in the app.
 If you enable sync, your encrypted data is stored in a Postgres database
 operated by **Neon** (Neon Inc.) in the AWS Frankfurt region. Neon cannot
 open the encrypted blocks; neither we nor they hold the key.
+
+*In the browser your notebook is encrypted too.* On first open you are
+asked for a passphrase; the database is opened in memory only and written
+to disk sealed with a key derived from that passphrase. Your Notebook Key
+and model key are wrapped with the same key. If you forget the passphrase
+that notebook cannot be opened again; we hold no copy of it.
 
 *The browser version has one stop in between.* When you use the app at
 `defter-umber.vercel.app`, sync requests do not go to the database

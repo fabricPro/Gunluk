@@ -90,16 +90,67 @@ Vekilin dört adımı da canlıda düştü ve dördü de teste yazıldı:
   `/rest`. `vite.config.ts` geliştirmede aynı yolları taşıyor ki geliştirme
   ile üretim ayrışmasın.
 
-### K-013 hâlâ ayakta ve bu bir sorun
+### Çürütülen karar: K-013
 
-Tarayıcı derlemesinde veritabanı **şifresiz** (OPFS'te düz SQLite), Defter
-Kimliği ve Anthropic anahtarı `localStorage`ta **düz metin**. Kullanıcı
-"gerçek web uygulaması" istedi; o cümleyi hak ettiren şifreleme henüz
-gelmedi.
+K-013 tarayıcı derlemesini "önizleme" diye işaretlemişti ve gerekçesi tek
+cümleydi: *tarayıcıda SQLCipher yok, kilit yalnızca bir ekran.* Bu cümle
+artık yanlış — çürütülerek değil, **ortadan kaldırılarak**: tarayıcıda
+şifreleme var.
 
-Bu yüzden `VITE_ONIZLEME` **kaldırılmadı**: üst şeritte hâlâ
-`defter · önizleme` yazıyor. Önizleme işaretini şifreleme gelmeden
-kaldırmak, ürünün kendi cümlesini boşaltmak olurdu.
+Yeni kripto yazılmadı; var olan üç makine birleştirildi. `veri/kilit.ts`
+zaten DOM'suz ve deposuz sarmalama yapıyordu, `sqlite-isci.ts`in `:memory:`
+yolu zaten vardı, mühürleme fikri `veri/yedek.ts`te duruyordu.
+
+    parola → Argon2id → KEK          (kilit.ts, aynen)
+    KEK    → AV                       (sarmal localStorage'ta)
+    AV     → OPFS'teki mühürlü blob
+    AV     → Defter Kimliği + model anahtarı sarmalı
+
+**Tarayıcıda kilit ZORUNLU.** Cihazda SQLCipher bir taban ve kilit isteğe
+bağlı bir ek katman; tarayıcıda öyle bir taban yok. Anahtar olmadan defter
+mühürlenemiyor, yani parola belirlemek "istersen" değil, şifrelemenin
+kendisi. Kurulum ekranı yeni bir kutu değil — mevcut kilit ekranı metin
+değiştiriyor (K-013'ün tasarım refleksi korundu).
+
+Defterin baytları JSON döküm olarak değil `sqlite3_js_db_export` ile ham
+alınıyor: FTS sanal tabloları ve senkron muhasebesi dahil her şey birebir
+duruyor. Döküm yolu seçilseydi `senkron_iz` her açılışta sıfırlanır ve
+defterin tamamı yeniden gönderilecek diye işaretlenirdi.
+
+**İki yuva.** Tek dosyaya yazılsaydı, yazması yarıda kalan bir sekme
+defteri bütünüyle götürürdü. Yazma eski yuvaya gidiyor, okuma yeniden
+eskiye doğru deneniyor.
+
+### Kabul edilen bedeller
+
+- **Parola unutulursa bu tarayıcıdaki defter gider.** Cihazdaki biyometri
+  yedeği burada yok. İki kaçış yolu var ve ayar kağıdı ikisini de söylüyor:
+  mühürlü yedek dosyası, ve senkron açıksa Defter Kimliği.
+- **Sarmal `localStorage`ta duruyor**, cihazdaki gibi Keychain'de değil.
+  Çevrimdışı deneme mümkün; bu yüzden en az 8 karakter isteniyor ve
+  Argon2id parametreleri (t=3, m=48 MiB) olduğu gibi kullanılıyor.
+- **Son mühürden sonraki yazı, sekme çökerse gider.** `pagehide` ve
+  `visibilitychange` yakalanıyor, çökme yakalanamıyor.
+- **Tarayıcı depoyu silebilir.** `navigator.storage.persist()` isteniyor;
+  verilmezse ayar kağıdı bunu ilk not olarak söylüyor.
+
+### Yerelde görülemeyen beşinci şey
+
+`arac/muhurDenemesi.mjs` (`npm run muhur`) gerçek Chromium'da koşuyor:
+OPFS, worker ve sqlite-wasm vitest'te yok.
+
+Deneme kırılarak sınandı ve o sırada **kendi içinde bir kusur** çıktı:
+tarama yalnızca OPFS köküne bakıyordu, oysa sqlite-wasm düz veritabanını
+bir alt klasörde tutuyor. Yani "metin geçmiyor" kontrolü hiçbir şey
+aramadan geçebilirdi — K-036'daki boş taramanın aynısı. Özyinelemeli
+yapıldı ve kırık sürümde 315 kB'lık şifresiz veritabanını işaretle
+birlikte gerçekten buluyor.
+
+TAŞIMA ayrıca iki aşamada, kalıcı tarayıcı profiliyle ve tam olarak
+canlıdaki senaryoyla denendi: kilidi hiç olmayan şifresiz bir defter →
+yükseltme → kurulum ekranı → parola. Kayıt duruyor, düz kopya silinmiş.
+
+`VITE_ONIZLEME` **kaldırıldı.** Dayandığı iki cümle de artık yanlış.
 
 ---
 

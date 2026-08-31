@@ -317,6 +317,9 @@ const TR: Metinler = {
   'ay.notSifresiz':
     'Kilit kurulu olmadığı için veritabanı <b>şifresiz</b> duruyor. Tarayıcıda ' +
     'defteri şifreleyen şey kilidin ta kendisi: parola olmadan mühürlenemez.',
+  'ay.notKaliciDegil':
+    'Bu tarayıcı depoyu <b>kalıcı</b> saymadı: yer sıkışırsa defteri silebilir. ' +
+    'Mühürlü yedek al, ya da senkronu aç.',
   'ay.notTarayiciMuhur':
     'Bu tarayıcıda defter, parolandan türeyen anahtarla <b>mühürlü</b> duruyor; ' +
     'diskte açık hâli yok. Parolayı unutursan bu defter bir daha açılmaz — ' +
@@ -751,6 +754,9 @@ const EN: Metinler = {
   'ay.notSifresiz':
     'With no lock set the database sits <b>unencrypted</b>. In a browser the lock ' +
     'is the encryption: without a passphrase there is nothing to seal it with.',
+  'ay.notKaliciDegil':
+    'This browser did not mark the storage as <b>persistent</b>: it may delete the ' +
+    'notebook when space runs low. Take a sealed backup, or turn on sync.',
   'ay.notTarayiciMuhur':
     'In this browser the notebook is <b>sealed</b> with a key derived from your ' +
     'passphrase; no open copy is on disk. Forget the passphrase and this notebook ' +

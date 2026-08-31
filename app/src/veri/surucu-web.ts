@@ -21,6 +21,13 @@ import type { Istek, IstekTip, Yanit } from './sqlite-isci.js'
 export interface WebSurucu extends SqlSurucu {
   /** OPFS açılabildi mi — false ise veri yenilemede gider. */
   kalici: boolean
+  /**
+   * Tarayıcı depoyu kalıcı saymayı kabul etti mi.
+   *
+   * Etmezse yer sıkıştığında defter TARAYICI TARAFINDAN SİLİNEBİLİR.
+   * Sessiz geçilecek bir şey değil; ayar kağıdı söylüyor.
+   */
+  kaliciIzin: boolean
   /** Diske mühürlü mü yazılıyor. */
   muhurlu: boolean
   /** Açılışta şifresiz eski defter bulunup taşındı mı. */
@@ -66,6 +73,22 @@ export async function webSurucusu(dosya = 'defter.db', anahtar?: string): Promis
 
   await cagir('ac')
   if (!kalici) console.warn('[defter] OPFS yok; veri yenilemede gidecek.')
+
+  /*
+   * Kalıcılık İSTENİYOR. Tarayıcılar "best-effort" depoyu yer sıkışınca
+   * boşaltabiliyor; bir günlük uygulamasında bu, defterin sessizce yok
+   * olması demek. İzin verilmezse kullanıcı bunu ayar kağıdında görüyor
+   * (KARARLAR.md · K-037).
+   */
+  const kaliciIzin = await (async () => {
+    try {
+      if (await navigator.storage?.persisted?.()) return true
+      return (await navigator.storage?.persist?.()) ?? false
+    } catch {
+      return false
+    }
+  })()
+  if (!kaliciIzin) console.warn('[defter] Tarayici depoyu kalici saymadi.')
 
   /* ── borçlandırmalı mühürleme ──────────────────────────────── */
 
@@ -115,6 +138,7 @@ export async function webSurucusu(dosya = 'defter.db', anahtar?: string): Promis
 
   const surucu: WebSurucu = {
     kalici,
+    kaliciIzin,
     muhurlu,
     tasindi,
     /* Getter: kapanış değişkeni sonradan değişiyor, kopya bayatlardı. */

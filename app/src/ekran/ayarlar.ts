@@ -22,6 +22,8 @@ export interface AyarBaglam {
   sifreli: boolean
   /** Tarayıcı mı — mühür notu yalnızca orada anlamlı. */
   tarayiciMi: boolean
+  /** Tarayıcı depoyu kalıcı saydı mı; saymadıysa defter silinebilir. */
+  kaliciIzin: boolean
   /**
    * Defterin şu an şifreli olduğu anahtar; kilit kurulurken bu sarmalanır.
    * Yeni anahtar ÜRETİLMEZ — üretilirse cihazdaki veritabanı bir daha
@@ -111,7 +113,7 @@ const boyutYaz = (b: number): string =>
   b < 1024 ? `${b} B` : b < 1024 * 1024 ? `${Math.round(b / 1024)} KB` : `${(b / 1048576).toFixed(1)} MB`
 
 export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
-  const { kilit, sifreli, tarayiciMi, mevcutAnahtar, db, depo, degisti, yenidenYukle, gomu, model } =
+  const { kilit, sifreli, tarayiciMi, kaliciIzin, mevcutAnahtar, db, depo, degisti, yenidenYukle, gomu, model } =
     b
   const dilD = b.dil
   const senkron = b.senkron
@@ -167,6 +169,8 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
     /* Tarayıcıda şifreleme kilidin kendisi; unutulan parolanın bedeli
        cihazdakinden ağır ve söylenmek zorunda (KARARLAR.md · K-037). */
     if (sifreli && tarayiciMi) notlar.push(S('ay.notTarayiciMuhur'))
+    /* Tarayıcı defteri silebiliyorsa bu en önce söylenmeli. */
+    if (tarayiciMi && !kaliciIzin) notlar.unshift(S('ay.notKaliciDegil'))
     if (kilit.biyometriAcik)
       notlar.push(
         S('ay.notBiyo'),

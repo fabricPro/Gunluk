@@ -38,10 +38,18 @@ onu düşürürdü; `app/api/vekil/[...yol].ts` isteği doğru `Host` ile yenide
 kuruyor. Vekilden şifreli zarflar geçiyor — şifreleme anahtarı cihazdan
 hiç çıkmıyor.
 
-Bu şu an bir **önizleme**: tarayıcı derlemesi olduğu için veritabanı
-**şifresiz** ve **kilidi yok**. Veri kendi tarayıcınızda durur ve senkron
-açılmadıkça hiçbir yere gitmez — ama gerçek günlük tutulacak yer henüz
-burası değil. Üst şeritte `defter · önizleme` yazması bunun için.
+Tarayıcıda da defter **şifreli**. İlk açılışta bir parola isteniyor;
+veritabanı bellekte açılıyor ve diske yalnızca o paroladan türeyen
+anahtarla mühürlenmiş baytlar yazılıyor. Defter Kimliği ve model anahtarı
+da aynı anahtarla sarmalı, `localStorage`'ta düz durmuyorlar.
+
+Bedeli açık: **parolayı unutursan o tarayıcıdaki defter bir daha
+açılmaz** — bizde kopyası yok. İki kaçış yolu var: mühürlü yedek dosyası
+ve senkron açıksa Defter Kimliği.
+
+`npm run muhur` bunu gerçek bir tarayıcıda sınıyor: yazılan metnin OPFS
+baytlarında geçmediğini, yanlış parolanın açmadığını ve şifresiz eski bir
+defterin kaybolmadan taşındığını (KARARLAR.md · K-037).
 
 ## Çalıştırma
 

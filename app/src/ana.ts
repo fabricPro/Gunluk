@@ -28,21 +28,6 @@ import type { SqlSurucu } from './veri/db.js'
 
 const $ = (s: string): HTMLElement => document.querySelector<HTMLElement>(s)!
 
-/**
- * Önizleme derlemesini işaretler.
- *
- * Tarayıcı derlemesinde veritabanı şifresiz; bu, adresi bilen herkesin
- * açabildiği bir yerde söylenmeden geçilemez (KARARLAR.md · K-013).
- */
-function onizlemeyiIsaretle(): void {
-  if (!import.meta.env.VITE_ONIZLEME) return
-  const marka = document.querySelector('.marka')
-  if (marka) marka.textContent = 'defter · önizleme'
-  console.warn(
-    '[defter] Önizleme derlemesi: veritabanı şifresiz, kilit yok. Gerçek günlük için değil.',
-  )
-}
-
 /** Tek seferlik geliştirme bayrağını adresten temizler. */
 function bayrakDusur(ad: string): void {
   const u = new URL(location.href)
@@ -51,8 +36,6 @@ function bayrakDusur(ad: string): void {
 }
 
 async function baslat(): Promise<void> {
-  onizlemeyiIsaretle()
-
   /*
    * Dil, veritabanından ÖNCE kuruluyor: kilit ekranı da çevrilmiş olsun.
    * Seçim yoksa cihaz diline bakılıyor; tanımadığı her dilde Türkçe
@@ -284,6 +267,7 @@ async function baslat(): Promise<void> {
       kilit,
       sifreli: acilis.sifreli,
       tarayiciMi: !nativeMi,
+      kaliciIzin: acilis.kaliciIzin,
       /*
        * Kilit kurulurken sarmalanacak anahtar: defterin ŞU AN şifreli
        * olduğu anahtar.
