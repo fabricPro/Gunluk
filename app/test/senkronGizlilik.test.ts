@@ -16,6 +16,7 @@ import { describe, expect, it } from 'vitest'
  */
 
 const kok = new URL('../src/', import.meta.url).pathname
+const sunucuKok = new URL('../api/', import.meta.url).pathname
 
 const dosyalar = (d: string): string[] =>
   readdirSync(d, { withFileTypes: true }).flatMap((e) =>
@@ -57,6 +58,32 @@ describe('ağa çıkabilen dosyalar sabit', () => {
   it('listedeki üç dosya gerçekten var', () => {
     const hepsi = dosyalar(kok).map(goreli)
     for (const a of AGA_CIKANLAR) expect(hepsi).toContain(a)
+  })
+})
+
+/**
+ * Sunucu tarafı da sabit.
+ *
+ * `api/` Vercel'de çalışan tek kod. `src/` taraması onu göremiyor —
+ * tam olarak bu yüzden ayrıca sabitleniyor: buraya sessizce ikinci bir
+ * dosya girmesin (KARARLAR.md · K-037).
+ */
+const SUNUCUDA_CALISANLAR = ['vekil/[...yol].ts']
+
+describe('sunucuda çalışan dosyalar sabit', () => {
+  it('vekilden başka sunucu kodu yok', () => {
+    const hepsi = dosyalar(sunucuKok).map((f) => f.slice(sunucuKok.length))
+    expect(hepsi.sort()).toEqual([...SUNUCUDA_CALISANLAR].sort())
+  })
+
+  it('vekil defteri okuyamıyor — anahtara dokunan hiçbir şey yok', () => {
+    const kod = yorumsuz(readFileSync(join(sunucuKok, SUNUCUDA_CALISANLAR[0]!), 'utf8'))
+    /*
+     * Vekilden şifreli zarflar geçiyor; anahtar cihazdan hiç çıkmıyor.
+     * Bu satırlar o sözü makine düzeyinde tutuyor.
+     */
+    for (const yasak of ['crypto.subtle', 'kimlikTuret', 'zarfiAc', 'sifre', 'console.'])
+      expect(kod, `vekil içinde ${yasak}`).not.toContain(yasak)
   })
 })
 

@@ -21,6 +21,8 @@ const vercel = JSON.parse(oku('vercel.json')) as {
   rewrites: { source: string; destination: string }[]
 }
 
+const fonksiyon = oku('api/vekil/[...yol].ts')
+
 const ortam = Object.fromEntries(
   oku('.env')
     .split('\n')
@@ -53,12 +55,17 @@ describe('vercel.json kodun istediği yolları taşıyor', () => {
       ).toBe(true)
   })
 
-  it('yönlendirmeler .env ile aynı Neon adresine gidiyor', () => {
-    /* İki kopya kayarsa cihaz bir sunucuya, tarayıcı başkasına konuşurdu. */
-    const hedef = (onek: string): string =>
-      vercel.rewrites.find((r) => r.source.startsWith(onek + '/'))!.destination
-    expect(hedef('/auth').startsWith(ortam.VITE_DEFTER_AUTH!)).toBe(true)
-    expect(hedef('/rest').startsWith(ortam.VITE_DEFTER_API!)).toBe(true)
+  it('yönlendirmeler vekil fonksiyonuna gidiyor, doğrudan Neon\'a değil', () => {
+    /*
+     * Doğrudan yönlendirme DENENDİ ve olmadı: Vercel dış hedefe giderken
+     * `Host` başlığını olduğu gibi taşıyor, Neon da projeyi Host'tan
+     * bulduğu için `INVALID_HOSTNAME` dönüyor. Bu satır o dersi tutuyor —
+     * biri "yönlendirme yeter" deyip fonksiyonu atmasın (K-037).
+     */
+    for (const r of vercel.rewrites) {
+      expect(r.destination.startsWith('/api/vekil/'), r.destination).toBe(true)
+      expect(r.destination).not.toContain('neon.tech')
+    }
   })
 
   it('env adresleri hâlâ Neon ve hâlâ HTTPS', () => {
@@ -91,5 +98,42 @@ describe('geliştirme sunucusu üretimle aynı yolları taşıyor', () => {
   it('adresleri env dosyasından okuyor, kopyalamıyor', () => {
     expect(yapilandirma).toContain('loadEnv')
     expect(yapilandirma).not.toContain('https://ep-')
+  })
+})
+
+describe('vekil fonksiyonu', () => {
+  it('Neon adresleri .env ile aynı', () => {
+    /* Fonksiyon Vite ile derlenmiyor, `.env`i okuyamıyor: adresler orada
+       yazılı duruyor. İki kopya kayarsa cihaz bir sunucuya, tarayıcı
+       başkasına konuşurdu — bu test kaymayı düşürüyor. */
+    expect(fonksiyon).toContain(ortam.VITE_DEFTER_AUTH!)
+    expect(fonksiyon).toContain(ortam.VITE_DEFTER_API!)
+  })
+
+  it('kodun istediği iki hedefi tanıyor', () => {
+    for (const onek of Object.values(sunucuAyari()))
+      expect(fonksiyon, `vekil ${onek} hedefini tanımıyor`).toContain(`${onek.slice(1)}:`)
+  })
+
+  it('çerezden Domain düşürülüyor — çerez bu kaynağa ait olsun', () => {
+    expect(fonksiyon.toLowerCase()).toContain("'domain='")
+    expect(fonksiyon).toContain('getSetCookie')
+  })
+
+  it('kayıt tutmuyor', () => {
+    /* Ne gövde, ne başlık, ne adres. Vekilin tek savunması okunabilir
+       olmasıydı; bir `console` satırı o savunmayı bitirir. */
+    expect(fonksiyon).not.toMatch(/\bconsole\s*\./)
+  })
+
+  it('şifreleme ya da çözme yapmıyor', () => {
+    /* Zarf cihazda kapanıyor, cihazda açılıyor. Vekil taşıyıcı. */
+    for (const yasak of ['crypto.subtle', 'atob(', 'btoa(', 'TextDecoder'])
+      expect(fonksiyon, `vekil içinde ${yasak}`).not.toContain(yasak)
+  })
+
+  it('yalnızca tanıdığı iki hedefe gidiyor', () => {
+    /* Açık vekil olmasın: hedef listede yoksa 404. */
+    expect(fonksiyon).toContain('404')
   })
 })

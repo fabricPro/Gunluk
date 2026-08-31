@@ -6,14 +6,8 @@
   "ignoreCommand": "[ \"$VERCEL_ENV\" != production ]",
   "github": { "silent": true },
   "rewrites": [
-    {
-      "source": "/auth/:yol*",
-      "destination": "https://ep-tiny-glitter-b1158ps1.neonauth.c-5.eu-central-1.aws.neon.tech/neondb/auth/:yol*"
-    },
-    {
-      "source": "/rest/:yol*",
-      "destination": "https://ep-tiny-glitter-b1158ps1.apirest.c-5.eu-central-1.aws.neon.tech/neondb/rest/v1/:yol*"
-    }
+    { "source": "/auth/:yol*", "destination": "/api/vekil/auth/:yol*" },
+    { "source": "/rest/:yol*", "destination": "/api/vekil/rest/:yol*" }
   ],
   "headers": [
     {
