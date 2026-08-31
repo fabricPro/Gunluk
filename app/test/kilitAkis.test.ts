@@ -172,3 +172,59 @@ describe('yönetim', () => {
     expect(depo.bio).toBeNull()
   })
 })
+
+/**
+ * K-036 · Kilit kurulunca cihazdaki veritabanı açılabilir kalmalı.
+ *
+ * Cihazda defter, Keychain'deki rastgele bir anahtarla SQLCipher altında
+ * duruyor. Kilit kurmak o anahtarı PIN'le SARMALAMAK demek; yerine
+ * yenisini koymak değil. Kodda hiçbir yerde rekey yok, dolayısıyla yeni
+ * bir anahtar üretilirse defter bir daha açılmaz.
+ *
+ * Hata tam olarak buradaydı: `ana.ts` sarmalanacak anahtarı
+ * `kilit.anaAnahtar`dan okuyordu ve kilit 'kurulusuz' iken o her zaman
+ * null. Bir sonraki açılışta doğru PIN'le bile defter açılmıyordu.
+ */
+describe('kilit kurulumu var olan anahtarı sarmalıyor', () => {
+  const CIHAZ_ANAHTARI = 'a'.repeat(64)
+
+  it('verilen anahtar korunuyor — PIN sonradan aynı anahtarı açıyor', async () => {
+    await kilit.kur('123456', CIHAZ_ANAHTARI)
+    expect(kilit.anaAnahtar).toBe(CIHAZ_ANAHTARI)
+
+    /* Yeni oturum: kilitli açılıyor, PIN ile çözülüyor. */
+    const yeni = new Kilit(depo)
+    expect(await yeni.yukle()).toBe('kilitli')
+    const s = await yeni.pinIle('123456')
+    expect(s.oldu).toBe(true)
+    expect(yeni.anaAnahtar).toBe(CIHAZ_ANAHTARI)
+  })
+
+  it('anahtar verilmezse BAŞKA bir anahtar üretiliyor — hatanın kendisi bu', () => {
+    /*
+     * Bu davranışı sabitliyoruz ki çağrı yerinin neden anahtarı geçirmek
+     * zorunda olduğu görünsün. `kur(pin)` tek başına yanlış değil (ilk
+     * kurulumda gereken tam da bu); yanlış olan, şifreli bir defterin
+     * üstünde onu anahtarsız çağırmak.
+     */
+    return kilit.kur('123456').then((av) => expect(av).not.toBe(CIHAZ_ANAHTARI))
+  })
+
+  it('PIN değişince ana anahtar aynı kalıyor', async () => {
+    await kilit.kur('123456', CIHAZ_ANAHTARI)
+    expect(await kilit.pinDegistir('123456', '654321')).toBe(true)
+    const yeni = new Kilit(depo)
+    await yeni.yukle()
+    await yeni.pinIle('654321')
+    expect(yeni.anaAnahtar).toBe(CIHAZ_ANAHTARI)
+  })
+
+  it('biyometri yolu da aynı anahtarı veriyor', async () => {
+    await kilit.kur('123456', CIHAZ_ANAHTARI)
+    await kilit.biyometriKur()
+    const yeni = new Kilit(depo)
+    await yeni.yukle()
+    expect((await yeni.biyometriIle()).oldu).toBe(true)
+    expect(yeni.anaAnahtar).toBe(CIHAZ_ANAHTARI)
+  })
+})

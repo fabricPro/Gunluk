@@ -1,6 +1,7 @@
 import { kurtarmaUret } from '../cekirdek/kurtarma.js'
 import { DILLER, type Dil } from '../cekirdek/dil.js'
 import { anahtarBicimi } from '../veri/anahtarDepo.js'
+import { anahtariDayat } from '../veri/kripto.js'
 import type { Kilit } from '../kilitAkis.js'
 import type { Depo } from '../veri/depo.js'
 import { dokumAl, dokumuYukle } from '../veri/dokum.js'
@@ -19,7 +20,12 @@ import { $, $$, S, kacir } from './ortak.js'
 export interface AyarBaglam {
   kilit: Kilit
   sifreli: boolean
-  mevcutAnahtar: () => string | null
+  /**
+   * Defterin şu an şifreli olduğu anahtar; kilit kurulurken bu sarmalanır.
+   * Yeni anahtar ÜRETİLMEZ — üretilirse cihazdaki veritabanı bir daha
+   * açılmaz (KARARLAR.md · K-036).
+   */
+  mevcutAnahtar: () => Promise<string | null>
   db: SqlSurucu
   depo: Depo
   degisti: () => void
@@ -153,7 +159,11 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       if (!pin) return
       const tekrar = prompt(S('ay.pinTekrar'))
       if (tekrar !== pin) return void alert(S('ay.pinFarkli'))
-      await kilit.kur(pin, mevcutAnahtar() ?? undefined)
+      const anahtar = await mevcutAnahtar()
+      const yeniAv = await kilit.kur(pin, anahtar ?? undefined)
+      /* Bellekteki dayatılmış anahtar da tazelensin: kilit açıkken
+         veritabanı bunu kullanıyor. */
+      anahtariDayat(yeniAv)
       if (await kilit.biyometriVarMi()) {
         if (confirm(S('ay.biyoSor'))) await kilit.biyometriKur()
       }

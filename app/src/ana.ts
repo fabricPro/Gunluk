@@ -18,7 +18,7 @@ import { toreniBagla } from './ekran/toren.js'
 import { yakmayiBagla } from './ekran/yak.js'
 import { defteriAc } from './veri/db.js'
 import { Depo } from './veri/depo.js'
-import { anahtariDayat } from './veri/kripto.js'
+import { anahtariDayat, veritabaniAnahtari } from './veri/kripto.js'
 import { cihazAnahtarDepo, tarayiciAnahtarDepo } from './veri/anahtarDepo.js'
 import { cihazDepo, tarayiciDepo } from './veri/kilitDepo.js'
 import { surucuSec } from './veri/surucu.js'
@@ -190,7 +190,20 @@ async function baslat(): Promise<void> {
     ayarlariBagla({
       kilit,
       sifreli: acilis.sifreli,
-      mevcutAnahtar: () => kilit.anaAnahtar,
+      /*
+       * Kilit kurulurken sarmalanacak anahtar: defterin ŞU AN şifreli
+       * olduğu anahtar.
+       *
+       * Burada `kilit.anaAnahtar` yalnız başınaydı ve kilit
+       * 'kurulusuz' iken o her zaman null dönüyor. Sonuç: kilit kuran
+       * kullanıcıya YENİ bir ana anahtar üretiliyor, ama cihazdaki
+       * SQLCipher dosyası hâlâ Keychain'deki eski anahtarla şifreli ve
+       * kodda hiçbir yerde rekey yok. Hata o oturumda görünmüyordu;
+       * bir sonraki açılışta doğru PIN'le bile defter açılmıyordu
+       * (KARARLAR.md · K-021, K-036).
+       */
+      mevcutAnahtar: async () =>
+        kilit.anaAnahtar ?? (acilis.sifreli ? (await veritabaniAnahtari()).anahtar : null),
       db: surucu,
       depo,
       degisti: () => defter.ciz(),

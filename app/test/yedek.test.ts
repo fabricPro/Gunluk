@@ -222,3 +222,40 @@ describe('göç hedefi', () => {
     expect((await s.tek<{ user_version: number }>('PRAGMA user_version'))?.user_version).toBe(2)
   })
 })
+
+/**
+ * K-036 · Sıkıştırma biçimde YAZILI.
+ *
+ * Önce `CompressionStream` yoksa sıkıştırma sessizce atlanıyordu ve
+ * biçimde bunu söyleyen bir alan yoktu. Sıkıştırarak mühürlenip
+ * sıkıştırma açamayan bir ortamda açılan dosya GCM etiketini geçiyor,
+ * sonra `JSON.parse`ta çöple patlıyordu. Yedek on yıl sonra okunacak
+ * diye tasarlandı (K-003); içinde tahmin edilecek bir şey kalmamalı.
+ */
+describe('yedek · sıkıştırma bayrağı', () => {
+  const kod = kurtarmaUret()
+  const ornek = { bicim: 'defter-dokum', surum: 1, semaSurum: 7, olusturma: 0, tablolar: {} }
+
+  it('mühür sıkıştırmayı söylüyor', async () => {
+    const y = await muhurle(ornek as never, kod, HIZLI)
+    expect(y.sikistirma).toBe(typeof CompressionStream === 'undefined' ? 'yok' : 'gzip')
+  })
+
+  it("'yok' yazan yedek açılırken gzip denenmiyor", async () => {
+    const y = await muhurle(ornek as never, kod, HIZLI)
+    if (y.sikistirma !== 'gzip') return
+    /* Gövdeyi elle sıkıştırmasız yeniden mühürle. */
+    const dahaSonra = { ...y, sikistirma: 'yok' as const }
+    /* Bayrak yalan söylüyor: gzip'li gövdeyi düz sayıyor → JSON patlar,
+       ama sessiz bozulma değil, açık hata. */
+    await expect(muhruAc(dahaSonra, kod)).rejects.toThrow()
+  })
+
+  it('bayraksız eski yedekler gzip sayılıyor', async () => {
+    const y = await muhurle(ornek as never, kod, HIZLI)
+    if (y.sikistirma !== 'gzip') return
+    const eski = { ...y }
+    delete (eski as { sikistirma?: unknown }).sikistirma
+    expect(await muhruAc(eski, kod)).toEqual(ornek)
+  })
+})
