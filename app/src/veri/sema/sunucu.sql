@@ -15,7 +15,6 @@
 --    · opak hesap kimliği   (kurtarma kodundan türetilmiş, kişisel veri değil)
 --    · opak satır kimliği   (HMAC; varlık tipi bile görünmüyor)
 --    · sürüm sayacı         (duvar saati DEĞİL)
---    · silinme bayrağı
 --    · şifreli gövdenin boyutu
 --    · sunucunun aldığı an
 --  Yani: kaç kaydınız olduğu, ne sıklıkta eşitlediğiniz, kabaca ne kadar
@@ -30,10 +29,11 @@ create table if not exists defter_blob (
   satir     text        not null,
   -- Sunucunun attığı, kesin artan, benzersiz sayaç. Çekme su seviyesi bu.
   surum     bigint      default 0,
-  -- Mezar taşı: içerik taşımaz, yalnızca "bu satır silindi" der.
-  silindi   boolean     not null default false,
   iv        text,
-  -- base64 AES-GCM. silindi = true iken null.
+  -- base64 AES-GCM. Silme de BURADA: mezar taşı, alanları boş olan bir
+  -- zarf. Ayrı bir `silindi` sütunu YOK ve olmamalı — olsaydı sunucu
+  -- hangi satırın silindiğini görürdü. `senkronBicim.test.ts` silme ile
+  -- canlı satırın sunucudan ayırt edilemediğini sabitliyor.
   govde     text,
   alindi    timestamptz not null default now(),
   primary key (kullanici, satir)
@@ -84,3 +84,12 @@ create policy kendi_satirlari on defter_blob for all to authenticated
 create index if not exists defter_blob_cekme on defter_blob (kullanici, surum);
 
 grant select, insert, update, delete on defter_blob to authenticated;
+
+-- ── eski `silindi` sütunu ───────────────────────────────────
+--
+-- İlk taslakta mezar taşı ayrı bir bayraktı. Silme şifreli gövdenin
+-- içine alınınca sütun hem gereksiz hem sızıntı oldu; istemci ona hiç
+-- yazmıyor. Bu satır, o taslağı uygulamış bir veritabanını bugünkü
+-- şemaya getiriyor (KARARLAR.md · K-036).
+
+alter table defter_blob drop column if exists silindi;

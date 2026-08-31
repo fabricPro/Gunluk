@@ -68,7 +68,7 @@ describe('ağa çıkabilen dosyalar sabit', () => {
  * tam olarak bu yüzden ayrıca sabitleniyor: buraya sessizce ikinci bir
  * dosya girmesin (KARARLAR.md · K-037).
  */
-const SUNUCUDA_CALISANLAR = ['vekil/[...yol].ts']
+const SUNUCUDA_CALISANLAR = ['vekil.ts']
 
 describe('sunucuda çalışan dosyalar sabit', () => {
   it('vekilden başka sunucu kodu yok', () => {

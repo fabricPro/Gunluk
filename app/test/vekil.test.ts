@@ -22,7 +22,7 @@ const vercel = JSON.parse(oku('vercel.json')) as {
   rewrites: { source: string; destination: string }[]
 }
 
-const fonksiyon = oku('api/vekil/[...yol].ts')
+const fonksiyon = oku('api/vekil.ts')
 
 const ortam = Object.fromEntries(
   oku('.env')
@@ -64,7 +64,7 @@ describe('vercel.json kodun istediği yolları taşıyor', () => {
      * biri "yönlendirme yeter" deyip fonksiyonu atmasın (K-037).
      */
     for (const r of vercel.rewrites) {
-      expect(r.destination.startsWith('/api/vekil/'), r.destination).toBe(true)
+      expect(r.destination.startsWith('/api/vekil?'), r.destination).toBe(true)
       expect(r.destination).not.toContain('neon.tech')
     }
   })
@@ -133,6 +133,19 @@ describe('vekil fonksiyonu', () => {
   it('kodun istediği iki hedefi tanıyor', () => {
     for (const onek of Object.values(sunucuAyari()))
       expect(fonksiyon, `vekil ${onek} hedefini tanımıyor`).toContain(`${onek.slice(1)}:`)
+  })
+
+  it('yönlendirme fonksiyonun beklediği alanları gönderiyor', () => {
+    /*
+     * Dinamik yol denendi ve canlıda ÇOKLU segment yakalamadı:
+     * `/api/vekil/auth` düştü, `/api/vekil/auth/token` düşmedi. Yol artık
+     * sorgu dizesinde; iki taraf aynı alan adlarını bilmek zorunda.
+     */
+    for (const r of vercel.rewrites) {
+      const alanlar = new URL('https://x' + r.destination).searchParams
+      for (const ad of [...alanlar.keys()]) expect(fonksiyon, ad).toContain(`'${ad}'`)
+      expect(alanlar.get('vekilYol')).toBe(':yol*')
+    }
   })
 
   it('çerezden Domain düşürülüyor — çerez bu kaynağa ait olsun', () => {
