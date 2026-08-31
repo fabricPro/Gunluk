@@ -9,6 +9,100 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-31 · K-037 · Vercel'e taşınma ve kendi vekilimiz
+
+Depo private yapılacaktı. GitHub Pages private depoda ücretli plan istiyor,
+yani `fabricpro.github.io/Gunluk/` kapanıyordu. Vercel Hobby private depoyu
+destekliyor — taşınmanın sebebi bu kadar sade. Sonuçları değil.
+
+### Çürütülen karar: K-031'in bir cümlesi
+
+K-031 "sunucu yok, ara katman yok" diyordu. **Artık bir ara katmanımız var:**
+`app/api/vekil.ts`, Vercel'de çalışan tek kod.
+
+Çürütme: K-031'in koruduğu şey ara katmanın *yokluğu* değil, **anahtarın ve
+metnin bizden geçmemesi**ydi. İkisi de hâlâ geçmiyor. Zarf cihazda
+kapanıyor, cihazda açılıyor; vekil taşıyıcı ve içeriği açamıyor. K-031'in
+asıl konusu olan Anthropic çağrısı (`veri/model.ts`) vekile hiç girmiyor,
+kullanıcının kendi anahtarıyla doğrudan gidiyor.
+
+Vekilden **geçen**: türetilmiş parola, oturum çerezi, JWT, şifreli zarflar.
+Vekilden **geçmeyen**: şifreleme anahtarı ve düz metin.
+
+### Vekil neden gerekliydi
+
+Sayfa Vercel'de, Neon başka bir kaynakta. Tarayıcıdan doğrudan konuşulsa
+oturum çerezi çapraz site olurdu: Safari'nin izleme koruması onu düşürüyor,
+Chrome üçüncü taraf çerezlerini kapatıyor. `senkronDepo.ts` zaten
+`credentials: 'include'` kullanıyor ve `ag.senkronOturum` bu ihtimali
+öngörüyordu — ama öngörmek senkronu çalıştırmıyor.
+
+Vekil bir sorunu daha **yapı gereği** çözüyor: dönen `Set-Cookie`ten
+`Domain` özniteliği düşürülüyor. Neon çerezi kendi alanına göre yazsaydı
+tarayıcı reddederdi. Planda bu "ölçülecek bilinmeyen"di; düşürülmüş çerez
+her iki durumda da doğru olduğu için ölçmeye gerek kalmadı.
+
+Ek fayda: istekler sunucu tarafından gittiği için CORS ortadan kalkıyor,
+Data API'nin izin listesine hiç dokunulmadı.
+
+### Vekil neden bu kadar dar
+
+Tek savunması okunabilir olması. Bu yüzden: taşınan istek başlıkları altı
+tane, dönen yanıt başlıkları iki tane, tanımadığı hedefe 404, **tek satır
+kayıt yok**. `test/senkronGizlilik.test.ts` artık `api/` altındaki dosya
+listesini de tam olarak sabitliyor ve vekilin anahtara, şifrelemeye,
+`console`a dokunmadığını kontrol ediyor — ikinci bir dosya konarak
+düştüğü doğrulandı.
+
+Bu genişletme keşfin kendi bulgusuydu: muhafız yalnızca `src/` tarıyordu,
+`src/` dışında ağa dokunan bir dosya sessizce eklenebilirdi.
+
+### Yerelde görülemeyecek dört şey
+
+Vekilin dört adımı da canlıda düştü ve dördü de teste yazıldı:
+
+1. **Düz `vercel.json` yönlendirmesi olmuyor.** Vercel dış hedefe giderken
+   `Host` başlığını olduğu gibi taşıyor; Neon projeyi Host'tan bulduğu için
+   `INVALID_HOSTNAME` dönüyor. Yanıtta `x-neon-ret-request-id` vardı —
+   istek Neon'a *ulaşıyor*, Neon reddediyor.
+2. **Yakalayıcı yol (`[...yol]`) çoklu segment yakalamıyor.**
+   `/api/vekil/auth` fonksiyona düştü, `/api/vekil/auth/token` Vercel'in
+   `x-vercel-error: NOT_FOUND`unu aldı. Fonksiyon sabit yola taşındı, yol
+   sorgu dizesine.
+3. **`istek.url` göreli geliyor** ve Vercel sorgu dizesine kendi alanlarını
+   ekliyor (yönlendirmedeki parçanın yankısı, `_vercel_*`). PostgREST
+   tanımadığı alanı sütun süzgeci sayıp 400 döner; eleniyorlar.
+4. **`runtime: 'edge'` onurlandırılmıyor.** Fonksiyona Web `Request` değil
+   `IncomingMessage` geliyor. Vekil artık tahmin edilen değil **görülen**
+   imzayla yazılı.
+
+### Yayının kendisi
+
+- `ignoreCommand` ile "yalnızca üretim dalı" denendi ve üretim dağıtımını da
+  atladı: `VERCEL_ENV` o adımda boş. Daha kötüsü, dağıtım sessizce CANCELED
+  oluyor ve tek satır kayıt düşmüyor. Alanı silmek de yetmedi — Vercel ayarı
+  proje tarafında tutuyor; `"exit 1"` ile açıkça ezildi. Önizleme
+  dağıtımları Vercel Authentication arkasında.
+- Emekliye ayrılan `pages.yml` yayından önce `npm test` koşuyordu. Vercel
+  varsayılan olarak yalnızca derliyor; `buildCommand` artık
+  `npm test && npm run build`. Bu güvenlik ağı sessizce kaybolmasın.
+- Adres seçimi çalışma anında: cihazda doğrudan Neon, tarayıcıda `/auth` ve
+  `/rest`. `vite.config.ts` geliştirmede aynı yolları taşıyor ki geliştirme
+  ile üretim ayrışmasın.
+
+### K-013 hâlâ ayakta ve bu bir sorun
+
+Tarayıcı derlemesinde veritabanı **şifresiz** (OPFS'te düz SQLite), Defter
+Kimliği ve Anthropic anahtarı `localStorage`ta **düz metin**. Kullanıcı
+"gerçek web uygulaması" istedi; o cümleyi hak ettiren şifreleme henüz
+gelmedi.
+
+Bu yüzden `VITE_ONIZLEME` **kaldırılmadı**: üst şeritte hâlâ
+`defter · önizleme` yazıyor. Önizleme işaretini şifreleme gelmeden
+kaldırmak, ürünün kendi cümlesini boşaltmak olurdu.
+
+---
+
 ## 2026-08-31 · K-036 · Cihazlar arası senkron: uçtan uca şifreli, kurtarma kodu kimlikli
 
 Kullanıcı defteri birden çok cihazda kullanmak istedi. Bu istek ürünün en

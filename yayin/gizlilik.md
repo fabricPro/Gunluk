@@ -80,6 +80,18 @@ değil mantıksal bir sayaç kullanılır.
 Kimlik doğrulaması, Defter Kimliği'nden türetilen ve hiçbir yere
 ulaşmayan sentetik bir adresle yapılır.
 
+*Tarayıcı sürümünde bir ara durak var.* `defter-umber.vercel.app`
+adresinden kullandığınızda senkron istekleri veritabanına doğrudan değil,
+bizim Vercel'deki ince bir vekilimiz üzerinden gider. Sebebi teknik:
+tarayıcılar başka bir adrese giden oturum çerezlerini engelliyor, vekil
+olmadan senkron tarayıcıda hiç çalışmazdı.
+
+Vekilden **geçen**: oturum çereziniz, kimlik jetonunuz ve şifreli
+bloklar. Vekilden **geçmeyen**: şifre çözme anahtarı ve metninizin
+kendisi — ikisi de cihazınızdan hiç çıkmaz, dolayısıyla vekil de
+okuyamaz. Vekil hiçbir kayıt tutmaz. Cihaz uygulamasında bu ara durak
+yoktur; istek doğrudan gider.
+
 *Silme:* ayarlardan senkronu kapattığınızda sunucudaki şifreli kopya
 silinir. Bizden talep etmenize gerek yoktur.
 
@@ -218,6 +230,18 @@ service or social SDK. There are no third-party trackers in the app.
 If you enable sync, your encrypted data is stored in a Postgres database
 operated by **Neon** (Neon Inc.) in the AWS Frankfurt region. Neon cannot
 open the encrypted blocks; neither we nor they hold the key.
+
+*The browser version has one stop in between.* When you use the app at
+`defter-umber.vercel.app`, sync requests do not go to the database
+directly but through a thin proxy of ours hosted on **Vercel**. The
+reason is technical: browsers block session cookies sent to a different
+address, and without the proxy sync would not work in a browser at all.
+
+What passes through the proxy: your session cookie, your identity token
+and the encrypted blocks. What does not: the decryption key and your text
+— neither ever leaves your device, so the proxy cannot read them either.
+The proxy keeps no logs. The device app has no such stop; requests go
+directly.
 
 ## Children
 

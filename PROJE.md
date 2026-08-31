@@ -144,6 +144,10 @@ Sıra önemli. Her adım bir öncekine yaslanıyor.
 ### Faz 5 — Sonradan istenen
 15. ~~**Cihazlar arası senkron.**~~ **Tamam.** Uçtan uca şifreli: her satır cihazda AES-256-GCM ile şifrelenip öyle gidiyor, anahtar cihazdan hiç çıkmıyor, sunucu içeriği okuyamıyor. Hesap yok — tek bir Defter Kimliği var. Yerel asıl kalıyor: kapalıyken uygulama tek istek bile yapmıyor. Çakışmada kaybeden metin kenar notuna dönüyor. İlke 2.3'ün ikinci cümlesi bilerek revize edildi ve `Data Not Collected` beyanı düştü (KARARLAR.md · K-036).
 
+### Faz 6 — Web yayını
+16. ~~**Vercel'e taşınma.**~~ **Tamam.** Depo private yapılacaktı, GitHub Pages private depoda ücretli plan istiyor. Adres: `defter-umber.vercel.app`. Senkron tarayıcıda kendi kaynağımızdaki `/auth` ve `/rest` üzerinden çalışıyor — doğrudan Neon'a konuşulsa oturum çerezi çapraz site olur ve Safari onu düşürürdü. Vekilden şifreli bloklar geçiyor, anahtar ve düz metin geçmiyor; K-031'in bir cümlesi bu yüzden gerekçesi çürütülerek geri alındı. Dört tuzağın dördü de ancak canlıda görüldü ve teste yazıldı (KARARLAR.md · K-037).
+17. **Tarayıcıda şifreli defter.** Bugün tarayıcı derlemesinde veritabanı OPFS'te **şifresiz**, Defter Kimliği ve model anahtarı `localStorage`ta **düz metin**. "Gerçek web uygulaması" bu olmadan hak edilmiş sayılmaz; `VITE_ONIZLEME` işareti bu iş bitene kadar duruyor. Yeni kripto yazılmayacak: `veri/kilit.ts` (DOM'suz, deposuz sarmalama), `sqlite-isci.ts`in `:memory:` yolu ve `dokum.ts` + `yedek.ts` mühür makinesi birleştirilecek. Bedeli açık: parola unutulursa o tarayıcıdaki defter gider — kaçış yolları Neon'daki şifreli kopya ve mühürlü yedek.
+
 ---
 
 ## 7. Teknik notlar
