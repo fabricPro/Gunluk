@@ -19,8 +19,16 @@ export interface Dokum {
   tablolar: Record<string, Record<string, unknown>[]>
 }
 
-/** FTS sanal tablosu ve gölgeleri türetilmiş veri — döküme girmez. */
-const ATLA = /^(sqlite_|kayit_fts)/
+/**
+ * Türetilmiş veri döküme girmez: FTS sanal tablosu ve gölgeleri, gömü
+ * vektörleri.
+ *
+ * `gomu` bilerek dışarıda. Vektör kullanıcının yazdığı şey değil, bir
+ * önbellek; yedeğe koymak hem dosyayı şişirir hem yedeği bir model
+ * sürümüne bağlardı. Geri yüklemeden sonra indeks yeniden kuruluyor
+ * (KARARLAR.md · K-029).
+ */
+const ATLA = /^(sqlite_|kayit_fts|gomu$)/
 
 async function tabloAdlari(db: SqlSurucu): Promise<string[]> {
   const satirlar = await db.hepsi<{ name: string }>(

@@ -35,6 +35,14 @@ export class Durum {
    * "kötü" arayan kullanıcı sayfada "kötüydüm"ü işaretli görsün (K-027).
    */
   aramaGovdeleri: string[] = []
+
+  /**
+   * Sorguyu gömen işlev — anlam araması açıkken doluyor, kapalıyken null.
+   *
+   * `Durum` modeli tutuyor, gömücüyü değil: model kodu ayrı bir parçada ve
+   * özellik kapalıyken hiç yüklenmiyor (KARARLAR.md · K-029).
+   */
+  sorguGom: ((metin: string) => Promise<Float32Array | null>) | null = null
   /** Tarayıcı derlemesinde false — veritabanı şifresiz. */
   sifreli = false
   /** Ölçülmüş sayfa kapasitesi; ekran katmanı doldurur. */

@@ -6,7 +6,7 @@ import type { SqlSurucu } from '../veri/db.js'
 import { muhruAc, muhurle } from '../veri/yedek.js'
 import { dosyaAdi, dosyaKaydet, dosyaSec } from './dosya.js'
 import { markdownIndir } from './disaAktarma.js'
-import { $, kacir } from './ortak.js'
+import { $, $$, kacir } from './ortak.js'
 
 /**
  * Ayar kağıdı. Şimdilik tek bölüm: kilit.
@@ -19,12 +19,28 @@ export interface AyarBaglam {
   db: SqlSurucu
   depo: Depo
   degisti: () => void
+  /** Gömü araması denetimi; yoksa bölüm hiç çizilmiyor. */
+  gomu?: GomuDenetim
   /** Geri yükleme sonrası uygulamayı baştan kurmak için. */
   yenidenYukle: () => void
 }
 
+/**
+ * Anlam aramasının ayar kağıdındaki yüzü.
+ *
+ * Kapalı, indiriliyor, indeksleniyor, açık — dört durum. Boyut açıkça
+ * söyleniyor: kullanıcı ~145 MB'ı bilerek indiriyor (KARARLAR.md · K-029).
+ */
+export interface GomuDenetim {
+  acikMi: () => boolean
+  durum: () => { calisiyor: boolean; bekleyen: number; toplam: number; asama: string; hata: string | null }
+  ac: () => Promise<void>
+  kapat: () => Promise<void>
+  dinle: (f: () => void) => void
+}
+
 export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
-  const { kilit, sifreli, mevcutAnahtar, db, depo, degisti, yenidenYukle } = b
+  const { kilit, sifreli, mevcutAnahtar, db, depo, degisti, yenidenYukle, gomu } = b
   const kapat = () => $('#ayarlar').classList.remove('acik')
 
   /** PIN sorar; iptal edilirse null. */
@@ -42,6 +58,8 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
   const ciz = async (): Promise<void> => {
     const kurulu = kilit.durum !== 'kurulusuz'
     const biyoVar = await kilit.biyometriVarMi()
+
+    gomuCiz()
 
     $('#ayKilitDurum').textContent = kurulu
       ? kilit.biyometriAcik
@@ -118,9 +136,49 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
     } else if (ad === 'mdAktar') {
       await markdownIndir(depo)
       return
+    } else if (ad === 'gomuAc') {
+      await gomu?.ac()
+      return
+    } else if (ad === 'gomuKapat') {
+      if (!confirm('Anlam araması kapatılsın mı? İndekslenmiş vektörler silinir.')) return
+      await gomu?.kapat()
+      return
     }
     await ciz()
     degisti()
+  }
+
+  /* ── anlam araması ─────────────────────────────────────── */
+
+  function gomuCiz(): void {
+    const bolum = $('#ayGomuDurum').parentElement!
+    if (!gomu) {
+      bolum.style.display = 'none'
+      return
+    }
+    bolum.style.display = ''
+    const d = gomu.durum()
+    const acik = gomu.acikMi()
+
+    $('#ayGomuDurum').innerHTML = !acik
+      ? 'Kapalı. Açarsan defterin <b>anlamca</b> aranabilir olur — “kötü hissettiğim ' +
+        'günler” gibi sorular, o sözcükler kayıtta geçmese de sonuç verir.<br>' +
+        'Bir kerelik <b>~145 MB</b> indirilir ve cihazda kalır. ' +
+        '<b>Yazdıkların cihazdan çıkmaz</b>: model metne gelir, metin modele gitmez.'
+      : d.hata
+        ? `Bir sorun çıktı: ${kacir(d.hata)}<br>Arama bu sırada da çalışıyor, ` +
+          'yalnızca anlam yakınlığı devre dışı.'
+        : d.calisiyor
+          ? `${d.asama || 'indeksleniyor'} — ${d.toplam - d.bekleyen}/${d.toplam} kayıt`
+          : d.bekleyen
+            ? `Açık. ${d.bekleyen} kayıt sırada.`
+            : `Açık. ${d.toplam} kayıt indekslendi.`
+
+    $('#ayGomuDugmeler').innerHTML = acik
+      ? '<button data-eylem="gomuKapat">kapat ve vektörleri sil</button>'
+      : '<button data-eylem="gomuAc">indir ve aç</button>'
+    for (const dg of $$<HTMLButtonElement>('#ayGomuDugmeler button'))
+      dg.onclick = () => void eylem(dg.dataset.eylem!)
   }
 
   /* ── mühürlü yedek ─────────────────────────────────────── */
@@ -184,6 +242,10 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       alert(e instanceof Error ? e.message : 'Yedek açılamadı.')
     }
   }
+
+  gomu?.dinle(() => {
+    if ($('#ayarlar').classList.contains('acik')) gomuCiz()
+  })
 
   $('#ayarlarBtn').onclick = () => void ac()
   $('#ayKapat').onclick = kapat

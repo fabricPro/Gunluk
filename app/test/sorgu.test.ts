@@ -257,3 +257,65 @@ describe('soruCoz — gövdeleme', () => {
     expect(s.govdeler).not.toContain('kötü')
   })
 })
+
+/* ── melez arama: gömü yakınlığı (K-029) ─────────────────────── */
+
+describe('soruCoz — anlamsal yakınlık', () => {
+  const id = (parca: string): string =>
+    VERI.flatMap((g) => g.kayitlar).find((k) => k.metin.includes(parca))!.id
+
+  it('yalnızca anlamca yakın kayıt da sonuca giriyor', () => {
+    const yakin = new Map([[id('Annemle kahvaltı'), 0.7]])
+    expect(soruCoz('barcelona', VERI, TEMALAR).bos).toBe(true)
+    const s = soruCoz('barcelona', VERI, TEMALAR, new Map(), yakin)
+    expect(s.bos).toBe(false)
+    expect(s.kullanilan[0]!.kayit.metin).toContain('Annemle kahvaltı')
+  })
+
+  it('anlamsal sonuç işaretleniyor — ilke 2.4', () => {
+    const yakin = new Map([[id('Annemle kahvaltı'), 0.7]])
+    const s = soruCoz('barcelona', VERI, TEMALAR, new Map(), yakin)
+    expect(s.kullanilan[0]!.yakinlik).toBeCloseTo(0.7)
+    expect(s.paragraflar.some((x) => x.includes('anlam yakınlığıyla'))).toBe(true)
+  })
+
+  /*
+   * Asıl güvence: kullanıcının gerçekten yazdığı sözcüğü içeren kayıt,
+   * "anlamca yakın" bir kaydın arkasında kalmamalı.
+   */
+  it('anlamsal yakınlık sözcük eşleşmesini GEÇEMİYOR', () => {
+    const sozcuklu = id('Kerem yine yazmadı')
+    const yakinOlan = id('Annemle kahvaltı')
+    /* Yakınlık tavanda (1.0) bile olsa sözcük eşleşmesi (2 puan) önde. */
+    const yakin = new Map([[yakinOlan, 1]])
+    const s = soruCoz('yazmadı', VERI, TEMALAR, new Map(), yakin)
+    expect(s.kullanilan[0]!.kayit.id).toBe(sozcuklu)
+  })
+
+  it('hem sözcük hem yakınlık varsa anlamsal olarak işaretlenMİyor', () => {
+    const k = id('Kerem yine yazmadı')
+    const s = soruCoz('yazmadı', VERI, TEMALAR, new Map(), new Map([[k, 0.9]]))
+    const b = s.kullanilan.find((x) => x.kayit.id === k)!
+    expect(b.yakinlik).toBeUndefined()
+  })
+
+  it('tema kilidi anlamsal sonuçla delinmiyor', () => {
+    const tezKaydi = id('Tez teslim')
+    const s = soruCoz('kerem hakkında ne yazdım', VERI, TEMALAR, new Map(),
+      new Map([[tezKaydi, 0.95]]))
+    expect(s.kullanilan.every((b) => b.kayit.temalar.includes('kerem'))).toBe(true)
+  })
+
+  it('yakınlık verilmeyince sonuç bugünküyle birebir aynı — regresyon', () => {
+    for (const soru of ['kerem hakkında ne yazdım', 'şubatta neden bu kadar kötüydüm', 'tez']) {
+      const a = soruCoz(soru, VERI, TEMALAR)
+      const b = soruCoz(soru, VERI, TEMALAR, new Map(), new Map())
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b))
+    }
+  })
+
+  it('anlamsal sonuç yokken o cümle çıkmıyor', () => {
+    const s = soruCoz('kerem', VERI, TEMALAR)
+    expect(s.paragraflar.some((x) => x.includes('anlam yakınlığıyla'))).toBe(false)
+  })
+})

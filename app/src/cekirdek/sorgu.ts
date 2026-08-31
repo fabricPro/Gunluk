@@ -20,6 +20,13 @@ export interface Bulgu {
    * neden geldiğini saklamak olurdu (ilke 2.4 · KARARLAR.md · K-026).
    */
   kenarlar: KenarNotu[]
+  /**
+   * Anlamsal yakınlık — kayıt yalnızca gömü benzerliğiyle bulunduysa
+   * dolu. Sözcük eşleşmesinde kaynağı gösterebiliyoruz ("şu sözcük
+   * geçiyor"); burada gösteremiyoruz, o yüzden kaynak kartı bunu açıkça
+   * söylemek zorunda (ilke 2.4 · KARARLAR.md · K-029).
+   */
+  yakinlik?: number
 }
 
 export interface SorguSonuc {
@@ -79,6 +86,11 @@ export function soruCoz(
   gunler: Gun[],
   temalar: TemaTanim[],
   kenarlar: Map<string, KenarNotu[]> = new Map(),
+  /**
+   * kayitId -> anlamsal yakınlık. Gömü araması açıkken ekran katmanı
+   * dolduruyor; `soruCoz` saf ve eşzamanlı kalsın diye vektör işi dışarıda.
+   */
+  yakinlar: Map<string, number> = new Map(),
 ): SorguSonuc {
   const s = soru.toLocaleLowerCase('tr').trim()
   if (!s) return BOS
@@ -140,9 +152,28 @@ export function soruCoz(
         for (const n of nottakiler) if (!eslesenNotlar.includes(n)) eslesenNotlar.push(n)
         if (kayitta || nottakiler.length) puan += 2
       }
+      /*
+       * Anlamsal yakınlık bir İPUCU, kanıt değil: en fazla 1 puan ekliyor,
+       * yani tek bir sözcük eşleşmesinin (2 puan) bile altında kalıyor.
+       * Aksi hâlde kullanıcının gerçekten yazdığı sözcüğü içeren kayıt,
+       * "anlamca yakın" bir kaydın arkasında kalırdı.
+       */
+      const yakinlik = yakinlar.get(kayit.id)
+      const sozcukEslesti = puan > 0
+      if (yakinlik !== undefined) puan += yakinlik
+
       /* Dönem sorusunda o ayın tamamı geçerli — yoksa hiç sonuç dönmez. */
       if (!puan && donem) puan = 1
-      if (puan > 0) bulgular.push({ puan, kayit, gunAd: gun.ad, kenarlar: eslesenNotlar })
+      if (puan > 0)
+        bulgular.push({
+          puan,
+          kayit,
+          gunAd: gun.ad,
+          kenarlar: eslesenNotlar,
+          /* Yalnızca sözcük eşleşmesi YOKKEN anlamsal olarak işaretleniyor;
+             ikisi birden varsa kaynak zaten sözcüğün kendisi. */
+          ...(yakinlik !== undefined && !sozcukEslesti ? { yakinlik } : {}),
+        })
     }
   }
   if (!bulgular.length) return BOS
@@ -184,6 +215,14 @@ export function soruCoz(
           ortakGovde(sorguGovde.get(k)!, metinGovdeleri(b.kayit.metin)),
       ),
   ).length
+  const yalnizYakin = bulgular.filter((b) => b.yakinlik !== undefined).length
+  if (yalnizYakin)
+    p.push(
+      yalnizYakin === bulgular.length
+        ? `${bulgular.length === 1 ? 'Bu kaydı' : 'Bunların hepsini'} anlam yakınlığıyla buldum — aradığın sözcükler geçmiyor.`
+        : `Bunların ${sayiEk(yalnizYakin)} anlam yakınlığıyla geldi.`,
+    )
+
   if (yalnizNot)
     p.push(
       yalnizNot === bulgular.length

@@ -1,4 +1,6 @@
 import { Durum } from './durum.js'
+import { GomuAkis } from './gomuAkis.js'
+import { belgeOneki, sorguOneki } from './cekirdek/gomuModel.js'
 import { Kilit } from './kilitAkis.js'
 import { arsiviBagla } from './ekran/arsiv.js'
 import { ayarlariBagla } from './ekran/ayarlar.js'
@@ -56,6 +58,8 @@ async function baslat(): Promise<void> {
   await kilit.yukle()
 
   let surucu: SqlSurucu | null = null
+  /* Kilitlenmede çağrılıyor; uygulama kurulunca gerçek durdurucuya bağlanır. */
+  let indekslemeyiDurdur: () => void = () => {}
 
   const kilitEkrani = kilitEkraniBagla(kilit, async (anaAnahtar) => {
     anahtariDayat(anaAnahtar)
@@ -72,6 +76,7 @@ async function baslat(): Promise<void> {
     if (document.visibilityState !== 'hidden') return
     if (kilit.durum !== 'acik') return
     /* Anahtar bellekten silinir, veritabanı kapanır, kilit ekranı gelir. */
+    indekslemeyiDurdur()
     kilit.kilitle()
     anahtariDayat(null)
     const kapanan = surucu
@@ -117,7 +122,7 @@ async function baslat(): Promise<void> {
 
     let toren: { ac: () => void } | null = null
     const defter = defteriBagla(durum, depo, () => toren?.ac())
-    const arsiv = arsiviBagla(durum, defter.sayfayaGit)
+    const arsiv = arsiviBagla(durum, depo, defter.sayfayaGit)
     const kapsul = kapsuleBagla(depo)
     const kitaplik = kitapligiBagla(durum, depo, () => {
       defter.ciz()
@@ -130,6 +135,36 @@ async function baslat(): Promise<void> {
     fihristiBagla(durum, depo, defter.sayfayaGit, () => toren?.ac())
     kilidiBagla(kitaplik.ac)
     yakmayiBagla()
+    /*
+     * Anlam araması — varsayılan KAPALI. Açıksa gömücü yükleniyor ve eksik
+     * kayıtlar arka planda indeksleniyor. Model kodu ayrı bir parçada:
+     * özellik kapalıyken tek bayt inmiyor (KARARLAR.md · K-029).
+     */
+    let akis: GomuAkis | null = null
+    let gomucuKapat: (() => void) | null = null
+    let gomuDinleyici: () => void = () => {}
+
+    const gomuyuKur = async (): Promise<void> => {
+      if (akis) return
+      const { gercekGomucu } = await import('./ekran/gomucuIsci.js')
+      const g = gercekGomucu((asama, oran) =>
+        akis?.asamaYaz(oran > 0 && oran < 1 ? `${asama} %${Math.round(oran * 100)}` : asama),
+      )
+      gomucuKapat = g.kapat
+      akis = new GomuAkis(depo, g, belgeOneki)
+      akis.dinle(() => gomuDinleyici())
+      durum.sorguGom = (metin) => g.goc([sorguOneki(metin)]).then((v) => v[0] ?? null)
+      await akis.tazele()
+      gomuDinleyici()
+      void akis.calistir()
+    }
+
+    indekslemeyiDurdur = () => {
+      akis?.dur()
+      gomucuKapat?.()
+    }
+    if ((await depo.ayarOku('gomu.acik')) === '1') void gomuyuKur()
+
     ayarlariBagla({
       kilit,
       sifreli: acilis.sifreli,
@@ -138,6 +173,27 @@ async function baslat(): Promise<void> {
       depo,
       degisti: () => defter.ciz(),
       yenidenYukle: () => location.reload(),
+      gomu: {
+        acikMi: () => !!akis,
+        durum: () =>
+          akis?.durum ?? { calisiyor: false, bekleyen: 0, toplam: 0, asama: '', hata: null },
+        ac: async () => {
+          await depo.ayarYaz('gomu.acik', '1')
+          await gomuyuKur()
+        },
+        kapat: async () => {
+          indekslemeyiDurdur()
+          akis = null
+          gomucuKapat = null
+          durum.sorguGom = null
+          await depo.ayarYaz('gomu.acik', '0')
+          await depo.gomulariSil()
+          gomuDinleyici()
+        },
+        dinle: (f) => {
+          gomuDinleyici = f
+        },
+      },
     })
 
     /*

@@ -9,6 +9,112 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-29 · K-029 · Gömü araması cihazda; model metne gelir, metin modele gitmez
+
+K-027'de gövdeleme geldi ve "hissettiğim" artık "hissetmedim"i buluyor. Ama
+yol haritasının asıl örneği hâlâ çalışmıyordu: *"kötü hissettiğim günler"* —
+kayıtta o sözcükler hiç geçmiyor olabilir, geçen şey anlam.
+
+**İlke 2.3 mimariyi belirledi.** Ham metin cihazdan çıkamayacağına göre
+embedding cihazda hesaplanmak zorunda. Sunucuya gönderip vektör almak
+teknik olarak çok daha kolaydı ve ilkeyi doğrudan delerdi; o yol hiç
+düşünülmedi.
+
+**Model indirmek ilkeyi delmiyor** ve bu ayrım kaydedilmeli: ağ çağrısı
+model ile çalışma zamanını **getiriyor**, kullanıcının metnini
+**götürmüyor**. Tarayıcıda ölçüldü — özellik açılırken dışarı çıkan tek
+şey bir GET, gövdesi yok. Bir test bunu kaynak taramasıyla sabitliyor
+(`test/gomuGizlilik.test.ts`), `test/yakma.test.ts`'in refleksiyle aynı.
+
+**Bedeli açıkça söyleniyor:** ~13 MB çalışma zamanı + ~130 MB model.
+Varsayılan kapalı, ayar kağıdında rakam yazıyor, kullanıcı bilerek
+indiriyor.
+
+### Gömücü bir arayüz, çünkü model burada test edilemiyor
+
+`Gomucu` arayüzü `cekirdek/`'te ve DOM da ağ da bilmiyor. Gerçek uygulaması
+worker'da transformers.js; testler deterministik bir sahte gömücü
+kullanıyor. Bu ayrım süs değil zorunluluk: huggingface.co bu geliştirme
+ortamında kapalı, model ağırlıkları indirilemiyor. Arayüz sayesinde boru
+hattının tamamı — niceleme, indeksleme, iptal, melez sıralama — modelsiz
+test ediliyor. Modelin kendisi cihazda doğrulanacak; SQLCipher ve
+biyometriyle aynı duruş (K-021).
+
+### Kütüphane pakete girmiyor, çalışma anında yükleniyor
+
+İlk deneme transformers.js'i normal bir bağımlılık olarak aldı ve `dist`
+1,9 MB'dan **25 MB**'a çıktı: Vite, ONNX çalışma zamanının 23 MB'lık
+wasm'ını varlık olarak yayıyordu. Çalışma anında `wasmPaths` vermek
+yetmedi — yayma derleme anında oluyor.
+
+Kütüphane artık `@vite-ignore`'lı dinamik import'la CDN'den yükleniyor ve
+bağımlılık tamamen kaldırıldı (`node_modules` 859 MB → 214 MB). Sonuç:
+taban uygulamada gömüye ait **985 bayt** worker + 697 bayt sarmalayıcı.
+Özelliği hiç açmayacak kullanıcı hiçbir şey indirmiyor. Tipler yerel olarak
+tanımlandı; iki fonksiyon için 380 MB'lık geliştirme bağımlılığı taşımanın
+anlamı yok.
+
+Bedeli: kütüphane ve wasm sürümleri elle sabitlenmiş ve CDN'e bağımlıyız.
+Model zaten CDN'den geliyordu; üçüncü bir taraf eklenmiyor.
+
+### Vektörler int8 METİN, ve yedeğe girmiyor
+
+L2 normalize edilip int8'e iniyor: 384 boyut = 384 bayt, base64 ile 512
+karakter, 5000 kayıt ≈ 2,5 MB. Normalize edildikleri için ayrı ölçek
+sütunu gerekmiyor. Metin olmalarının sebebi K-023 ile aynı: Capacitor
+köprüsü ikili veri taşımıyor.
+
+`gomu` tablosu **yedeğe girmiyor** (`dokum.ts` · `ATLA`). Vektör türetilmiş
+veri — kullanıcının yazdığı şey değil, bir önbellek. Yedeğe koymak hem
+dosyayı şişirirdi hem yedeği bir model sürümüne bağlardı. Geri yükleme
+sonrası indeks yeniden kuruluyor.
+
+`model` sütunu vektörün hangi modelle üretildiğini söylüyor. Model
+değişirse satırlar geçersiz sayılıp yeniden gömülüyor; iki farklı modelin
+vektörlerini karşılaştırmak sessizce anlamsız sonuç verirdi.
+
+### Anlamsal yakınlık bir ipucu, kanıt değil
+
+En fazla 1 puan ekliyor — tek bir sözcük eşleşmesinin (2 puan) bile
+altında. Aksi hâlde kullanıcının **gerçekten yazdığı** sözcüğü içeren
+kayıt, "anlamca yakın" bir kaydın arkasında kalırdı. Bir test bunu
+sabitliyor: yakınlık tavanda olsa bile sözcük eşleşmesi önde.
+
+Tema kilidi de delinmiyor: tema adı geçtiğinde havuzun o temaya
+kilitlenmesi PROJE.md §7'deki bir regresyonun cevabıydı.
+
+### İlke 2.4 en çok burada zorlandı
+
+Sözcük eşleşmesinde kaynağı gösterebiliyoruz ("şu sözcük geçiyor").
+Anlamsal eşleşmede gösteremiyoruz — hiçbir sözcük eşleşmedi. Sessizce
+sonuç listesine karıştırmak, cevabın nereden geldiğini saklamak olurdu.
+
+O yüzden kart bunu açıkça söylüyor: *"aradığın sözcükler bu kayıtta
+geçmiyor — anlamca yakın."* Cevap özeti de sayıyor: *"Bunların ikisi anlam
+yakınlığıyla geldi."* Kenar notu etiketiyle aynı refleks (K-026).
+
+### İndeksleme
+
+Parçalı (8'erli), iptal edilebilir, sürdürülebilir. Kuyruk her turda
+depodan yeniden soruluyor — bellekte durum tutulmuyor, yani yarıda kalan
+iş kaldığı yerden devam ediyor. **Kilitlenince ve arka plana geçince
+duruyor** (K-021): anahtar bellekten silinince veritabanı kapanıyor, iş
+kapanan veritabanına yazmaya çalışmamalı. Düzeltilen kayıt yeniden
+gömülüyor (`gomu.guncelleme < kayit.guncelleme`).
+
+Gömücü hata verirse durum bunu taşıyor ve arama gövdelemeyle çalışmaya
+devam ediyor. **Gömü bir ek, bağımlılık değil** — tarayıcıda doğrulandı:
+model indirilemediğinde anlaşılır bir hata çıkıyor ve arama bozulmuyor.
+
+### Bu ortamda doğrulanmayan
+
+Model indirme ve çıkarımın kendisi. huggingface.co da jsdelivr de proxy
+tarafından kapalı. Doğrulanan: paketleme (taban pakette gömü kodu yok),
+worker açılışı, hata yolu, ayar arayüzü, ve dışarı çıkan tek isteğin
+gövdesiz olduğu.
+
+---
+
 ## 2026-08-29 · K-028 · Kayıt silme iz bırakmaz; keşfedilemeyen özellik yoktur
 
 İki iş, aynı boşluktan: kullanıcı yazdığını geri alamıyordu.

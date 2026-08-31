@@ -87,7 +87,7 @@ uyarı yazar. Telefonda gerçek kalıcılığı denemek için Capacitor kabuğuy
 ### Derleme ve testler
 
 ```sh
-npm test               # 266 test
+npm test               # 301 test
 npm run build          # dist/ üretir
 npm run onizle         # derlenmiş sürümü 4173 portunda sunar
 ```
@@ -209,10 +209,27 @@ eşleşiyor. Sözlük yok, tahmin yok — `kitabı` → `{kitab, kitap}`, `kitap
 kaydını, "kitap" araması "kitabı"yı buluyor; defterde de çekimli biçim
 vurgulanıyor. Alt-dize yolu duruyor, gövdeleme yalnızca kazanç ekliyor.
 
-Bir sonraki adım cihaz-içi gömü modeli. İlke 2.3 ham metnin cihazdan
-çıkmasını yasakladığı için embedding cihazda hesaplanmak zorunda; Türkçe
-için işe yarar en küçük çok dilli modeller ~100-130 MB, yani isteğe bağlı
-ve açıkça onaylanan bir indirme olacak.
+**Anlam araması** (K-029) — varsayılan **kapalı**. Açılırsa her kayıt
+cihazda bir vektöre gömülüyor ve "kötü hissettiğim günler" gibi sorular, o
+sözcükler kayıtta hiç geçmese de sonuç veriyor.
+
+- **Metin cihazdan çıkmaz.** Ağ çağrısı modeli *getirir*, metni *götürmez*.
+  Bir test bunu kaynak taramasıyla sabitliyor (`test/gomuGizlilik.test.ts`);
+  tarayıcıda da ölçüldü: dışarı çıkan tek şey gövdesiz bir GET.
+- Bir kerelik **~145 MB** (13 MB ONNX çalışma zamanı + ~130 MB çok dilli
+  model). Rakam ayar kağıdında yazılı.
+- **Taban uygulamada gömüye ait 1,7 KB var.** Kütüphane pakete girmiyor,
+  çalışma anında yükleniyor; özelliği açmayan hiçbir şey indirmiyor.
+- Vektörler int8 metin olarak şifreli veritabanında; **yedeğe girmiyorlar**
+  (türetilmiş veri, geri yüklemede yeniden kuruluyor).
+- **Anlamsal yakınlık bir ipucu, kanıt değil:** en fazla 1 puan ekliyor,
+  tek bir sözcük eşleşmesinin bile altında. Kaynak kartı bunu söylüyor —
+  *"aradığın sözcükler bu kayıtta geçmiyor — anlamca yakın"* (ilke 2.4).
+- Gömü bir **ek**, bağımlılık değil: model indirilemezse arama gövdelemeyle
+  çalışmaya devam ediyor.
+
+Modelin kendisi bu geliştirme ortamında doğrulanamadı (huggingface.co ve
+jsdelivr kapalı); SQLCipher ve biyometri gibi cihazda doğrulanacak.
 
 ## Değişmez ilkeler ve kodda karşılıkları
 

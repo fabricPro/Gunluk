@@ -519,6 +519,71 @@ export class Depo {
     return r ? { kayitId, tur: r.tur, veri: r.veri, en: r.en, boy: r.boy, bayt: r.bayt } : null
   }
 
+  /* ── gömü vektörleri (K-029) ───────────────────────────── */
+
+  /** Kaydın vektörünü yazar; varsa üstüne yazar. */
+  async gomuYaz(kayitId: string, model: string, vektor: string): Promise<void> {
+    await this.db.calistir(
+      `INSERT INTO gomu (kayit_id, model, vektor, guncelleme) VALUES (?, ?, ?, ?)
+       ON CONFLICT (kayit_id) DO UPDATE SET
+         model = excluded.model, vektor = excluded.vektor,
+         guncelleme = excluded.guncelleme`,
+      [kayitId, model, vektor, simdi()],
+    )
+  }
+
+  /**
+   * Aktif defterin vektörleri — yalnızca verilen modele ait olanlar.
+   *
+   * Model süzgeci şart: başka bir modelle üretilmiş vektörü karşılaştırmaya
+   * sokmak sessizce anlamsız sonuç verirdi.
+   */
+  async gomular(model: string): Promise<Map<string, string>> {
+    const satirlar = await this.db.hepsi<{ kayit_id: string; vektor: string }>(
+      `SELECT g.kayit_id, g.vektor FROM gomu g
+       JOIN kayit k ON k.id = g.kayit_id
+       WHERE k.defter_id = ? AND g.model = ?`,
+      [this.defterId, model],
+    )
+    return new Map(satirlar.map((r) => [r.kayit_id, r.vektor]))
+  }
+
+  /**
+   * Gömülmeyi bekleyen kayıtlar: hiç gömülmemiş ya da BAŞKA bir modelle
+   * gömülmüş olanlar. Düzeltilen kayıtlar da buraya düşüyor —
+   * `kayit.guncelleme` vektörün tarihinden yeniyse metin değişmiş demektir.
+   */
+  async gomusuzKayitlar(model: string, sinir = 32): Promise<{ id: string; metin: string }[]> {
+    return this.db.hepsi<{ id: string; metin: string }>(
+      `SELECT k.id, k.metin FROM kayit k
+       LEFT JOIN gomu g ON g.kayit_id = k.id
+       WHERE k.defter_id = ?
+         AND (g.kayit_id IS NULL OR g.model <> ? OR g.guncelleme < k.guncelleme)
+       ORDER BY k.tarih DESC, k.sira DESC
+       LIMIT ?`,
+      [this.defterId, model, sinir],
+    )
+  }
+
+  /** Kaç kayıt gömülmeyi bekliyor / toplam kaç kayıt var. */
+  async gomuDurum(model: string): Promise<{ bekleyen: number; toplam: number }> {
+    const r = await this.db.tek<{ bekleyen: number; toplam: number }>(
+      `SELECT
+         count(*) AS toplam,
+         sum(CASE WHEN g.kayit_id IS NULL OR g.model <> ? OR g.guncelleme < k.guncelleme
+                  THEN 1 ELSE 0 END) AS bekleyen
+       FROM kayit k LEFT JOIN gomu g ON g.kayit_id = k.id
+       WHERE k.defter_id = ?`,
+      [model, this.defterId],
+    )
+    return { bekleyen: r?.bekleyen ?? 0, toplam: r?.toplam ?? 0 }
+  }
+
+  /** Bütün vektörleri siler — özellik kapatılınca. */
+  async gomulariSil(): Promise<void> {
+    await this.db.calistir('DELETE FROM gomu')
+  }
+
   /* ── sayfa başlığı (kayıt kimliğine bağlı · K-005) ─────── */
 
   async baslikYaz(kayitId: string, baslik: string): Promise<void> {

@@ -40,3 +40,7 @@
   font-size:14px;line-height:1.6;font-style:italic;color:var(--kirmizi)}
 .kaynak-kenar span{display:block;font-style:normal;font-family:var(--ui);font-size:9.5px;
   color:var(--soluk);margin-top:3px;letter-spacing:.04em}
+
+/* Anlamsal sonucun beyanı — sözcük eşleşmesi yok, kaynak bunu söylüyor. */
+.kaynak-yakin{font-family:var(--ui);font-size:10px;letter-spacing:.03em;color:var(--altin);
+  opacity:.85;margin-top:7px}

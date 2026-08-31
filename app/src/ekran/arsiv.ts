@@ -1,7 +1,10 @@
 import { sayfaBul } from '../cekirdek/sayfa.js'
 import { soruCoz, type Bulgu } from '../cekirdek/sorgu.js'
+import { enYakinlar, paketiAc, paketle } from '../cekirdek/gomu.js'
+import { MODEL_KIMLIK } from '../cekirdek/gomuModel.js'
 import { gunAdi, iso, romen, tamTarih } from '../cekirdek/tr.js'
 import type { Durum } from '../durum.js'
+import type { Depo } from '../veri/depo.js'
 import { $, $$, ekranAc, kacir } from './ortak.js'
 
 /**
@@ -11,6 +14,7 @@ import { $, $$, ekranAc, kacir } from './ortak.js'
  */
 export function arsiviBagla(
   durum: Durum,
+  depo: Depo,
   sayfayaGit: (i: number, anim?: boolean) => void,
 ): { gecenYilCiz: () => void } {
   const kaynakHtml = (b: Bulgu): string => {
@@ -26,11 +30,20 @@ export function arsiviBagla(
           <span>kenar notu · ${kacir(kenarTarih(n.tarih))}</span></div>`,
       )
       .join('')
+    /*
+     * Anlamsal sonuçta hangi sözcüğün eşleştiğini gösteremiyoruz — çünkü
+     * hiçbiri eşleşmedi. İlke 2.4 kaynağın görünmesini istiyor, o yüzden
+     * kartın kendisi bunu söylüyor (K-029).
+     */
+    const yakinEt =
+      b.yakinlik !== undefined
+        ? '<div class="kaynak-yakin">aradığın sözcükler bu kayıtta geçmiyor — anlamca yakın</div>'
+        : ''
     return `<div class="kaynak" data-id="${b.kayit.id}">
       <time>${b.gunAd} · ${tamTarih(b.kayit.tarih)} · ${b.kayit.saat}${
         s ? ` · <b>cilt ${romen(s.cilt)}, sayfa ${s.ciltSayfa}</b>` : ''
       }</time>
-      ${kacir(b.kayit.metin)}${notlar}</div>`
+      ${kacir(b.kayit.metin)}${yakinEt}${notlar}</div>`
   }
 
   /** Göç öncesi okunur dizeler olduğu gibi basılır (K-024). */
@@ -50,13 +63,39 @@ export function arsiviBagla(
       }
   }
 
-  const cevapCiz = (soru: string): void => {
+  /**
+   * Sorgunun gömüsünü alıp defterdeki vektörlerle karşılaştırır.
+   *
+   * Gömü kapalıysa ya da bir sorun çıkarsa boş harita dönüyor: anlam
+   * araması bir EK, arama onsuz da çalışmaya devam ediyor.
+   */
+  const yakinlariBul = async (soru: string): Promise<Map<string, number>> => {
+    if (!durum.sorguGom) return new Map()
+    try {
+      const v = await durum.sorguGom(soru)
+      if (!v) return new Map()
+      const sorgu = paketiAc(paketle(v))
+      if (!sorgu) return new Map()
+      const indeks = await depo.gomular(MODEL_KIMLIK)
+      const cozulmus: [string, Int8Array][] = []
+      for (const [id, kod] of indeks) {
+        const k = paketiAc(kod)
+        if (k) cozulmus.push([id, k])
+      }
+      return new Map(enYakinlar(sorgu, cozulmus).map((y) => [y.kayitId, y.puan]))
+    } catch (e) {
+      console.warn('[defter] anlam araması atlandı', e)
+      return new Map()
+    }
+  }
+
+  const cevapCiz = async (soru: string): Promise<void> => {
     const kutu = $('#cevapAlan')
     if (!soru.trim()) {
       kutu.innerHTML = ''
       return
     }
-    const c = soruCoz(soru, durum.gunler, durum.temalar, durum.kenarlar)
+    const c = soruCoz(soru, durum.gunler, durum.temalar, durum.kenarlar, await yakinlariBul(soru))
     if (c.bos) {
       kutu.innerHTML = `<div class="cevap"><div class="et">cevap</div>
         <p>Bununla ilgili bir şey yazmamışsın. Yazmadığın bir şeyi uydurmam.</p></div>`
@@ -98,9 +137,9 @@ export function arsiviBagla(
     kaynakBagla(kap, '')
   }
 
-  $('#sorBtn').onclick = () => cevapCiz($<HTMLInputElement>('#soruKutu').value)
+  $('#sorBtn').onclick = () => void cevapCiz($<HTMLInputElement>('#soruKutu').value)
   $('#soruKutu').addEventListener('keydown', (e) => {
-    if ((e as KeyboardEvent).key === 'Enter') cevapCiz((e.target as HTMLInputElement).value)
+    if ((e as KeyboardEvent).key === 'Enter') void cevapCiz((e.target as HTMLInputElement).value)
   })
   for (const b of $$('nav button')) b.onclick = () => ekranAc(b.dataset.ekran as 'defter')
 
