@@ -13,7 +13,7 @@
  * gömü modelinde alınan tavırla aynı (K-029).
  */
 import type { Anlatim } from '../cekirdek/anlatim.js'
-import { SISTEM, kullaniciMetni } from '../cekirdek/anlatim.js'
+import { SISTEM, SORU_SISTEM, kullaniciMetni, soruIstegi } from '../cekirdek/anlatim.js'
 
 export const MODEL = 'claude-opus-5'
 
@@ -74,5 +74,45 @@ export async function cevapAkit(
      */
     console.error('[defter] model çağrısı', e)
     throw new Error('Cevap alınamadı. Ayrıntı konsolda.')
+  }
+}
+
+/**
+ * Yazdıktan sonra tek soru — yol haritası 12.
+ *
+ * Akıtılmıyor: çıkan şey tek bir kısa cümle, parça parça belirmesi
+ * gereksiz bir gösteri olurdu. Dışarı çıkan tek şey o kaydın metni.
+ */
+export const SORU_JETON = 120
+
+export async function soruUret(kayitMetni: string, anahtar: string): Promise<string | null> {
+  const gidecek = soruIstegi(kayitMetni)
+  if (!gidecek) return null
+  const { default: Anthropic } = await import('@anthropic-ai/sdk')
+  const istemci = new Anthropic({ apiKey: anahtar, dangerouslyAllowBrowser: true })
+  try {
+    const c = await istemci.messages.create({
+      model: MODEL,
+      max_tokens: SORU_JETON,
+      output_config: { effort: 'low' },
+      thinking: { type: 'adaptive' },
+      system: SORU_SISTEM,
+      messages: [{ role: 'user', content: gidecek }],
+    })
+    const metin = c.content
+      .filter((b): b is { type: 'text'; text: string; citations: null } => b.type === 'text')
+      .map((b) => b.text)
+      .join('')
+      .trim()
+    return metin || null
+  } catch (e) {
+    if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError)
+      throw new Error('Anahtar kabul edilmedi. Ayarlardan kontrol et.')
+    if (e instanceof Anthropic.RateLimitError)
+      throw new Error('Anthropic şu an istek almıyor. Biraz sonra dene.')
+    if (e instanceof Anthropic.APIConnectionError)
+      throw new Error('Bağlanılamadı. İnternet bağlantını kontrol et.')
+    console.error('[defter] soru üretimi', e)
+    throw new Error('Soru alınamadı.')
   }
 }

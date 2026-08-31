@@ -94,3 +94,31 @@ export function kullaniciMetni(a: Anlatim): string {
   })
   return `Soru: ${a.soru}\n\nKayıtlar:\n\n${bloklar.join('\n\n')}`
 }
+
+/* ── yazdıktan sonra tek soru ───────────────────────────────
+   PROJE.md yol haritası 12: *yorum değil, soru.* Gerekçe orada yazılı:
+   "Yorum açıklamaya çalışır, soru yazdırır." */
+
+export const SORU_SISTEM = `Kullanıcı az önce günlüğüne bir şey yazdı. Senin tek işin, ona yazmaya devam ettirecek TEK BİR SORU sormak.
+
+Kurallar:
+1. Yalnızca bir soru cümlesi yaz. Başka hiçbir şey yazma: selam yok, giriş yok, açıklama yok, tırnak yok.
+2. Yorum yapma. Yazdıklarını özetleme, adlandırma, tekrar etme, "anlıyorum" deme, teselli etme, övme, öğüt verme.
+3. Teşhis koyma, duygu ölçme, örüntü adı takma. Sen terapi değilsin.
+4. Soru kısa olsun — en fazla on beş sözcük. Türkçe yaz, "sen" diye hitap et.
+5. Soru, yazdığı şeyin İÇİNDEKİ somut bir ayrıntıya dokunsun; genel geçer olmasın. "Bugün nasıl hissettin?" gibi bir soru işe yaramaz.
+6. Cevabı kendin varsayma; kayıtta yazmayan bir olayı ya da kişiyi soruya sokma.
+7. Kullanıcıyı bir şey yapmaya çağırma, tavsiye verme, plan önerme.`
+
+/**
+ * Kayıttan soru istenebilir mi ve istenecekse dışarı ne çıkacak.
+ *
+ * Kriz işareti taşıyan kayıt için null: ilke 2.1'de uygulama SUSAR, soru
+ * sormak susmanın tersidir (KARARLAR.md · K-030, K-032).
+ */
+export function soruIstegi(metin: string): string | null {
+  const t = metin.trim()
+  if (!t) return null
+  if (krizIsareti(t).var) return null
+  return t
+}

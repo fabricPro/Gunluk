@@ -56,6 +56,9 @@ export interface ModelDenetim {
   kuyruk: () => string
   yaz: (anahtar: string) => Promise<void>
   sil: () => Promise<void>
+  /** Yazdıktan sonra tek soru — ayrı ayar (KARARLAR.md · K-032). */
+  soruAcik: () => boolean
+  soruDegistir: (acik: boolean) => Promise<void>
 }
 
 export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
@@ -179,6 +182,8 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
     } else if (ad === 'modelSil') {
       if (!confirm('Anahtar silinsin mi? Model cevabı bir daha çağrılamaz.')) return
       await model?.sil()
+    } else if (ad === 'modelSoru') {
+      await model?.soruDegistir(!model.soruAcik())
     }
     await ciz()
     degisti()
@@ -237,10 +242,18 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
         'Bastığında da yalnızca ekranda gördüğün <b>en fazla 4 kayıt</b> gider.'
       : `Açık. Anahtar cihazda saklı (…${kacir(model.kuyruk())}). ` +
         'Arşivde arama yaptıktan sonra “bu kayıtlardan bir cevap yaz” düğmesi çıkar. ' +
-        'Düğmeye basmadıkça çağrı olmaz.'
+        'Düğmeye basmadıkça çağrı olmaz.<br>' +
+        (model.soruAcik()
+          ? 'Defterde de <b>“yazdığıma bir soru sor”</b> düğmesi var: son yazdığın kaydı ' +
+            'gönderip tek bir soru getirir. Yorum değil, soru. Kriz işaretli bir kayıttan ' +
+            'sonra o düğme hiç çıkmaz.'
+          : 'Defterde yazdıktan sonra tek soru isteme kapalı.')
 
     $('#ayModelDugmeler').innerHTML = var_
-      ? '<button data-eylem="modelAnahtar">anahtarı değiştir</button>' +
+      ? `<button data-eylem="modelSoru">${
+          model.soruAcik() ? 'yazdıktan sonra soruyu kapat' : 'yazdıktan sonra soru iste'
+        }</button>` +
+        '<button data-eylem="modelAnahtar">anahtarı değiştir</button>' +
         '<button data-eylem="modelSil">anahtarı sil</button>'
       : '<button data-eylem="modelAnahtar">anahtarımı gir</button>'
     for (const dg of $$<HTMLButtonElement>('#ayModelDugmeler button'))

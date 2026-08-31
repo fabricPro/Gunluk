@@ -6,6 +6,7 @@ import { ekKaynak, gorseliHazirla } from './gorsel.js'
 import { resimSec } from './dosya.js'
 import { dahiEki, iso, romen, saatSayi, tamTarih } from '../cekirdek/tr.js'
 import type { Durum } from '../durum.js'
+import type { ModelAkis } from '../modelAkis.js'
 import type { Depo } from '../veri/depo.js'
 import { $, $$, bugun, isikAyarla, kacir, odakBirak, odakVer, sayfaIsigiBagla, suanSaat } from './ortak.js'
 
@@ -27,6 +28,7 @@ export function defteriBagla(
   durum: Durum,
   depo: Depo,
   toreniAc: () => void,
+  model?: ModelAkis,
 ): DefterArayuz {
   const sayfaIsik = () => {
     const s = durum.sayfalar[durum.aktifSayfa]
@@ -216,6 +218,18 @@ export function defteriBagla(
     $('#ekIlistir').textContent = bekleyenEk ? 'başka bir şey iliştir' : 'bir şey iliştir'
     $('#soruIste').style.display = son && durum.soruIstenebilir ? '' : 'none'
     $('#soruIste').textContent = durum.aktifSoru ? 'başka bir şey sor' : 'bana bir şey sor'
+    /*
+     * Yazdıktan sonra tek soru (yol haritası 12). Düğme, çağrının
+     * kullanıcının AÇIK eylemi olması için var: ilke 2.3 "arka planda
+     * sessizce hiçbir şey yüklenmez" diyor, otomatik gönderim o cümleyi
+     * bozardı (KARARLAR.md · K-032).
+     *
+     * Kriz günlerinde hiç çıkmıyor: o gün uygulama susuyor (ilke 2.1).
+     */
+    $('#soruYazdan').style.display =
+      son && durum.yazilabilir && !durum.krizVar && !!model?.soruIstenebilir && !!sonKayitMetni()
+        ? ''
+        : 'none'
     $('#bugune').style.display = son ? 'none' : ''
 
     kalemBagla()
@@ -700,7 +714,39 @@ export function defteriBagla(
     }
   }
 
+  /**
+   * En son yazılan kaydın metni — soruya dayanak olan tek şey.
+   * Kriz işaretliyse yok sayılıyor: o kayıt hiçbir yere gitmez.
+   */
+  const sonKayitMetni = (): string | null => {
+    const gun = durum.gunler[durum.gunler.length - 1]
+    const k = gun?.kayitlar[gun.kayitlar.length - 1]
+    if (!k || krizIsareti(k.metin).var) return null
+    return k.metin
+  }
+
   /* ── bağlantılar ───────────────────────────────────────── */
+  $('#soruYazdan').onclick = async () => {
+    const metin = sonKayitMetni()
+    if (!metin || !model) return
+    const d = $<HTMLButtonElement>('#soruYazdan')
+    d.disabled = true
+    const eski = d.textContent
+    d.textContent = 'soruluyor…'
+    try {
+      const soru = await model.soruSor(metin)
+      if (soru) {
+        durum.aktifSoru = soru
+        ciz()
+        $<HTMLTextAreaElement>('#kalem')?.focus()
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Soru alınamadı.')
+    } finally {
+      d.disabled = false
+      d.textContent = eski
+    }
+  }
   $('#geri').onclick = () => sayfayaGit(durum.aktifSayfa - 1)
   $('#ileri').onclick = () => sayfayaGit(durum.aktifSayfa + 1)
   $('#bugune').onclick = () => sayfayaGit(durum.sonSayfa)

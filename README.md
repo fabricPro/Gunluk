@@ -256,6 +256,17 @@ aynı kayıtlardan bir modelin cümle kurmasını isteyebiliyorsun; bunun için
 - **Taban uygulama etkilenmiyor.** SDK ayrı parçada; anahtar girilmemişse
   hiç inmiyor.
 
+**Yazdıktan sonra tek soru** (K-032) — ayrı ayar, yine varsayılan kapalı.
+Yazdıktan sonra defterde *"yazdığıma bir soru sor"* düğmesi çıkıyor; giden
+tek şey o kaydın metni, gelen tek şey bir soru. Yorum değil: özetleme,
+teselli, övgü, öğüt, teşhis yönergede açıkça yasak.
+
+**Otomatik değil, ve bu bilerek.** Kaydı bırakmak yazma eylemidir, gönderme
+eylemi değil; otomatik gönderim ilke 2.3'ün *"arka planda sessizce hiçbir
+şey yüklenmez"* cümlesini bozardı. Kendiliğinden belirmeyen soru daha az
+kullanılacak — bedel kabul edildi. **Kriz günlerinde düğme hiç çıkmıyor**
+(ilke 2.1: uygulama susar, soru sormak susmanın tersidir).
+
 Kabul edilen bedel: bu özellik pratikte yalnızca API anahtarı olan
 kullanıcılara açık. Alternatif defterin en mahrem metnini bizim sunucumuzdan
 geçirmekti; o bedel daha ağır.
@@ -313,6 +324,6 @@ karşılığı var:
 töreni çalışıyor; yazı tipleri gömülü. (El yazısı kapsam dışı — K-007.)
 **Faz 2 tamam:** fotoğraf ve ek (2.5), kenar notu (2.6), PIN + biyometri
 (2.7), mühürlü yedek (2.8). **Faz 3 tamam:** Türkçe gövdeleme ve cihaz-içi
-gömü araması (9), kaynaklı model çağrısı (10), kriz sınıflandırıcısı (11).
-Sırada: yazdıktan sonra tek soru (12), ardından Faz 4 — yayın metinleri ve
-İngilizce yerelleştirme.
+gömü araması (9), kaynaklı model çağrısı (10), kriz sınıflandırıcısı (11),
+yazdıktan sonra tek soru (12). Sırada Faz 4 — yayın metinleri ve İngilizce
+yerelleştirme.

@@ -133,7 +133,7 @@ Sıra önemli. Her adım bir öncekine yaslanıyor.
 9. ~~**Arama.**~~ **Tamam.** Türkçe gövdeleme (K-027) ve cihaz-içi gömü araması (K-029). "hissettiğim" artık "hissetmedim"i buluyor; anlam araması açılırsa "kötü hissettiğim günler" gibi sorular o sözcükler hiç geçmese de sonuç veriyor. Model cihazda çalışıyor — ~145 MB'lık isteğe bağlı indirme, varsayılan kapalı. Metin cihazdan çıkmıyor.
 10. ~~Soru-cevap için model çağrısı — **kaynak kayıtlar her zaman gösterilecek.**~~ **Tamam.** Arama cihazda bitiyor; sonra ayrı bir düğme, en fazla 4 kaydı kullanıcının kendi Anthropic anahtarıyla doğrudan cihazdan gönderiyor — sunucu yok, düğmeye basılmadıkça tek bayt çıkmıyor. Cevaptaki `[2]` ile kaynak kartındaki `[2]` aynı kayıt. Kriz kaydı iki kez eleniyor (KARARLAR.md · K-031).
 11. ~~Kriz sınıflandırıcısı ve akışı (2.1).~~ **Tamam.** Kural tabanlı, dar eşikli, cihazda; hiçbir yere yazılmıyor. Kriz kaydı arşiv cevabına ve tema sayımına girmiyor, o gün soru sorulmuyor, kağıdın üstünde sessiz bir kart 112'yi gösteriyor. Yakılan sayfada çalışmıyor (KARARLAR.md · K-030).
-12. İsteğe bağlı: her yazıdan sonra **tek soru.** Yorum değil, soru. ~200 token. Yorum açıklamaya çalışır, soru yazdırır.
+12. ~~İsteğe bağlı: her yazıdan sonra **tek soru.**~~ **Tamam.** Yorum değil, soru; yalnızca o kaydın metni gidiyor. **Otomatik değil:** ilke 2.3 "arka planda sessizce hiçbir şey yüklenmez" dediği için ayrı bir düğme — akış bedeli bilerek ödendi. Kriz günlerinde düğme hiç çıkmıyor (KARARLAR.md · K-032).
 
 ### Faz 4 — Yayın
 13. Gizlilik etiketleri, App Store metinleri, ekran görüntüleri.

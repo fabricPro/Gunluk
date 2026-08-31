@@ -11,15 +11,24 @@ import type { AnahtarDepo } from './veri/anahtarDepo.js'
 export class ModelAkis {
   private anahtar: string | null = null
   private dinleyiciler: (() => void)[] = []
+  /**
+   * Yazdıktan sonra soru düğmesi görünsün mü — yol haritası 12.
+   *
+   * Ayrı bir ayar, çünkü arşiv cevabıyla aynı şey değil: biri geçmişe
+   * bakarken, diğeri yazarken devreye giriyor. Anahtarı olan herkes
+   * ikisini birden istemek zorunda değil (KARARLAR.md · K-032).
+   */
+  soruAcik = false
 
   constructor(private readonly depo: AnahtarDepo) {}
 
-  async yukle(): Promise<void> {
+  async yukle(soruAcik = false): Promise<void> {
     try {
       this.anahtar = await this.depo.oku()
     } catch {
       this.anahtar = null
     }
+    this.soruAcik = soruAcik
     this.duyur()
   }
 
@@ -52,6 +61,23 @@ export class ModelAkis {
     if (!this.anahtar) throw new Error('Anahtar girilmemiş.')
     const { cevapAkit } = await import('./veri/model.js')
     await cevapAkit(anlatim, this.anahtar, parca)
+  }
+
+  /**
+   * Yazılan kayıttan tek bir soru üretir; kriz işareti varsa null.
+   *
+   * Dışarı çıkan tek şey o kaydın metni — gün, defter, geçmiş kayıtlar
+   * gitmiyor.
+   */
+  async soruSor(kayitMetni: string): Promise<string | null> {
+    if (!this.anahtar || !this.soruAcik) return null
+    const { soruUret } = await import('./veri/model.js')
+    return soruUret(kayitMetni, this.anahtar)
+  }
+
+  /** Yazdıktan sonra soru düğmesi çıkacak mı. */
+  get soruIstenebilir(): boolean {
+    return !!this.anahtar && this.soruAcik
   }
 
   dinle(f: () => void): void {

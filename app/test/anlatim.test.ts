@@ -1,7 +1,14 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { EN_COK_KAYIT, SISTEM, anlatimKur, kullaniciMetni } from '../src/cekirdek/anlatim.js'
+import {
+  EN_COK_KAYIT,
+  SISTEM,
+  SORU_SISTEM,
+  anlatimKur,
+  kullaniciMetni,
+  soruIstegi,
+} from '../src/cekirdek/anlatim.js'
 import { soruCoz } from '../src/cekirdek/sorgu.js'
 import type { Bulgu } from '../src/cekirdek/sorgu.js'
 import type { Gun, Kayit } from '../src/cekirdek/tipler.js'
@@ -152,5 +159,39 @@ describe('model çağrısı tek bir dosyada', () => {
     const yak = readFileSync(join(kok, 'ekran/yak.ts'), 'utf8')
     expect(yak).not.toContain('anlatim')
     expect(yak).not.toContain('model')
+  })
+})
+
+/**
+ * Yol haritası 12 — yazdıktan sonra tek soru.
+ *
+ * "Yorum açıklamaya çalışır, soru yazdırır." Bu testler soru olmayı ve
+ * kriz gününde hiç sorulmamayı sabitliyor.
+ */
+describe('yazdıktan sonra tek soru', () => {
+  it('boş kayıttan soru istenmiyor', () => {
+    expect(soruIstegi('')).toBeNull()
+    expect(soruIstegi('   \n ')).toBeNull()
+  })
+
+  it('kriz işaretli kayıttan soru istenmiyor — ilke 2.1', () => {
+    expect(soruIstegi('kendimi öldürmek istiyorum')).toBeNull()
+    expect(soruIstegi('bugün berbat geçti, artık yaşamak istemiyorum')).toBeNull()
+  })
+
+  it('deyim kriz sayılmıyor, soru istenebiliyor', () => {
+    expect(soruIstegi('bu iş beni öldürüyor, üç gündür rapor yazıyorum')).not.toBeNull()
+  })
+
+  it('yalnızca o kaydın metni çıkıyor — kırpılmış hâliyle', () => {
+    expect(soruIstegi('  Kerem yine yazmadı.  ')).toBe('Kerem yine yazmadı.')
+  })
+
+  it('yönerge yorumu değil soruyu istiyor', () => {
+    expect(SORU_SISTEM).toContain("TEK BİR SORU")
+    expect(SORU_SISTEM).toMatch(/yorum yapma/i)
+    expect(SORU_SISTEM).toMatch(/teşhis koyma/i)
+    expect(SORU_SISTEM).toMatch(/öğüt verme/i)
+    expect(SORU_SISTEM).toMatch(/on beş sözcük/i)
   })
 })

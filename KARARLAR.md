@@ -9,6 +9,51 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-31 · K-032 · Yazdıktan sonra tek soru — ve neden otomatik değil
+
+Yol haritası 12: *"her yazıdan sonra tek soru. Yorum değil, soru. Yorum
+açıklamaya çalışır, soru yazdırır."*
+
+### Otomatik olmuyor — ilke 2.3 buna izin vermiyor
+
+İlk tasarım kaydı bıraktığın an sorunun kendiliğinden belirmesiydi; akış
+açısından doğru olan da o. Ama ilke 2.3 iki cümle söylüyor: *"AI çağrısı
+gerekiyorsa yalnızca gereken parça, kullanıcının açık eylemiyle (soru
+sorması) gider. Arka planda sessizce hiçbir şey yüklenmez."*
+
+Bırak düğmesine basmak yazma eylemidir, **gönderme eylemi değildir**.
+Otomatik gönderim tam olarak "arka planda sessizce" olurdu. Bu yüzden
+defterde ayrı bir düğme var: *"yazdığıma bir soru sor"*. Tarayıcıda
+ölçüldü: kayıt bırakıldığında dış istek sayısı sıfır kalıyor.
+
+Bedeli biliyoruz: kendiliğinden belirmeyen soru daha az kullanılacak. Ama
+ilkeyi bir kez "akış daha iyi olsun diye" esnetmek, ilkeyi ilke olmaktan
+çıkarır.
+
+### Arşiv cevabından ayrı ayar
+
+Anahtarı olan herkes ikisini birden istemek zorunda değil: biri geçmişe
+bakarken, diğeri yazarken devreye giriyor. Varsayılan kapalı.
+
+### Kriz gününde düğme hiç çıkmıyor
+
+İlke 2.1'de uygulama SUSAR. Soru sormak susmanın tersidir. Düğme iki
+yerden birden eleniyor: kaydın kendisi kriz işaretliyse `soruIstegi` null
+dönüyor (metin hiçbir koşulda çıkmıyor), ve `durum.krizVar` doğruyken
+düğme hiç çizilmiyor — o gün defter sessiz.
+
+### Dışarı çıkan: yalnızca son kaydın metni
+
+Gün değil, defter değil, geçmiş kayıtlar değil. Tek bir kaydın metni.
+Tavan `max_tokens: 120` — çıkacak şey tek bir kısa cümle.
+
+Yönerge yorumu açıkça yasaklıyor: özetleme, adlandırma, tekrar, "anlıyorum",
+teselli, övgü, öğüt, teşhis, duygu ölçümü, örüntü adı. Ve soru genel geçer
+olamıyor: yazdığı şeyin içindeki somut bir ayrıntıya dokunmak zorunda —
+*"Bugün nasıl hissettin?"* işe yaramaz.
+
+---
+
 ## 2026-08-31 · K-031 · Model cevabı: kullanıcının anahtarı, kullanıcının eylemi, dört kayıt
 
 Yol haritasının 10. maddesi: soru-cevap için model çağrısı. İki değişmez

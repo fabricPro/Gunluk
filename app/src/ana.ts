@@ -122,14 +122,15 @@ async function baslat(): Promise<void> {
     durum.aktifSayfa = durum.sonSayfa
     durum.soruyuTazele(new Date().toISOString().slice(0, 10))
 
-    let toren: { ac: () => void } | null = null
-    const defter = defteriBagla(durum, depo, () => toren?.ac())
     /*
-     * Model cevabı — anahtar yoksa arşivde düğme bile çıkmıyor. Çağrı
+     * Model cevabı — anahtar yoksa hiçbir yerde düğme çıkmıyor. Çağrı
      * kodu ayrı parçada: anahtar girilmemişse SDK inmiyor (K-031).
      */
     const model = new ModelAkis(nativeMi ? await cihazAnahtarDepo() : tarayiciAnahtarDepo())
-    await model.yukle()
+    await model.yukle((await depo.ayarOku('model.soru')) === '1')
+
+    let toren: { ac: () => void } | null = null
+    const defter = defteriBagla(durum, depo, () => toren?.ac(), model)
     const arsiv = arsiviBagla(durum, depo, defter.sayfayaGit, model)
     const kapsul = kapsuleBagla(depo)
     const kitaplik = kitapligiBagla(durum, depo, () => {
@@ -207,6 +208,12 @@ async function baslat(): Promise<void> {
         kuyruk: () => model.kuyruk,
         yaz: (a) => model.anahtarYaz(a),
         sil: () => model.anahtarSil(),
+        soruAcik: () => model.soruAcik,
+        soruDegistir: async (a) => {
+          model.soruAcik = a
+          await depo.ayarYaz('model.soru', a ? '1' : '0')
+          defter.ciz()
+        },
       },
     })
 
