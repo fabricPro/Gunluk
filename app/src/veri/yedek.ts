@@ -11,6 +11,7 @@ import {
   yavasTuret,
   type KilitParam,
 } from '../cekirdek/gizle.js'
+import { paketiAc, paketle, type Sikistirma } from '../cekirdek/muhur.js'
 import type { Dokum } from './dokum.js'
 
 /**
@@ -33,7 +34,7 @@ export const YEDEK_BICIM = 'defter-muhurlu-yedek'
  * bile demeden. Yedek biçimi on yıl sonra okunacak diye tasarlandı
  * (K-003); içinde tahmin edilecek hiçbir şey kalmamalı.
  */
-export type Sikistirma = 'gzip' | 'yok'
+export type { Sikistirma }
 
 export interface MuhurluYedek {
   bicim: typeof YEDEK_BICIM
@@ -53,24 +54,6 @@ export interface MuhurluYedek {
 
 export class YedekHatasi extends Error {}
 
-/** Sıkıştırır ve NE YAPTIĞINI söyler. */
-async function sikistir(b: Uint8Array): Promise<{ govde: Uint8Array; nasil: Sikistirma }> {
-  if (typeof CompressionStream === 'undefined') return { govde: b, nasil: 'yok' }
-  const akis = new Blob([b as BlobPart]).stream().pipeThrough(new CompressionStream('gzip'))
-  return { govde: new Uint8Array(await new Response(akis).arrayBuffer()), nasil: 'gzip' }
-}
-
-/** Biçimin söylediğine göre açar; tahmin etmez. */
-async function ac(b: Uint8Array, nasil: Sikistirma): Promise<Uint8Array> {
-  if (nasil === 'yok') return b
-  if (typeof DecompressionStream === 'undefined')
-    throw new YedekHatasi(
-      S('veri.gzipYok'),
-    )
-  const akis = new Blob([b as BlobPart]).stream().pipeThrough(new DecompressionStream('gzip'))
-  return new Uint8Array(await new Response(akis).arrayBuffer())
-}
-
 const anahtar = async (gizli: Uint8Array, tuz: Uint8Array, p: KilitParam): Promise<CryptoKey> =>
   aesAnahtar(await yavasTuret(gizli, tuz, p))
 
@@ -85,7 +68,7 @@ export async function muhurle(
 
   const tuz = rastgele(16)
   const iv = rastgele(12)
-  const { govde, nasil } = await sikistir(new TextEncoder().encode(JSON.stringify(dokum)))
+  const { govde, nasil } = await paketle(new TextEncoder().encode(JSON.stringify(dokum)))
   const sifreli = new Uint8Array(
     await crypto.subtle.encrypt(
       { name: 'AES-GCM', iv: iv as BufferSource },
@@ -124,5 +107,8 @@ export async function muhruAc(yedek: MuhurluYedek, kurtarmaKodu: string): Promis
     throw new YedekHatasi(S('veri.kodAcmiyor'))
   }
   const nasil = yedek.sikistirma ?? 'gzip'
-  return JSON.parse(new TextDecoder().decode(await ac(govde, nasil))) as Dokum
+  const cozulmus = await paketiAc(govde, nasil).catch(() => {
+    throw new YedekHatasi(S('veri.gzipYok'))
+  })
+  return JSON.parse(new TextDecoder().decode(cozulmus)) as Dokum
 }

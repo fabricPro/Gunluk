@@ -123,12 +123,25 @@ export interface Kapali {
   govde: string
 }
 
+/** Ham bayt hâli — hex/base64'e uğramadan. */
+export interface KapaliHam {
+  iv: Uint8Array
+  govde: Uint8Array
+}
+
 /**
- * Şifreler. IV her çağrıda yeni: aynı anahtarla aynı IV'yi iki kez
- * kullanmak GCM'i tamamen kırar.
+ * Ham baytlarla şifreler. IV her çağrıda yeni: aynı anahtarla aynı IV'yi
+ * iki kez kullanmak GCM'i tamamen kırar.
+ *
+ * Metin taşıyan her yer aşağıdaki `kapat`ı kullanıyor. Bu, gövdesi
+ * büyük olanlar için: yerel mühür defterin TAMAMINI her yazmada
+ * şifreliyor ve base64 boyutu üçte bir büyütürdü (KARARLAR.md · K-037).
  */
-export async function kapat(veri: Uint8Array, anahtar: CryptoKey): Promise<Kapali> {
-  const iv = rastgele(12)
+export async function kapatHam(
+  veri: Uint8Array,
+  anahtar: CryptoKey,
+  iv: Uint8Array = rastgele(12),
+): Promise<KapaliHam> {
   const sifreli = new Uint8Array(
     await crypto.subtle.encrypt(
       { name: 'AES-GCM', iv: iv as BufferSource },
@@ -136,7 +149,29 @@ export async function kapat(veri: Uint8Array, anahtar: CryptoKey): Promise<Kapal
       veri as BufferSource,
     ),
   )
-  return { iv: onaltilikYaz(iv), govde: b64Yaz(sifreli) }
+  return { iv, govde: sifreli }
+}
+
+/**
+ * Ham baytları çözer. Anahtar yanlışsa ya da bayt oynanmışsa GCM etiketi
+ * tutmaz ve `crypto.subtle.decrypt` atar.
+ */
+export async function acHam(k: KapaliHam, anahtar: CryptoKey): Promise<Uint8Array> {
+  return new Uint8Array(
+    await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: k.iv as BufferSource },
+      anahtar,
+      k.govde as BufferSource,
+    ),
+  )
+}
+
+/**
+ * Şifreler ve hex/base64 olarak verir — JSON'a yazılacak yerler için.
+ */
+export async function kapat(veri: Uint8Array, anahtar: CryptoKey): Promise<Kapali> {
+  const k = await kapatHam(veri, anahtar)
+  return { iv: onaltilikYaz(k.iv), govde: b64Yaz(k.govde) }
 }
 
 /**
@@ -145,11 +180,5 @@ export async function kapat(veri: Uint8Array, anahtar: CryptoKey): Promise<Kapal
  * çevirmeli.
  */
 export async function ac(k: Kapali, anahtar: CryptoKey): Promise<Uint8Array> {
-  return new Uint8Array(
-    await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: onaltilikOku(k.iv) as BufferSource },
-      anahtar,
-      b64Oku(k.govde) as BufferSource,
-    ),
-  )
+  return acHam({ iv: onaltilikOku(k.iv), govde: b64Oku(k.govde) }, anahtar)
 }
