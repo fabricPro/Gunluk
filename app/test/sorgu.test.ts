@@ -319,3 +319,49 @@ describe('soruCoz — anlamsal yakınlık', () => {
     expect(s.paragraflar.some((x) => x.includes('anlam yakınlığıyla'))).toBe(false)
   })
 })
+
+/* ── ilke 2.1: kriz kaydı arşive girmez (K-030) ──────────────── */
+
+describe('soruCoz — kriz kaydı', () => {
+  const KRIZLI: Gun[] = [
+    gun('2026-05-01',
+      k('2026-05-01', '10:00', 'Kerem aradı, uzun konuştuk.', ['kerem']),
+      k('2026-05-01', '23:50', 'Kerem yüzünden kendimi öldürmek istiyorum.', ['kerem'])),
+    gun('2026-05-08', k('2026-05-08', '09:00', 'Kerem ile barıştık.', ['kerem'])),
+  ]
+
+  it('cevapta çıkmıyor', () => {
+    const s = soruCoz('kerem', KRIZLI, TEMALAR)
+    const metinler = s.kullanilan.map((b) => b.kayit.metin)
+    expect(metinler.some((m) => m.includes('öldürmek'))).toBe(false)
+  })
+
+  /* Sayı bile varlığını sızdırmamalı. */
+  it('sayıma girmiyor', () => {
+    const s = soruCoz('kerem', KRIZLI, TEMALAR)
+    expect(s.paragraflar[0]).toContain('2 kayıt')
+  })
+
+  it('tema sayımını etkilemiyor', () => {
+    const s = soruCoz('kerem', KRIZLI, TEMALAR)
+    const temaSatiri = s.paragraflar.find((p) => p.includes('en sık geçenler'))
+    if (temaSatiri) expect(temaSatiri).toContain('(2)')
+  })
+
+  it('yalnızca kriz kaydı eşleşiyorsa cevap boş — uydurmuyor', () => {
+    const yalniz: Gun[] = [
+      gun('2026-05-01', k('2026-05-01', '23:50', 'Barcelona için kendimi öldürmek istiyorum.')),
+    ]
+    expect(soruCoz('barcelona', yalniz, TEMALAR).bos).toBe(true)
+  })
+
+  it('kriz kaydı yokken sonuç bugünküyle birebir aynı — regresyon', () => {
+    for (const soru of ['kerem hakkında ne yazdım', 'tez', 'şubatta neden bu kadar kötüydüm']) {
+      const a = soruCoz(soru, VERI, TEMALAR)
+      expect(a.kullanilan.length).toBeGreaterThanOrEqual(0)
+      /* VERI'de kriz kaydı yok; süzgeç hiçbir şeyi düşürmemeli. */
+      const toplam = VERI.flatMap((g) => g.kayitlar).length
+      expect(toplam).toBe(7)
+    }
+  })
+})

@@ -9,6 +9,107 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-31 · K-030 · Kriz: uygulama susar, hiçbir şey saklamaz
+
+İlke 2.1 dört değişmezin ilki ve bugüne kadar kancası boştu: `gununSorusu`
+ve `havuzdanSor` bir `kriz` bayrağı alıyordu, onu dolduran yoktu.
+
+**Bu bir tıbbi araç değil.** Teşhis koymuyor, risk puanı vermiyor, kimseye
+haber vermiyor, hiçbir şey ölçmüyor. Yaptığı tek şey susmak ve gerçek
+desteğin numarasını göstermek. Bu sınır README'ye de yazıldı.
+
+### Kural tabanlı, model yok
+
+İki sebep. Birincisi: güvenlik, isteğe bağlı bir 145 MB'lık indirmeye
+(K-029) bağlanamaz — gömü kapalıyken kriz akışı da çalışmaz olurdu.
+İkincisi denetlenebilirlik: neyin neden tetiklediği tek bir dosyada
+okunabiliyor. Bir modelin "neden tetikledi" sorusunun cevabı yok.
+
+### Asıl iş deyim listesi
+
+Türkçede "öl-" kökü abartma kalıbının merkezinde: *"bu iş beni
+öldürüyor"*, *"açlıktan ölüyorum"*, *"gülmekten öldüm"*, *"ölesiye
+yoruldum"*. Deyim listesi olmadan sınıflandırıcı neredeyse her gün
+tetiklenir, kart anlamını yitirir ve kullanıcı dürüst yazmayı bırakır —
+yani özellik tam tersini yapar.
+
+Testin yarısı bu yüzden **tetiklememeli** tablosu. O tablo boşalırsa
+özellik çalışıyor değil, bozulmuş demektir.
+
+Yol boyunca burada bir açık bulundu: deyim eşleşmesi başta **kaydın
+tamamını** veto ediyordu. Uzun bir kaydın başındaki "bu iş beni öldürüyor",
+sonundaki gerçek işareti susturuyordu — bir kaçış kapısı. Artık deyim
+yalnızca eşleştiği bölgeyi nötrlüyor, kalan metinde arama sürüyor.
+
+### Eşik dar
+
+Yalnızca açık ifadeler: kendine zarar verme, yaşama son verme niyeti.
+*"Bugün berbatım"*, *"her şey anlamsız"*, *"umutsuzum"* tetiklemiyor. Geniş
+eşik uygulamayı ruh hâli ölçen bir şeye çevirirdi ve PROJE.md §5 "mod/duygu
+skoru" fikrini zaten bilerek reddetmişti: *"uygulamayı ölçüm aletine
+çevirir, teşhis çağrışımı yasak."*
+
+### Hiçbir yere yazılmıyor
+
+Ne sütun, ne ayar, ne sayaç. `veri/` katmanı bu iş için **hiç
+değişmedi** — şema yok, göç yok. Saklanan bir bayrak kullanıcının en kötü
+anlarının kalıcı kaydı olurdu; defteri açan biri onu görebilirdi ve bu,
+teşhis yasağının tam ihlali olurdu.
+
+Bayrak her `yenile()`de **bugünün** kayıtlarından yeniden hesaplanıyor. Gün
+kapsamı bilerek: o gün soru sorulmuyor, ertesi gün kendiliğinden geçiyor.
+Kalıcı bir susma, iki yıl önce yazılmış bir cümle yüzünden ürünü sonsuza
+kadar sessizleştirirdi.
+
+Bir test takımı bunu makine düzeyinde sabitliyor (`krizSaklanmaz.test.ts`):
+şemada kriz/risk/skor benzeri sütun yok, kriz kaydının döküm alanları düz
+bir kaydınkiyle birebir aynı, ayar tablosuna bir şey düşmüyor, ve
+sınıflandırıcı hiçbir modül import etmiyor.
+
+### Susma üç yerde
+
+1. O gün soru sorulmuyor (kanca zaten hazırdı).
+2. `soruCoz` o kaydı cevaba katmıyor **ve saymıyor** — "N kayıt var" sayısı
+   bile varlığını sızdırmamalı.
+3. Tema/örüntü sayımına girmiyor.
+
+### Kart
+
+Kağıdın **içinde**, kaydın altında. Önce masanın üstüne konmuştu ve koyu
+zeminde okunmuyordu; asıl mesele okunurluk da değil: PROJE.md §4 "ekranda
+tek aydınlık yüzey olmalı ve o sayfa olmalı" diyor, masaya ikinci bir kart
+koymak tasarım dilini deliyordu.
+
+Kırmızı yok, ikon yok, ses yok, modal yok — altın çizgi ve iki cümle.
+Yalnızca kayıt bırakıldığı anda çıkıyor; **eski bir kayda dönüldüğünde
+çıkmıyor.** İki yıl önce yazılmış bir cümle yüzünden her açılışta kart
+görmek, iyileşmiş birine yapılabilecek en kötü şeylerden biri.
+
+Görünürlüğü ölçüldü ve garanti altına alındı: kart sayfa akışının
+bütçesinde olmadığı için dolu bir sayfada kağıdın 250px altına düşüyordu.
+Kriz anındaki kişinin görmediği bir kart, hiç olmayan bir karttır — artık
+kendini görünür alana kaydırıyor ve `birak()` odağı kalemin üstüne
+zorlamıyor.
+
+### Numaralar
+
+Yalnızca **112** ve "bir yakınını ara" — PROJE.md §2.1'de yazan. Başka
+numara uydurulmadı: yanlış bir yardım hattı numarası gerçek zarar verir.
+Doğrulanmış hatlar eklenecekse tek bir yerde duruyor.
+
+### Yakılan sayfa dışarıda
+
+Orada hiçbir şey okumuyor. `ekran/yak.ts` tek bir import daha almadı ve
+`test/yakma.test.ts`'in import listesini birebir sabitleyen muhafızı
+gevşetilmedi.
+
+Gerekçe ilke 2.2: *"bir kez sızarsa ürünün tamamı güvenilmez olur."* Kart
+orada çıksaydı kullanıcı bir şeyin okuduğunu öğrenirdi ve yakılan sayfa
+mekanizma olarak ölürdü — en kötü şeyi yazdıran tek şey orası. Bu, bilerek
+ödenen bir bedel: kriz anında sessiz kalınan tek yer orası.
+
+---
+
 ## 2026-08-29 · K-029 · Gömü araması cihazda; model metne gelir, metin modele gitmez
 
 K-027'de gövdeleme geldi ve "hissettiğim" artık "hissetmedim"i buluyor. Ama

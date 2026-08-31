@@ -1,5 +1,6 @@
 import { SAYFA_HACIM } from '../cekirdek/sayfa.js'
 import { govdeler, ortakGovde } from '../cekirdek/govde.js'
+import { krizIsareti } from '../cekirdek/kriz.js'
 import type { Ek, KenarNotu, Sayfa } from '../cekirdek/tipler.js'
 import { ekKaynak, gorseliHazirla } from './gorsel.js'
 import { resimSec } from './dosya.js'
@@ -63,6 +64,13 @@ export function defteriBagla(
    */
   let taslak = ''
 
+  /**
+   * Sessiz kart açık mı — ilke 2.1. Yalnızca bellekte: kayıt bırakıldığı
+   * anda açılıyor, kapatılınca kapanıyor, yenilemede geri gelmiyor. Hiçbir
+   * yere yazılmıyor (KARARLAR.md · K-030).
+   */
+  let krizKartiAcik = false
+
   /*
    * Arama vurgusu gövde farkındalı: "kötü" arayan kullanıcı sayfada
    * "kötüydüm"ü de işaretli görüyor (K-027). Sözcük sözcük geziliyor,
@@ -119,7 +127,7 @@ export function defteriBagla(
         <p>Defter boş. İlk sayfa aşağıda başlıyor.</p>
         <small>yaz, sonra bırak</small>
       </div>`
-    return `<div class="kagit"><div class="kagit-ic">${not}${altHtml()}
+    return `<div class="kagit"><div class="kagit-ic">${not}${krizKartiHtml()}${altHtml()}
     </div><div class="kagit-alt">1</div></div>`
   }
 
@@ -169,7 +177,7 @@ export function defteriBagla(
           <span>kenar notu · ${kacir(kenarTarih(o.tarih))}</span></div>`
       }
     }
-    if (i === durum.sonSayfa) ic += altHtml()
+    if (i === durum.sonSayfa) ic += krizKartiHtml() + altHtml()
     return `<div class="kagit"><div class="kagit-ic">${ic}</div>
       <div class="kagit-alt">${s.ciltSayfa}</div></div>`
   }
@@ -248,6 +256,7 @@ export function defteriBagla(
     const ozetBtn = document.getElementById('ozetGor')
     if (ozetBtn) ozetBtn.onclick = () => toreniAc()
 
+    krizKartiniBagla()
     ekleriBagla()
     kesitCiz()
     sayfaIsik()
@@ -532,6 +541,14 @@ export function defteriBagla(
       })
       if (ek) await depo.ekYaz({ ...ek, kayitId: kayit.id })
     })
+    /*
+     * İlke 2.1 — kriz işareti varsa uygulama SUSAR ve gerçek desteğe
+     * yönlendirir. Kart yalnızca burada, kayıt bırakıldığı anda çıkıyor;
+     * eski bir kayda dönüldüğünde çıkmıyor. Hiçbir yere yazılmıyor
+     * (KARARLAR.md · K-030).
+     */
+    if (krizIsareti(m).var) krizKartiAcik = true
+
     bekleyenEk = null
     taslak = ''
     kalem.value = ''
@@ -543,9 +560,47 @@ export function defteriBagla(
     /* Bırakınca odak yeni kalemde kalsın: kullanıcı hemen devam edebilsin. */
     const yeni = $<HTMLTextAreaElement>('#kalem')
     if (yeni) {
-      yeni.focus()
-      yeni.scrollIntoView({ block: 'nearest' })
+      /* Kriz kartı açıksa kaydırma ona ait: kalemi göstermek için kartı
+         ekrandan kaçırmak, kartı hiç göstermemekle aynı şey. */
+      yeni.focus({ preventScroll: krizKartiAcik })
+      if (!krizKartiAcik) yeni.scrollIntoView({ block: 'nearest' })
     }
+  }
+
+  /* ── sessiz kart — ilke 2.1 (K-030) ────────────────────── */
+
+  /**
+   * Kart KAĞIDIN İÇİNDE çiziliyor, masanın üstünde değil.
+   *
+   * Önce ayrı bir öge olarak kağıdın üstüne konmuştu ve koyu masa zemininde
+   * okunmuyordu. Asıl mesele okunurluk da değil: PROJE.md §4 "ekranda tek
+   * aydınlık yüzey olmalı ve o sayfa olmalı" diyor. Masaya ikinci bir kart
+   * koymak tasarım dilini deliyordu.
+   */
+  const krizKartiHtml = (): string =>
+    !krizKartiAcik
+      ? ''
+      : `<div class="kr-kagit">
+          <p>Bunu yazdığın için bir şey söylemeyeceğim. Yalnızca burada duruyorum.</p>
+          <p class="kr-yol">Acil bir durumdaysan <b>112</b>. Yanında birini istersen,
+            şu an arayabileceğin bir yakınını ara.</p>
+          <button id="krKapat">kapat</button>
+        </div>`
+
+  function krizKartiniBagla(): void {
+    const d = document.getElementById('krKapat')
+    if (!d) return
+    d.onclick = () => {
+      krizKartiAcik = false
+      ciz()
+    }
+    /*
+     * Görünürlüğü garanti et. Kart sayfa akışının bütçesinde yok (geçici
+     * bir öge) ve dolu bir sayfada kağıdın altına düşüyordu — ölçüldü,
+     * 250px taşıyordu. Kriz anındaki kişinin görmediği bir kart, hiç
+     * olmayan bir karttır.
+     */
+    d.closest('.kr-kagit')?.scrollIntoView({ block: 'nearest' })
   }
 
   /* ── silme — iz BIRAKMAZ (K-028) ───────────────────────── */

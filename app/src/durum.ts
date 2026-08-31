@@ -3,6 +3,7 @@ import type { SayfaOlcu } from './cekirdek/sayfa.js'
 import { BASLANGIC, gununSorusu, havuzdanSor, havuzuIlerlet, ilkHaftaBitti, kayitYazildi } from './cekirdek/yonlendirme.js'
 import type { YonlendirmeDurum } from './cekirdek/yonlendirme.js'
 import type { TemaTanim } from './cekirdek/sorgu.js'
+import { krizIsareti } from './cekirdek/kriz.js'
 import type { Cilt, DefterBilgi, EkBilgi, Gun, KenarNotu, Sayfa } from './cekirdek/tipler.js'
 import type { Depo } from './veri/depo.js'
 
@@ -115,6 +116,10 @@ export class Durum {
     }
     this.aktifDefter = await this.depo.defterGetir(this.depo.aktifDefterId)
 
+    /* Bugünün kayıtlarında kriz işareti var mı — hesaplanır, saklanmaz. */
+    const buGun = this.gunler[this.gunler.length - 1]
+    this.krizVar = !!buGun && buGun.kayitlar.some((k) => krizIsareti(k.metin).var)
+
     const akis = sayfalariKur({
       gunler: this.gunler,
       kenarlar: this.kenarlar,
@@ -167,8 +172,16 @@ export class Durum {
   }
 
   /**
-   * Kriz işareti — ilke 2.1. Sınıflandırıcı Faz 3.11'de gelecek; kanca
-   * şimdiden burada ki geldiğinde soru sorma yolları tek yerden sussun.
+   * Bugünün kayıtlarında açık bir kriz işareti var mı — ilke 2.1.
+   *
+   * SAKLANMIYOR: her `yenile()`de bugünün kayıtlarından yeniden
+   * hesaplanıyor. Saklanan bir bayrak kullanıcının en kötü anlarının
+   * kalıcı kaydı olurdu ve "teşhis çağrışımı yasak" kuralının tam
+   * karşılığıdır (KARARLAR.md · K-030).
+   *
+   * Gün kapsamı bilerek: o gün soru sorulmuyor, ertesi gün kendiliğinden
+   * geçiyor. Kalıcı bir susma, iki yıl önceki bir cümle yüzünden ürünü
+   * sonsuza kadar sessizleştirirdi.
    */
   krizVar = false
 

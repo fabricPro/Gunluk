@@ -87,7 +87,7 @@ uyarı yazar. Telefonda gerçek kalıcılığı denemek için Capacitor kabuğuy
 ### Derleme ve testler
 
 ```sh
-npm test               # 301 test
+npm test               # 348 test
 npm run build          # dist/ üretir
 npm run onizle         # derlenmiş sürümü 4173 portunda sunar
 ```
@@ -230,6 +230,33 @@ sözcükler kayıtta hiç geçmese de sonuç veriyor.
 
 Modelin kendisi bu geliştirme ortamında doğrulanamadı (huggingface.co ve
 jsdelivr kapalı); SQLCipher ve biyometri gibi cihazda doğrulanacak.
+
+## Kriz akışı — ilke 2.1
+
+**Bu bir tıbbi araç değil.** Teşhis koymuyor, risk puanı vermiyor, kimseye
+haber vermiyor, hiçbir şey ölçmüyor. Yaptığı tek şey susmak ve gerçek
+desteğin numarasını göstermek (KARARLAR.md · K-030).
+
+- **Kural tabanlı, model yok.** Güvenlik isteğe bağlı bir indirmeye
+  bağlanamaz; ayrıca neyin neden tetiklediği `cekirdek/kriz.ts`'te
+  okunabiliyor.
+- **Eşik dar.** Yalnızca açık kendine zarar / yaşama son verme ifadeleri.
+  "Bugün berbatım" tetiklemiyor — sık tetiklenen bir kart kullanıcıya
+  dürüst yazmayı bıraktırır, yani tam tersini yapar.
+- **Deyim listesi zorunlu.** Türkçede "bu iş beni öldürüyor", "açlıktan
+  ölüyorum" son derece yaygın. Testin yarısı *tetiklememeli* tablosu; o
+  tablo boşalırsa özellik bozulmuş demektir.
+- **Hiçbir yere yazılmıyor.** Ne sütun, ne ayar, ne sayaç — `veri/` bu iş
+  için hiç değişmedi. Bayrak her açılışta bugünün kayıtlarından yeniden
+  hesaplanıyor. `test/krizSaklanmaz.test.ts` bunu makine düzeyinde
+  sabitliyor.
+- **Susma üç yerde:** o gün soru sorulmuyor; arşiv cevabına girmiyor ve
+  sayılmıyor; tema sayımına girmiyor.
+- **Kart** kağıdın içinde, sakin, kapatılabilir; eski bir kayda
+  dönüldüğünde tekrar çıkmıyor.
+- **Yakılan sayfada çalışmıyor** (ilke 2.2). Orada bir şeyin okuduğunu
+  öğrenmek, en kötü şeyi yazdıran tek mekanizmayı öldürürdü. Bilerek
+  ödenen bedel.
 
 ## Değişmez ilkeler ve kodda karşılıkları
 

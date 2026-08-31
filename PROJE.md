@@ -132,7 +132,7 @@ Sıra önemli. Her adım bir öncekine yaslanıyor.
 ### Faz 3 — Arşiv ve AI
 9. ~~**Arama.**~~ **Tamam.** Türkçe gövdeleme (K-027) ve cihaz-içi gömü araması (K-029). "hissettiğim" artık "hissetmedim"i buluyor; anlam araması açılırsa "kötü hissettiğim günler" gibi sorular o sözcükler hiç geçmese de sonuç veriyor. Model cihazda çalışıyor — ~145 MB'lık isteğe bağlı indirme, varsayılan kapalı. Metin cihazdan çıkmıyor.
 10. Soru-cevap için model çağrısı — **kaynak kayıtlar her zaman gösterilecek.**
-11. Kriz sınıflandırıcısı ve akışı (2.1).
+11. ~~Kriz sınıflandırıcısı ve akışı (2.1).~~ **Tamam.** Kural tabanlı, dar eşikli, cihazda; hiçbir yere yazılmıyor. Kriz kaydı arşiv cevabına ve tema sayımına girmiyor, o gün soru sorulmuyor, kağıdın üstünde sessiz bir kart 112'yi gösteriyor. Yakılan sayfada çalışmıyor (KARARLAR.md · K-030).
 12. İsteğe bağlı: her yazıdan sonra **tek soru.** Yorum değil, soru. ~200 token. Yorum açıklamaya çalışır, soru yazdırır.
 
 ### Faz 4 — Yayın

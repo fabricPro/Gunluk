@@ -223,3 +223,19 @@ body.odak .arac{opacity:.1}
 .ks-dugmeler button:hover{border-color:rgba(44,33,24,.5)}
 .ks-dugmeler .yikici{color:var(--kirmizi);border-color:rgba(168,64,44,.4)}
 .ks-dugmeler .yikici:hover{background:var(--kirmizi);color:var(--kagit);border-color:var(--kirmizi)}
+
+/* ── sessiz kart · ilke 2.1 (K-030) ───────────────────────── */
+/*
+ * Alarm yok, panik yok: kırmızı yok, ikon yok, titreme yok. Kağıdın
+ * üstünde duran sakin bir not. Modal değil — arkadaki sayfa çalışmaya
+ * devam ediyor.
+ */
+.kr-kagit{background:rgba(150,102,29,.07);border-left:2px solid rgba(150,102,29,.5);
+  border-radius:2px;padding:14px 16px 12px;margin:18px 0 6px}
+.kr-kagit p{margin:0 0 8px;font-family:var(--yazi);font-size:16px;line-height:1.7;
+  font-weight:300;color:var(--murekkep)}
+.kr-kagit .kr-yol{font-size:15px;color:var(--murekkep2);margin-bottom:10px}
+.kr-kagit .kr-yol b{font-weight:400;color:var(--murekkep)}
+.kr-kagit button{font-family:var(--ui);font-size:10.5px;color:var(--soluk);
+  border:1px solid rgba(44,33,24,.2);border-radius:100px;padding:3px 11px;background:none}
+.kr-kagit button:hover{color:var(--murekkep);border-color:rgba(44,33,24,.45)}

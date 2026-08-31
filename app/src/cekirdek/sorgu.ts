@@ -1,5 +1,6 @@
 import type { Gun, Kayit, KenarNotu } from './tipler.js'
 import { govdeler, metinGovdeleri, ortakGovde } from './govde.js'
+import { krizIsareti } from './kriz.js'
 import { AY_SIRA, ayAnahtar, ayEk, bas, sayiEk, saatSayi, tamTarih } from './tr.js'
 
 export interface TemaTanim {
@@ -125,6 +126,14 @@ export function soruCoz(
       if (temaKilidi.length && !temaKilidi.some((id) => kayit.temalar.includes(id))) continue
       let puan = 0
       const metin = kayit.metin.toLocaleLowerCase('tr')
+      /*
+       * İlke 2.1: kriz işareti içeren kayıt "örüntüye dahil edilmez, arşiv
+       * cevabında kullanılmaz". Sayıma da girmiyor — "N kayıt var" sayısı
+       * bile varlığını sızdırmamalı. Bayrak saklanmıyor, burada yeniden
+       * hesaplanıyor (KARARLAR.md · K-030).
+       */
+      if (krizIsareti(kayit.metin).var) continue
+
       const notlar = kenarlar.get(kayit.id) ?? []
       for (const id of temaKilidi) if (kayit.temalar.includes(id)) puan += 4
 
