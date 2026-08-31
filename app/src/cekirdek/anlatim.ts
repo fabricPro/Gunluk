@@ -11,8 +11,10 @@
  * yalnızca daraltılıyor — asla genişletilmiyor.
  */
 import type { Bulgu } from './sorgu.js'
+import type { Dil } from './dil.js'
 import { krizIsareti } from './kriz.js'
 import { tamTarih } from './tr.js'
+import { tamTarihEn } from './en.js'
 
 /**
  * Modele gidecek en fazla kayıt sayısı.
@@ -36,6 +38,7 @@ export interface AnlatimKayit {
 export interface Anlatim {
   soru: string
   kayitlar: AnlatimKayit[]
+  dil: Dil
 }
 
 /**
@@ -56,6 +59,18 @@ Kurallar:
 7. Türkçe yaz, "sen" diye hitap et, kullanıcının kendi sözcüklerini kullan. Süslü dil kurma; defterin sesi sakin ve düz.
 8. Kayıtlarda kendine zarar verme ya da yaşama son verme işareti görürsen hiçbir şey yorumlama, sadece "Bunun hakkında bir şey söylemeyeceğim." de ve dur.`
 
+export const SISTEM_EN = `You are the archive section of a diary app. The user asked their own diary a question, and the app found the matching entries on device. The entries given to you below are EVERYTHING you have: you cannot see the rest of the diary.
+
+Rules:
+1. Speak only from the entries you were given. Do not add any event, person, date, place or feeling that does not appear in them. If something is not in the entries, say "you didn't write about that." Inventing is the worst mistake possible in this product.
+2. Mark the entry each sentence rests on in square brackets: [1], [2]. Do not write a sentence with no basis.
+3. Be brief. Four sentences at most. Don't summarise the entries one by one; say what actually connects them. If nothing does, say so.
+4. Do not diagnose, measure moods, name patterns, give advice, console, or praise. You are not therapy; you are a search result put into sentences.
+5. Do not invent numbers, dates, phone numbers, addresses, sources or statistics. State no fact that isn't written in an entry.
+6. Do not ask the user questions, do not request anything from them, do not open a conversation.
+7. Write in English, address the user as "you", use the user's own words. No ornate language; the diary's voice is calm and plain.
+8. If you see a sign of self-harm or ending one's life in the entries, do not interpret anything — say only "I'm not going to say anything about that." and stop.`
+
 /**
  * Bulguları modele gidecek biçime çevirir; gidecek bir şey yoksa null.
  *
@@ -67,13 +82,13 @@ Kurallar:
  *  - en fazla `EN_COK_KAYIT` kayıt. Defterin tamamı hiçbir koşulda
  *    çıkmıyor (ilke 2.3).
  */
-export function anlatimKur(soru: string, bulgular: Bulgu[]): Anlatim | null {
+export function anlatimKur(soru: string, bulgular: Bulgu[], dil: Dil): Anlatim | null {
   const temiz = soru.trim()
   if (!temiz) return null
   const kayitlar: AnlatimKayit[] = []
   for (const b of bulgular) {
     if (kayitlar.length >= EN_COK_KAYIT) break
-    if (krizIsareti(b.kayit.metin).var) continue
+    if (krizIsareti(b.kayit.metin, dil).var) continue
     kayitlar.push({
       no: kayitlar.length + 1,
       kayitId: b.kayit.id,
@@ -83,16 +98,24 @@ export function anlatimKur(soru: string, bulgular: Bulgu[]): Anlatim | null {
       notlar: b.kenarlar.map((n) => n.metin),
     })
   }
-  return kayitlar.length ? { soru: temiz, kayitlar } : null
+  return kayitlar.length ? { soru: temiz, kayitlar, dil } : null
 }
+
+/** Anlatımın diline göre sistem yönergesi. */
+export const sistemi = (dil: Dil): string => (dil === 'en' ? SISTEM_EN : SISTEM)
 
 /** Kullanıcı mesajı — cihazdan çıkan metnin tamamı bu. */
 export function kullaniciMetni(a: Anlatim): string {
+  const en = a.dil === 'en'
+  const tarih = en ? tamTarihEn : tamTarih
+  const notEt = en ? 'margin note' : 'kenar notu'
   const bloklar = a.kayitlar.map((k) => {
-    const notlar = k.notlar.map((n) => `\nkenar notu: ${n}`).join('')
-    return `[${k.no}] ${tamTarih(k.tarih)}, ${k.saat}\n${k.metin}${notlar}`
+    const notlar = k.notlar.map((n) => `\n${notEt}: ${n}`).join('')
+    return `[${k.no}] ${tarih(k.tarih)}, ${k.saat}\n${k.metin}${notlar}`
   })
-  return `Soru: ${a.soru}\n\nKayıtlar:\n\n${bloklar.join('\n\n')}`
+  return en
+    ? `Question: ${a.soru}\n\nEntries:\n\n${bloklar.join('\n\n')}`
+    : `Soru: ${a.soru}\n\nKayıtlar:\n\n${bloklar.join('\n\n')}`
 }
 
 /* ── yazdıktan sonra tek soru ───────────────────────────────
@@ -110,15 +133,29 @@ Kurallar:
 6. Cevabı kendin varsayma; kayıtta yazmayan bir olayı ya da kişiyi soruya sokma.
 7. Kullanıcıyı bir şey yapmaya çağırma, tavsiye verme, plan önerme.`
 
+export const SORU_SISTEM_EN = `The user has just written something in their diary. Your only job is to ask them ONE SINGLE QUESTION that keeps them writing.
+
+Rules:
+1. Write one question sentence and nothing else: no greeting, no preamble, no explanation, no quotation marks.
+2. Do not comment. Do not summarise, label, or repeat what they wrote; do not say "I understand"; do not console, praise, or advise.
+3. Do not diagnose, measure feelings, or name patterns. You are not therapy.
+4. Keep it short — fifteen words at most. Write in English and address them as "you".
+5. The question must touch a CONCRETE detail inside what they wrote; it must not be generic. A question like "How did you feel today?" is useless.
+6. Do not assume the answer; do not put an event or person into the question that isn't in the entry.
+7. Do not call the user to action, do not give advice, do not propose a plan.`
+
 /**
  * Kayıttan soru istenebilir mi ve istenecekse dışarı ne çıkacak.
  *
  * Kriz işareti taşıyan kayıt için null: ilke 2.1'de uygulama SUSAR, soru
  * sormak susmanın tersidir (KARARLAR.md · K-030, K-032).
  */
-export function soruIstegi(metin: string): string | null {
+export function soruIstegi(metin: string, dil: Dil): string | null {
   const t = metin.trim()
   if (!t) return null
-  if (krizIsareti(t).var) return null
+  if (krizIsareti(t, dil).var) return null
   return t
 }
+
+/** Soru yönergesinin dili. */
+export const soruSistemi = (dil: Dil): string => (dil === 'en' ? SORU_SISTEM_EN : SORU_SISTEM)

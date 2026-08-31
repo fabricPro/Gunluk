@@ -1,9 +1,9 @@
 import type { DefterBilgi } from '../cekirdek/tipler.js'
-import { romen, tamTarih } from '../cekirdek/tr.js'
+import { romen } from '../cekirdek/tr.js'
 import type { Durum } from '../durum.js'
 import type { Depo } from '../veri/depo.js'
-import { KAPAKLAR, VARSAYILAN_KAPAK } from './kapaklar.js'
-import { $, $$, kacir } from './ortak.js'
+import { kapaklar, VARSAYILAN_KAPAK } from './kapaklar.js'
+import { $, $$, S, kacir, tarihYaz } from './ortak.js'
 import { markdownIndir } from './disaAktarma.js'
 
 /** Bir rafa sığan defter sayısı — üstü sonraki rafa taşar. */
@@ -47,13 +47,13 @@ export function kitapligiBagla(
       ${d.kapandi ? '<span class="kapali-im"></span>' : ''}
       <span class="ad">${kacir(d.ad)}</span>
       <span class="cilt">${romen(d.cilt)}</span>
-      <button class="kart-btn" title="defterin kartı">···</button>
+      <button class="kart-btn" title="${S('kit.kart')}">···</button>
     </div>`
 
   const ciz = (): void => {
     const toplamKayit = defterler.reduce((n, d) => n + d.kayitSayisi, 0)
     $('#kitAlt').textContent =
-      `${defterler.length} defter · ${toplamKayit} kayıt`
+      S('kit.ozet', { d: defterler.length, k: toplamKayit })
 
     /* Raflar: kullanıcının verdiği raf numarasına göre gruplanır. */
     const rafSayisi = Math.max(
@@ -71,10 +71,10 @@ export function kitapligiBagla(
         </div></div>`
     }
     if (!defterler.length)
-      h += `<div class="kit-bos">Kitaplığın boş. Bir defter aç, adını ver, kapağını seç.</div>`
+      h += `<div class="kit-bos">${S('kit.bos')}</div>`
     else
       /* Basılı tutmak keşfedilmez; bir satır söylemek yeter. */
-      h += `<div class="kit-ipucu">sırtı sürükleyerek diz · <b>···</b> defterin kartını açar</div>`
+      h += `<div class="kit-ipucu">${S('kit.ipucu')}</div>`
     $('#raflar').innerHTML = h
 
     for (const el of $$('#raflar .sirt'))
@@ -116,20 +116,21 @@ export function kitapligiBagla(
     const oz = await depo.defterOzeti(id)
     const bos = oz.kayit === 0
 
-    $('#dkAd').textContent = d.ad + (d.cilt > 1 ? ` · Cilt ${romen(d.cilt)}` : '')
+    $('#dkAd').textContent =
+      d.ad + (d.cilt > 1 ? ` · ${S('defter.cilt')} ${romen(d.cilt)}` : '')
     $('#dkOzet').innerHTML = bos
-      ? 'Bu defter boş — içinde hiç kayıt yok.'
-      : `İçinde <b>${oz.kayit} kayıt</b>, <b>${oz.gun} gün</b>` +
-        (oz.kenar ? `, <b>${oz.kenar} kenar notu</b>` : '') +
-        (oz.ek ? `, <b>${oz.ek} ek</b>` : '') +
+      ? S('kit.defterBos')
+      : S('kit.icinde', { k: oz.kayit, g: oz.gun }) +
+        (oz.kenar ? S('kit.kenarEk', { n: oz.kenar }) : '') +
+        (oz.ek ? S('kit.ekEk', { n: oz.ek }) : '') +
         (oz.ilk && oz.son
           ? oz.ilk === oz.son
-            ? `.<br>${tamTarih(oz.ilk)} günü.`
-            : `.<br>${tamTarih(oz.ilk)} ile ${tamTarih(oz.son)} arası.`
-          : '.')
+            ? S('kit.tekGun', { tarih: tarihYaz(oz.ilk) })
+            : S('kit.aralik', { ilk: tarihYaz(oz.ilk), son: tarihYaz(oz.son) })
+          : S('kit.nokta'))
     $('#dkUyari').textContent = bos
       ? ''
-      : 'Bu geri alınamaz. Silmeden önce yedek almak istersen aşağıdan çıkarabilirsin.'
+      : S('kit.silUyari')
 
     const onay = $<HTMLInputElement>('#dkOnay')
     const sil = $<HTMLButtonElement>('#dkSil')
@@ -297,7 +298,7 @@ export function kitapligiBagla(
     const ad = $<HTMLInputElement>('#ydAd')
     ad.value = ''
     $('#ydUyari').textContent = ''
-    $('#ydKapaklar').innerHTML = KAPAKLAR.map(
+    $('#ydKapaklar').innerHTML = kapaklar().map(
       (k) =>
         `<button class="yd-kapak k-${k.anahtar}" data-kapak="${k.anahtar}"
           title="${kacir(k.ad)}" aria-pressed="${k.anahtar === secilenKapak}"></button>`,
@@ -331,7 +332,7 @@ export function kitapligiBagla(
     }
     const cilt = await depo.siradakiCilt(ad)
     $('#ydUyari').textContent =
-      cilt > 1 ? `Bu adda bir defterin var — yenisi Cilt ${romen(cilt)} olarak açılacak.` : ''
+      cilt > 1 ? S('kit.ayniAd', { n: romen(cilt) }) : ''
   }
 
   const yeniyiKaydet = async (): Promise<void> => {

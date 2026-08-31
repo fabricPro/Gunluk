@@ -1,4 +1,5 @@
 import { kurtarmaUret } from '../cekirdek/kurtarma.js'
+import { DILLER, type Dil } from '../cekirdek/dil.js'
 import { anahtarBicimi } from '../veri/anahtarDepo.js'
 import type { Kilit } from '../kilitAkis.js'
 import type { Depo } from '../veri/depo.js'
@@ -7,7 +8,7 @@ import type { SqlSurucu } from '../veri/db.js'
 import { muhruAc, muhurle } from '../veri/yedek.js'
 import { dosyaAdi, dosyaKaydet, dosyaSec } from './dosya.js'
 import { markdownIndir } from './disaAktarma.js'
-import { $, $$, kacir } from './ortak.js'
+import { $, $$, S, kacir } from './ortak.js'
 
 /**
  * Ayar kağıdı: kilit, yedek, anlam araması, model cevabı.
@@ -26,6 +27,8 @@ export interface AyarBaglam {
   gomu?: GomuDenetim
   /** Model cevabı denetimi; yoksa bölüm hiç çizilmiyor. */
   model?: ModelDenetim
+  /** Dil denetimi; yoksa bölüm hiç çizilmiyor. */
+  dil?: DilDenetim
   /** Geri yükleme sonrası uygulamayı baştan kurmak için. */
   yenidenYukle: () => void
 }
@@ -61,8 +64,23 @@ export interface ModelDenetim {
   soruDegistir: (acik: boolean) => Promise<void>
 }
 
+/**
+ * Dil seçimi.
+ *
+ * Değiştirince sayfa yeniden yükleniyor: yarı yarıya çevrilmiş bir ekran
+ * hiç olmuyor ve ölçüm (`sayfaOlc`) yeni dilin metniyle baştan yapılıyor
+ * (KARARLAR.md · K-035).
+ */
+export interface DilDenetim {
+  simdiki: () => Dil
+  degistir: (d: Dil) => Promise<void>
+}
+
+const DIL_ADI: Record<Dil, string> = { tr: 'Türkçe', en: 'English' }
+
 export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
   const { kilit, sifreli, mevcutAnahtar, db, depo, degisti, yenidenYukle, gomu, model } = b
+  const dilD = b.dil
   const kapat = () => $('#ayarlar').classList.remove('acik')
 
   /** PIN sorar; iptal edilirse null. */
@@ -71,7 +89,7 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
     if (s === null) return null
     const temiz = s.trim()
     if (temiz.length < 4) {
-      alert('En az 4 hane ya da karakter olmalı.')
+      alert(S('ay.pinKisa'))
       return null
     }
     return temiz
@@ -83,48 +101,45 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
 
     gomuCiz()
     modelCiz()
+    dilCiz()
 
     $('#ayKilitDurum').textContent = kurulu
       ? kilit.biyometriAcik
-        ? 'Kilit açık. PIN ya da biyometriyle açılıyor.'
-        : 'Kilit açık. Yalnızca PIN ile açılıyor.'
-      : 'Kilit kurulu değil — defter doğrudan açılıyor.'
+        ? S('ay.kilitAcikBiyo')
+        : S('ay.kilitAcikPin')
+      : S('ay.kilitYok')
 
     const d: string[] = []
-    if (!kurulu) d.push('<button class="birincil" data-eylem="kur">kilit kur</button>')
+    if (!kurulu)
+      d.push(`<button class="birincil" data-eylem="kur">${S('ay.kilitKur')}</button>`)
     else {
-      d.push('<button data-eylem="pin">PIN değiştir</button>')
+      d.push(`<button data-eylem="pin">${S('ay.pinDegistir')}</button>`)
       if (biyoVar)
         d.push(
           kilit.biyometriAcik
-            ? '<button data-eylem="biyoKapat">biyometriyi kapat</button>'
-            : '<button data-eylem="biyoAc">biyometriyi aç</button>',
+            ? `<button data-eylem="biyoKapat">${S('ay.biyoKapat')}</button>`
+            : `<button data-eylem="biyoAc">${S('ay.biyoAc')}</button>`,
         )
-      d.push('<button data-eylem="kaldir">kilidi kaldır</button>')
+      d.push(`<button data-eylem="kaldir">${S('ay.kilitKaldir')}</button>`)
     }
     $('#ayKilitDugmeler').innerHTML = d.join('')
 
     const notlar: string[] = []
     if (!sifreli)
       notlar.push(
-        'Bu tarayıcı derlemesinde veritabanı <b>şifresiz</b>. Kilit burada ' +
-          'yalnızca bir ekran; koruduğu bir şey yok. Cihaz derlemesinde ' +
-          'veritabanının tamamı şifreli.',
+        S('ay.notSifresiz'),
       )
     if (kilit.biyometriAcik)
       notlar.push(
-        'Biyometri hızlıdır ama anahtarın açılabilir bir kopyasını cihazda ' +
-          'bırakır. Yalnızca PIN istiyorsan biyometriyi kapalı bırak.',
+        S('ay.notBiyo'),
       )
     if (!sifreli && model?.anahtarVar())
       notlar.push(
-        'Tarayıcı derlemesinde model anahtarı da <b>korumasız</b> duruyor ' +
-          '(localStorage). Gerçek anahtarını yalnızca cihaz derlemesine gir.',
+        S('ay.notModelAnahtar'),
       )
     if (kilit.durum !== 'kurulusuz')
       notlar.push(
-        'PIN’i unutursan biyometri yolu açık kaldığı sürece defterine ' +
-          'erişebilirsin. İkisini de kaybedersen defter açılmaz.',
+        S('ay.notPinUnutma'),
       )
     $('#ayNot').innerHTML = notlar.map((n) => `<p>${n}</p>`).join('')
 
@@ -134,26 +149,26 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
 
   const eylem = async (ad: string): Promise<void> => {
     if (ad === 'kur') {
-      const pin = pinSor('Yeni PIN (6 hane) ya da bir parola:')
+      const pin = pinSor(S('ay.yeniPin'))
       if (!pin) return
-      const tekrar = prompt('Bir daha yaz:')
-      if (tekrar !== pin) return void alert('İkisi aynı değil.')
+      const tekrar = prompt(S('ay.pinTekrar'))
+      if (tekrar !== pin) return void alert(S('ay.pinFarkli'))
       await kilit.kur(pin, mevcutAnahtar() ?? undefined)
       if (await kilit.biyometriVarMi()) {
-        if (confirm('Biyometriyle de açmak ister misin?')) await kilit.biyometriKur()
+        if (confirm(S('ay.biyoSor'))) await kilit.biyometriKur()
       }
     } else if (ad === 'pin') {
-      const eski = pinSor('Şu anki PIN:')
+      const eski = pinSor(S('ay.pinSuanki'))
       if (!eski) return
-      const yeni = pinSor('Yeni PIN:')
+      const yeni = pinSor(S('ay.pinYeni'))
       if (!yeni) return
-      if (!(await kilit.pinDegistir(eski, yeni))) return void alert('Şu anki PIN yanlış.')
+      if (!(await kilit.pinDegistir(eski, yeni))) return void alert(S('ay.pinYanlis'))
     } else if (ad === 'biyoAc') {
-      if (!(await kilit.biyometriKur())) alert('Bu cihazda biyometri kullanılamıyor.')
+      if (!(await kilit.biyometriKur())) alert(S('ay.biyoYok'))
     } else if (ad === 'biyoKapat') {
       await kilit.biyometriKaldir()
     } else if (ad === 'kaldir') {
-      if (!confirm('Kilit kaldırılsın mı? Defter bundan sonra doğrudan açılır.')) return
+      if (!confirm(S('ay.kilitKaldirOnay'))) return
       await kilit.kaldir()
     } else if (ad === 'yedekAl') {
       await yedekAl()
@@ -168,19 +183,19 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       await gomu?.ac()
       return
     } else if (ad === 'gomuKapat') {
-      if (!confirm('Anlam araması kapatılsın mı? İndekslenmiş vektörler silinir.')) return
+      if (!confirm(S('ay.gomuKapatOnay'))) return
       await gomu?.kapat()
       return
     } else if (ad === 'modelAnahtar') {
-      const girilen = prompt('Anthropic API anahtarın (sk-ant-… ile başlar):')
+      const girilen = prompt(S('ay.modelAnahtarSor'))
       if (girilen === null) return
       if (!anahtarBicimi(girilen)) {
-        alert('Bu bir Anthropic anahtarına benzemiyor. sk-ant- ile başlaması gerekiyor.')
+        alert(S('ay.modelAnahtarBicim'))
         return
       }
       await model?.yaz(girilen)
     } else if (ad === 'modelSil') {
-      if (!confirm('Anahtar silinsin mi? Model cevabı bir daha çağrılamaz.')) return
+      if (!confirm(S('ay.modelAnahtarSilOnay'))) return
       await model?.sil()
     } else if (ad === 'modelSoru') {
       await model?.soruDegistir(!model.soruAcik())
@@ -202,22 +217,22 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
     const acik = gomu.acikMi()
 
     $('#ayGomuDurum').innerHTML = !acik
-      ? 'Kapalı. Açarsan defterin <b>anlamca</b> aranabilir olur — “kötü hissettiğim ' +
-        'günler” gibi sorular, o sözcükler kayıtta geçmese de sonuç verir.<br>' +
-        'Bir kerelik <b>~145 MB</b> indirilir ve cihazda kalır. ' +
-        '<b>Yazdıkların cihazdan çıkmaz</b>: model metne gelir, metin modele gitmez.'
+      ? S('ay.gomuKapaliMetin')
       : d.hata
-        ? `Bir sorun çıktı: ${kacir(d.hata)}<br>Arama bu sırada da çalışıyor, ` +
-          'yalnızca anlam yakınlığı devre dışı.'
+        ? S('ay.gomuHata', { hata: kacir(d.hata) })
         : d.calisiyor
-          ? `${d.asama || 'indeksleniyor'} — ${d.toplam - d.bekleyen}/${d.toplam} kayıt`
+          ? S('ay.gomuIsliyor', {
+              asama: d.asama || S('ay.gomuIndeksleniyor'),
+              biten: d.toplam - d.bekleyen,
+              toplam: d.toplam,
+            })
           : d.bekleyen
-            ? `Açık. ${d.bekleyen} kayıt sırada.`
-            : `Açık. ${d.toplam} kayıt indekslendi.`
+            ? S('ay.gomuSirada', { n: d.bekleyen })
+            : S('ay.gomuBitti', { n: d.toplam })
 
     $('#ayGomuDugmeler').innerHTML = acik
-      ? '<button data-eylem="gomuKapat">kapat ve vektörleri sil</button>'
-      : '<button data-eylem="gomuAc">indir ve aç</button>'
+      ? `<button data-eylem="gomuKapat">${S('ay.gomuKapatBtn')}</button>`
+      : `<button data-eylem="gomuAc">${S('ay.gomuAcBtn')}</button>`
     for (const dg of $$<HTMLButtonElement>('#ayGomuDugmeler button'))
       dg.onclick = () => void eylem(dg.dataset.eylem!)
   }
@@ -234,30 +249,40 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
     const var_ = model.anahtarVar()
 
     $('#ayModelDurum').innerHTML = !var_
-      ? 'Kapalı. Arşivdeki cevap şu an <b>senin kayıtlarından derlenmiş bir özet</b>; ' +
-        'istersen aynı kayıtlardan bir modelin cümle kurmasını isteyebilirsin.<br>' +
-        'Bunun için <b>kendi Anthropic API anahtarın</b> gerekiyor — sunucumuz yok, ' +
-        'çağrı doğrudan bu cihazdan gider ve faturası sana yazılır.<br>' +
-        'Arşivde ayrı bir düğme çıkar; ona basmadıkça <b>hiçbir şey cihazdan çıkmaz</b>. ' +
-        'Bastığında da yalnızca ekranda gördüğün <b>en fazla 4 kayıt</b> gider.'
-      : `Açık. Anahtar cihazda saklı (…${kacir(model.kuyruk())}). ` +
-        'Arşivde arama yaptıktan sonra “bu kayıtlardan bir cevap yaz” düğmesi çıkar. ' +
-        'Düğmeye basmadıkça çağrı olmaz.<br>' +
-        (model.soruAcik()
-          ? 'Defterde de <b>“yazdığıma bir soru sor”</b> düğmesi var: son yazdığın kaydı ' +
-            'gönderip tek bir soru getirir. Yorum değil, soru. Kriz işaretli bir kayıttan ' +
-            'sonra o düğme hiç çıkmaz.'
-          : 'Defterde yazdıktan sonra tek soru isteme kapalı.')
+      ? S('ay.modelKapaliMetin')
+      : S('ay.modelAcikMetin', { kuyruk: kacir(model.kuyruk()) }) +
+        (model.soruAcik() ? S('ay.modelSoruAcik') : S('ay.modelSoruKapali'))
 
     $('#ayModelDugmeler').innerHTML = var_
       ? `<button data-eylem="modelSoru">${
-          model.soruAcik() ? 'yazdıktan sonra soruyu kapat' : 'yazdıktan sonra soru iste'
+          model.soruAcik() ? S('ay.modelSoruKapatBtn') : S('ay.modelSoruAcBtn')
         }</button>` +
-        '<button data-eylem="modelAnahtar">anahtarı değiştir</button>' +
-        '<button data-eylem="modelSil">anahtarı sil</button>'
-      : '<button data-eylem="modelAnahtar">anahtarımı gir</button>'
+        `<button data-eylem="modelAnahtar">${S('ay.modelAnahtarDegistir')}</button>` +
+        `<button data-eylem="modelSil">${S('ay.modelAnahtarSil')}</button>`
+      : `<button data-eylem="modelAnahtar">${S('ay.modelAnahtarGir')}</button>`
     for (const dg of $$<HTMLButtonElement>('#ayModelDugmeler button'))
       dg.onclick = () => void eylem(dg.dataset.eylem!)
+  }
+
+  /* ── dil ───────────────────────────────────────────────── */
+
+  function dilCiz(): void {
+    const bolum = $('#ayDilDugmeler').parentElement!
+    if (!dilD) {
+      bolum.style.display = 'none'
+      return
+    }
+    bolum.style.display = ''
+    const simdi = dilD.simdiki()
+    $('#ayDilDugmeler').innerHTML = DILLER.map(
+      (d) =>
+        `<button data-dil="${d}"${d === simdi ? ' class="birincil"' : ''}>${DIL_ADI[d]}</button>`,
+    ).join('')
+    for (const dg of $$<HTMLButtonElement>('#ayDilDugmeler button'))
+      dg.onclick = () => {
+        const yeni = dg.dataset.dil as Dil
+        if (yeni !== simdi) void dilD.degistir(yeni)
+      }
   }
 
   /* ── mühürlü yedek ─────────────────────────────────────── */
@@ -275,8 +300,8 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       }
       $('#kurKopyala').onclick = () => {
         void navigator.clipboard?.writeText(kod)
-        $('#kurKopyala').textContent = 'kopyalandı'
-        setTimeout(() => ($('#kurKopyala').textContent = 'kopyala'), 1800)
+        $('#kurKopyala').textContent = S('kur.kopyalandi')
+        setTimeout(() => ($('#kurKopyala').textContent = S('kur.kopyala')), 1800)
       }
       const kapat = () => {
         $('#kurtarmaKarti').classList.remove('acik')
@@ -297,7 +322,7 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
   const geriYukle = async (): Promise<void> => {
     const ham = await dosyaSec('.defter,application/json')
     if (!ham) return
-    const kod = prompt('Bu yedeğin kurtarma kodu:')
+    const kod = prompt(S('ay.yedekKod'))
     if (!kod) return
     try {
       const dokum = await muhruAc(JSON.parse(ham), kod)
@@ -305,20 +330,19 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       const mevcut = await depo.kayitSayisi()
       if (
         !confirm(
-          `Yedekte ${kayitSayisi} kayıt var.\n\n` +
-            (mevcut > 0
-              ? `Bu cihazdaki ${mevcut} kayıt SİLİNECEK ve yerine yedek geçecek.\n\n`
-              : '') +
-            'Devam edilsin mi?',
+          S('ay.yedekIcerik', { n: kayitSayisi }) +
+            '\n\n' +
+            (mevcut > 0 ? S('ay.yedekSilinecek', { n: mevcut }) + '\n\n' : '') +
+            S('ay.yedekDevam'),
         )
       )
         return
-      if (mevcut > 0 && !confirm('Emin misin? Bu geri alınamaz.')) return
+      if (mevcut > 0 && !confirm(S('ay.yedekEmin'))) return
       await dokumuYukle(db, dokum)
-      alert('Yedek geri yüklendi.')
+      alert(S('ay.yedekYuklendi'))
       yenidenYukle()
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Yedek açılamadı.')
+      alert(e instanceof Error ? e.message : S('ay.yedekAcilmadi'))
     }
   }
 

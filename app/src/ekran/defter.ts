@@ -4,11 +4,24 @@ import { krizIsareti } from '../cekirdek/kriz.js'
 import type { Ek, KenarNotu, Sayfa } from '../cekirdek/tipler.js'
 import { ekKaynak, gorseliHazirla } from './gorsel.js'
 import { resimSec } from './dosya.js'
-import { dahiEki, iso, romen, saatSayi, tamTarih } from '../cekirdek/tr.js'
+import { dahiEki, iso, romen, saatSayi } from '../cekirdek/tr.js'
 import type { Durum } from '../durum.js'
 import type { ModelAkis } from '../modelAkis.js'
 import type { Depo } from '../veri/depo.js'
-import { $, $$, bugun, isikAyarla, kacir, odakBirak, odakVer, sayfaIsigiBagla, suanSaat } from './ortak.js'
+import {
+  $,
+  $$,
+  S,
+  bugun,
+  dil,
+  isikAyarla,
+  kacir,
+  odakBirak,
+  odakVer,
+  sayfaIsigiBagla,
+  suanSaat,
+  tarihYaz,
+} from './ortak.js'
 
 /**
  * Kenar notunun uzunluk sınırı.
@@ -97,20 +110,20 @@ export function defteriBagla(
    */
   const altHtml = (): string => {
     if (durum.kapali)
-      return `<div class="dolu-cagri"><p>Bu defter kapandı. Buraya bir daha yazılmaz.</p>
-        <button id="ozetGor">cildin özetini gör</button></div>`
+      return `<div class="dolu-cagri"><p>${S('defter.kapali')}</p>
+        <button id="ozetGor">${S('defter.ozetGor')}</button></div>`
     if (durum.dolu)
-      return `<div class="dolu-cagri"><p>Bu defter doldu.</p>
-        <button id="torenAc">defteri kapat ya da uzat</button></div>`
+      return `<div class="dolu-cagri"><p>${S('defter.dolu')}</p>
+        <button id="torenAc">${S('defter.torenAc')}</button></div>`
     const soru = durum.aktifSoru ? `<div id="yazma-soru">${kacir(durum.aktifSoru)}</div>` : ''
     /* Bekleyen ek yalnızca bellekte — bırakılmadıkça diske değmiyor. */
     const on = bekleyenEk
       ? `<div class="ek-onizleme"><img src="${ekKaynak(bekleyenEk.tur, bekleyenEk.veri)}" alt="">
-          <button id="ekKaldir">kaldır</button></div>`
+          <button id="ekKaldir">${S('defter.ekKaldir')}</button></div>`
       : ''
     return `${soru}<div id="yazma"><div class="bosluk"></div>` +
       `<div class="yazma-govde">${on}` +
-      `<textarea id="kalem" placeholder="${soru ? 'buraya yaz…' : 'yaz…'}"></textarea></div></div>`
+      `<textarea id="kalem" placeholder="${soru ? S('defter.yazSoruyla') : S('defter.yaz')}"></textarea></div></div>`
   }
 
   /*
@@ -139,10 +152,10 @@ export function defteriBagla(
     const baslik = durum.baslik(s)
     let ic = `<div class="syf-baslik" data-anahtar="${s.anahtar ?? ''}">
       ${baslik ? `<h3>${kacir(baslik)}</h3>` : ''}
-      <button class="ekle">${baslik ? 'başlığı değiştir' : 'başlık ekle'}</button></div>`
+      <button class="ekle">${baslik ? S('defter.baslikDegistir') : S('defter.baslikEkle')}</button></div>`
     for (const o of s.ogeler) {
       if (o.tip === 'gun') {
-        ic += `<div class="g-bas">${o.ad}, ${tamTarih(o.tarih)}</div>`
+        ic += `<div class="g-bas">${o.ad}, ${tarihYaz(o.tarih)}</div>`
       } else if (o.tip === 'kayit') {
         const b = durum.kayitBul(o.kayitId)
         if (!b) continue
@@ -152,16 +165,16 @@ export function defteriBagla(
         /* Soru kaydın başladığı yerde, gövdesinin üstünde. */
         if (bas && b.kayit.soru) ic += `<div class="kayit-soru">${kacir(b.kayit.soru)}</div>`
         const duzeltilebilir = bas && !durum.kapali
-        const iz = bas && b.kayit.duzenlendi ? ' <span class="duz">· düzeltildi</span>' : ''
+        const iz = bas && b.kayit.duzenlendi ? ` <span class="duz">${S('defter.duzeltildi')}</span>` : ''
         /*
          * Kenar notu düğmesi kapalı ve dolu defterde de duruyor: kapattığın
          * şey kapanır ama kenarına yazabilirsin (K-018).
          */
         const arac = bas
           ? `<div class="satir-arac">
-              ${duzeltilebilir ? '<button class="kalem-btn">düzelt</button>' : ''}
-              <button class="kenar-btn">kenar notu</button>
-              ${duzeltilebilir ? '<button class="sil-btn">sil</button>' : ''}</div>`
+              ${duzeltilebilir ? `<button class="kalem-btn">${S('defter.duzelt')}</button>` : ''}
+              <button class="kenar-btn">${S('defter.kenarNotu')}</button>
+              ${duzeltilebilir ? `<button class="sil-btn">${S('defter.sil')}</button>` : ''}</div>`
           : ''
         ic += `<div class="satir${bas ? '' : ' devam'}" data-id="${o.kayitId}">
           <time>${bas ? b.kayit.saat : ''}</time><p>${vurgu(o.metin)}${o.sonParca ? iz : ''}</p>
@@ -191,11 +204,12 @@ export function defteriBagla(
     /* Defterin adı önce; cilt yalnızca birden fazlaysa anlamlı (K-016). */
     const d = durum.aktifDefter
     $('#ciltAd').textContent = d
-      ? d.ad + (d.cilt > 1 ? ` · Cilt ${romen(d.cilt)}` : '')
-      : (c?.ad ?? 'Defter')
+      ? d.ad + (d.cilt > 1 ? ` · ${S('defter.cilt')} ${romen(d.cilt)}` : '')
+      : (c?.ad ?? S('defter.varsayilanAd'))
     $('#sayfaNo').textContent = s
-      ? `sayfa ${s.no}/${durum.sayfaSiniri}${d?.kapandi ? ' · kapalı defter' : ''}`
-      : `sayfa 1/${durum.sayfaSiniri}`
+      ? S('defter.sayfaNo', { n: s.no, t: durum.sayfaSiniri }) +
+        (d?.kapandi ? S('defter.kapaliDefter') : '')
+      : S('defter.sayfaNo', { n: 1, t: durum.sayfaSiniri })
 
     const kalan = durum.sayfaSiniri - durum.sayfalar.length
     $('#kalanYazi').textContent =
@@ -203,8 +217,8 @@ export function defteriBagla(
         ? kalan > 3
           ? ''
           : kalan > 0
-            ? `bu defterde ${kalan} sayfa kaldı`
-            : 'bu defter doldu'
+            ? S('defter.kalanSayfa', { n: kalan })
+            : S('defter.dolduKisa')
         : ''
 
     $('#kagit-kap').innerHTML = sayfaHtml(durum.aktifSayfa)
@@ -215,9 +229,9 @@ export function defteriBagla(
     $('#birak').style.display = son && durum.yazilabilir ? '' : 'none'
     $('#dikte').style.display = son && durum.yazilabilir ? '' : 'none'
     $('#ekIlistir').style.display = son && durum.yazilabilir ? '' : 'none'
-    $('#ekIlistir').textContent = bekleyenEk ? 'başka bir şey iliştir' : 'bir şey iliştir'
+    $('#ekIlistir').textContent = bekleyenEk ? S('arac.ekBaska') : S('arac.ek')
     $('#soruIste').style.display = son && durum.soruIstenebilir ? '' : 'none'
-    $('#soruIste').textContent = durum.aktifSoru ? 'başka bir şey sor' : 'bana bir şey sor'
+    $('#soruIste').textContent = durum.aktifSoru ? S('arac.soruIsteBaska') : S('arac.soruIste')
     /*
      * Yazdıktan sonra tek soru (yol haritası 12). Düğme, çağrının
      * kullanıcının AÇIK eylemi olması için var: ilke 2.3 "arka planda
@@ -283,7 +297,7 @@ export function defteriBagla(
    * dizeler olduğu gibi basılıyor — o veriyi güvenilir biçimde ayrıştırmak
    * mümkün değil, uydurmaktansa aynen göstermek doğru.
    */
-  const kenarTarih = (t: string): string => (/^\d{4}-\d{2}-\d{2}$/.test(t) ? tamTarih(t) : t)
+  const kenarTarih = (t: string): string => (/^\d{4}-\d{2}-\d{2}$/.test(t) ? tarihYaz(t) : t)
 
   /** Not yalnızca yazıldığı gün silinebilir; ertesi gün kalıcılaşır. */
   const bugunYazildi = (not: KenarNotu): boolean =>
@@ -314,10 +328,10 @@ export function defteriBagla(
     const alan = document.createElement('div')
     alan.className = 'kenar-yaz'
     alan.innerHTML = `<textarea maxlength="${KENAR_SINIR}"
-        placeholder="bugünden bu kayda bir not düş…"></textarea>
+        placeholder="${kacir(S('defter.kenarYer'))}"></textarea>
       <div class="kenar-arac">
-        <button class="kaydet">kaydet</button>
-        <button class="vaz">vazgeç</button>
+        <button class="kaydet">${S('defter.kaydet')}</button>
+        <button class="vaz">${S('defter.vazgec')}</button>
         <span class="sayac"></span>
       </div>`
     satir.insertAdjacentElement('afterend', alan)
@@ -474,18 +488,21 @@ export function defteriBagla(
   function kesitCiz(): void {
     let h = ''
     for (const c of durum.ciltler) {
-      h += `<div class="cilt-bas">cilt <b>${romen(c.no)}</b></div>`
+      h += `<div class="cilt-bas">${S('defter.kesitCilt', { n: romen(c.no) })}</div>`
       for (const s of durum.sayfalar.filter((x) => x.cilt === c.no)) {
         const w = 7 + Math.round((s.hacim / SAYFA_HACIM) * 26)
         const ad = durum.baslik(s)
         h += `<div class="syf${s.no - 1 === durum.aktifSayfa ? ' aktif' : ''}${ad ? ' baslikli' : ''}"
-          data-i="${s.no - 1}" title="${kacir(ad ?? 'sayfa ' + s.ciltSayfa)}"><i style="width:${w}px"></i></div>`
+          data-i="${s.no - 1}" title="${kacir(ad ?? S('defter.sayfaEt', { n: s.ciltSayfa }))}"><i style="width:${w}px"></i></div>`
       }
     }
     $('#kesit').innerHTML = h
     for (const el of $$('#kesit .syf')) el.onclick = () => sayfayaGit(Number(el.dataset.i))
-    $('#kesit-alt').innerHTML =
-      `${durum.sayfalar.length} sayfa<br>${durum.ciltler.length} cilt<br>${durum.kayitSayisi} kayıt`
+    $('#kesit-alt').innerHTML = S('defter.kesitAlt', {
+      s: durum.sayfalar.length,
+      c: durum.ciltler.length,
+      k: durum.kayitSayisi,
+    })
     const a = $('#kesit .syf.aktif')
     const k = $('#kesit')
     if (a && (a.offsetTop < k.scrollTop || a.offsetTop > k.scrollTop + k.clientHeight - 30))
@@ -561,7 +578,7 @@ export function defteriBagla(
      * eski bir kayda dönüldüğünde çıkmıyor. Hiçbir yere yazılmıyor
      * (KARARLAR.md · K-030).
      */
-    if (krizIsareti(m).var) krizKartiAcik = true
+    if (krizIsareti(m, dil()).var) krizKartiAcik = true
 
     bekleyenEk = null
     taslak = ''
@@ -595,10 +612,9 @@ export function defteriBagla(
     !krizKartiAcik
       ? ''
       : `<div class="kr-kagit">
-          <p>Bunu yazdığın için bir şey söylemeyeceğim. Yalnızca burada duruyorum.</p>
-          <p class="kr-yol">Acil bir durumdaysan <b>112</b>. Yanında birini istersen,
-            şu an arayabileceğin bir yakınını ara.</p>
-          <button id="krKapat">kapat</button>
+          <p>${S('kriz.metin')}</p>
+          <p class="kr-yol">${S('kriz.yol')}</p>
+          <button id="krKapat">${S('kriz.kapat')}</button>
         </div>`
 
   function krizKartiniBagla(): void {
@@ -638,15 +654,21 @@ export function defteriBagla(
     const notSayisi = (durum.kenarlar.get(kayitId) ?? []).length
     const ekVar = durum.ekler.has(kayitId)
     const gidecek: string[] = []
-    if (notSayisi) gidecek.push(`${notSayisi} kenar notu`)
-    if (ekVar) gidecek.push('bir ek')
+    if (notSayisi)
+      gidecek.push(S(notSayisi === 1 ? 'ks.kenarNotu1' : 'ks.kenarNotuN', { n: notSayisi }))
+    if (ekVar) gidecek.push(S('ks.birEk'))
 
-    $('#ksZaman').textContent = `${b.gun.ad} · ${tamTarih(b.kayit.tarih)} · ${b.kayit.saat}`
+    $('#ksZaman').textContent = `${b.gun.ad} · ${tarihYaz(b.kayit.tarih)} · ${b.kayit.saat}`
     $('#ksMetin').textContent = b.kayit.metin
-    const liste = gidecek.join(' ve ')
-    $('#ksUyari').textContent = gidecek.length
-      ? `Bu kayıtla birlikte ${liste} ${dahiEki(liste)} gidecek. Geri alınamaz.`
-      : 'Geri alınamaz.'
+    /*
+     * Türkçede "de/da" bağlacı ünlü uyumuna uyuyor (K-010); İngilizcede
+     * böyle bir uyum yok, `{ek}` orada boş kalıyor. Cümlenin kendisi iki
+     * dilde de katalogdan geliyor — kod dallanmıyor, metin dallanıyor.
+     */
+    const liste = gidecek.join(dil() === 'en' ? ' and ' : ' ve ')
+    $('#ksUyari').textContent = !gidecek.length
+      ? S('ks.geriAlinamaz')
+      : S('ks.gidecek', { liste, ek: dil() === 'en' ? '' : dahiEki(liste) })
 
     const kart = $('#kayitSilKarti')
     const kapat = () => {
@@ -681,10 +703,10 @@ export function defteriBagla(
     el.innerHTML = `<time>${b.kayit.saat}</time><div class="duzelt-alan">
       <textarea></textarea>
       <div class="duzelt-arac">
-        <button class="kaydet">kaydet</button>
-        <button class="vaz">vazgeç</button>
-        <button class="ek-btn">${ekliMi ? 'eki kaldır' : 'bir şey iliştir'}</button>
-        <span>düzeltme iz bırakır</span>
+        <button class="kaydet">${S('defter.kaydet')}</button>
+        <button class="vaz">${S('defter.vazgec')}</button>
+        <button class="ek-btn">${ekliMi ? S('defter.ekiKaldir') : S('arac.ek')}</button>
+        <span>${S('defter.duzeltmeIz')}</span>
       </div></div>`
     const ta = el.querySelector('textarea')!
     ta.value = b.kayit.metin
@@ -721,7 +743,7 @@ export function defteriBagla(
   const sonKayitMetni = (): string | null => {
     const gun = durum.gunler[durum.gunler.length - 1]
     const k = gun?.kayitlar[gun.kayitlar.length - 1]
-    if (!k || krizIsareti(k.metin).var) return null
+    if (!k || krizIsareti(k.metin, dil()).var) return null
     return k.metin
   }
 
@@ -732,7 +754,7 @@ export function defteriBagla(
     const d = $<HTMLButtonElement>('#soruYazdan')
     d.disabled = true
     const eski = d.textContent
-    d.textContent = 'soruluyor…'
+    d.textContent = S('arac.soruYaziliyor')
     try {
       const soru = await model.soruSor(metin)
       if (soru) {
@@ -741,7 +763,7 @@ export function defteriBagla(
         $<HTMLTextAreaElement>('#kalem')?.focus()
       }
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Soru alınamadı.')
+      alert(e instanceof Error ? e.message : S('model.soruHata'))
     } finally {
       d.disabled = false
       d.textContent = eski
@@ -763,8 +785,9 @@ export function defteriBagla(
     $<HTMLTextAreaElement>('#kalem')?.focus()
   }
   $('#birak').onclick = () => void birak()
-  $('#birak').innerHTML =
-    `bırak <kbd>${/Mac|iPhone|iPad/.test(navigator.userAgent) ? '\u2318' : 'Ctrl'}\u23CE</kbd>`
+  $('#birak').innerHTML = S('defter.birakKisayol', {
+    k: (/Mac|iPhone|iPad/.test(navigator.userAgent) ? '\u2318' : 'Ctrl') + '\u23CE',
+  })
 
   addEventListener('keydown', (e) => {
     if ($('#kitaplik').classList.contains('acik') || $('#yak').classList.contains('acik')) return
@@ -820,13 +843,13 @@ function dikteyiBagla(): void {
     const kalem = $<HTMLTextAreaElement>('#kalem')
     if (!kalem) return
     if (!SR) {
-      $('#dikte').textContent = 'bu tarayıcıda yok'
-      setTimeout(() => ($('#dikte').textContent = 'sesli yaz'), 2200)
+      $('#dikte').textContent = S('defter.dikteYok')
+      setTimeout(() => ($('#dikte').textContent = S('arac.dikte')), 2200)
       return
     }
     if (acik) return tanima?.stop()
     tanima = new SR()
-    tanima.lang = 'tr-TR'
+    tanima.lang = S('defter.dikteDili')
     tanima.continuous = true
     tanima.interimResults = true
     const bas0 = kalem.value

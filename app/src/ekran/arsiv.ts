@@ -4,11 +4,11 @@ import type { Anlatim } from '../cekirdek/anlatim.js'
 import { soruCoz, type Bulgu } from '../cekirdek/sorgu.js'
 import { enYakinlar, paketiAc, paketle } from '../cekirdek/gomu.js'
 import { MODEL_KIMLIK } from '../cekirdek/gomuModel.js'
-import { gunAdi, iso, romen, tamTarih } from '../cekirdek/tr.js'
+import { iso, romen } from '../cekirdek/tr.js'
 import type { Durum } from '../durum.js'
 import type { Depo } from '../veri/depo.js'
 import type { ModelAkis } from '../modelAkis.js'
-import { $, $$, ekranAc, kacir } from './ortak.js'
+import { $, $$, S, dil, ekranAc, gunAd, kacir, tarihYaz } from './ortak.js'
 
 /**
  * Arşiv: arama ve sorma. Yorum yok.
@@ -31,7 +31,7 @@ export function arsiviBagla(
     const notlar = b.kenarlar
       .map(
         (n) => `<div class="kaynak-kenar">${kacir(n.metin)}
-          <span>kenar notu · ${kacir(kenarTarih(n.tarih))}</span></div>`,
+          <span>${S('arsiv.kenarNotu')} · ${kacir(kenarTarih(n.tarih))}</span></div>`,
       )
       .join('')
     /*
@@ -41,17 +41,19 @@ export function arsiviBagla(
      */
     const yakinEt =
       b.yakinlik !== undefined
-        ? '<div class="kaynak-yakin">aradığın sözcükler bu kayıtta geçmiyor — anlamca yakın</div>'
+        ? `<div class="kaynak-yakin">${S('arsiv.yakin')}</div>`
         : ''
     return `<div class="kaynak" data-id="${b.kayit.id}">
-      <time>${no ? `<i class="kaynak-no">[${no}]</i> ` : ''}${b.gunAd} · ${tamTarih(b.kayit.tarih)} · ${b.kayit.saat}${
-        s ? ` · <b>cilt ${romen(s.cilt)}, sayfa ${s.ciltSayfa}</b>` : ''
+      <time>${no ? `<i class="kaynak-no">[${no}]</i> ` : ''}${b.gunAd} · ${tarihYaz(b.kayit.tarih)} · ${b.kayit.saat}${
+        s
+          ? ` · <b>${S('arsiv.cilt')} ${romen(s.cilt)}, ${S('arsiv.sayfa')} ${s.ciltSayfa}</b>`
+          : ''
       }</time>
       ${kacir(b.kayit.metin)}${yakinEt}${notlar}</div>`
   }
 
   /** Göç öncesi okunur dizeler olduğu gibi basılır (K-024). */
-  const kenarTarih = (t: string): string => (/^\d{4}-\d{2}-\d{2}$/.test(t) ? tamTarih(t) : t)
+  const kenarTarih = (t: string): string => (/^\d{4}-\d{2}-\d{2}$/.test(t) ? tarihYaz(t) : t)
 
   const kaynakBagla = (kap: HTMLElement, terim: string, govdeler: string[] = []): void => {
     for (const el of kap.querySelectorAll<HTMLElement>('.kaynak,.gy-kayit'))
@@ -104,9 +106,8 @@ export function arsiviBagla(
     if (!model?.acik || !anlatim) return ''
     const n = anlatim.kayitlar.length
     return `<div class="model-alan">
-      <button id="modelYaz" class="model-dugme">bu ${n} kayıttan bir cevap yaz</button>
-      <div class="model-uyari">Yalnızca yukarıdaki ${n} kaydın metni Anthropic'e gider —
-        defterin geri kalanı, adı, başlıkları, fotoğrafları gitmez. Anahtar senin.</div>
+      <button id="modelYaz" class="model-dugme">${S('model.yaz', { n })}</button>
+      <div class="model-uyari">${S('model.uyari', { n })}</div>
       <div id="modelCevap"></div>
     </div>`
   }
@@ -116,9 +117,9 @@ export function arsiviBagla(
     if (!dugme || !anlatim || !model) return
     dugme.onclick = async () => {
       dugme.disabled = true
-      dugme.textContent = 'yazıyor…'
+      dugme.textContent = S('model.yaziyor')
       const kutu = $('#modelCevap')
-      kutu.innerHTML = `<div class="model-et">model yazdı · kaynaklar yukarıda</div><p></p>`
+      kutu.innerHTML = `<div class="model-et">${S('model.et')}</div><p></p>`
       const p = kutu.querySelector('p')!
       let metin = ''
       try {
@@ -129,10 +130,10 @@ export function arsiviBagla(
         dugme.remove()
       } catch (e) {
         kutu.innerHTML = `<div class="model-hata">${kacir(
-          e instanceof Error ? e.message : 'Cevap alınamadı.',
+          e instanceof Error ? e.message : S('model.hata'),
         )}</div>`
         dugme.disabled = false
-        dugme.textContent = 'yeniden dene'
+        dugme.textContent = S('model.yeniden')
       }
     }
   }
@@ -143,10 +144,17 @@ export function arsiviBagla(
       kutu.innerHTML = ''
       return
     }
-    const c = soruCoz(soru, durum.gunler, durum.temalar, durum.kenarlar, await yakinlariBul(soru))
+    const c = soruCoz(
+      soru,
+      durum.gunler,
+      durum.temalar,
+      durum.kenarlar,
+      await yakinlariBul(soru),
+      dil(),
+    )
     if (c.bos) {
-      kutu.innerHTML = `<div class="cevap"><div class="et">cevap</div>
-        <p>Bununla ilgili bir şey yazmamışsın. Yazmadığın bir şeyi uydurmam.</p></div>`
+      kutu.innerHTML = `<div class="cevap"><div class="et">${S('arsiv.cevapEt')}</div>
+        <p>${S('arsiv.bos')}</p></div>`
       return
     }
     /*
@@ -154,13 +162,13 @@ export function arsiviBagla(
      * liste ve aynı numarayı taşıyor: cevaptaki [2], karttaki [2]. İlke
      * 2.4'ün somut hâli bu numara (K-031).
      */
-    const anlatim = model?.acik ? anlatimKur(soru, c.kullanilan) : null
+    const anlatim = model?.acik ? anlatimKur(soru, c.kullanilan, dil()) : null
     const numara = new Map(anlatim?.kayitlar.map((k) => [k.kayitId, k.no]) ?? [])
-    kutu.innerHTML = `<div class="cevap"><div class="et">yalnızca senin yazdıklarından</div>
+    kutu.innerHTML = `<div class="cevap"><div class="et">${S('arsiv.et')}</div>
       ${c.paragraflar.map((x) => `<p>${x}</p>`).join('')}
-      <div class="k-et">kullandığım kayıtlar</div>
+      <div class="k-et">${S('arsiv.kaynaklar')}</div>
       ${c.kullanilan.map((b) => kaynakHtml(b, numara.get(b.kayit.id))).join('')}
-      <p class="cevap-not">Kaydın üstüne dokun, defterde o sayfaya gider.</p>
+      <p class="cevap-not">${S('arsiv.dokun')}</p>
       ${modelBolumu(anlatim)}</div>`
     kaynakBagla(kutu, c.terim, c.govdeler)
     modelBagla(anlatim)
@@ -183,11 +191,11 @@ export function arsiviBagla(
       kap.innerHTML = ''
       return
     }
-    kap.innerHTML = `<div class="gecen-yil"><div class="et">bugün, geçen sene</div>
+    kap.innerHTML = `<div class="gecen-yil"><div class="et">${S('arsiv.gecenYil')}</div>
       ${g.kayitlar
         .map(
           (k) => `<div class="gy-kayit" data-id="${k.id}">
-            <time>${gunAdi(g.tarih)} · ${tamTarih(g.tarih)} · ${k.saat}</time>
+            <time>${gunAd(g.tarih)} · ${tarihYaz(g.tarih)} · ${k.saat}</time>
             <p>${kacir(k.metin)}</p></div>`,
         )
         .join('')}</div>`

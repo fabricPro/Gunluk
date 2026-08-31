@@ -48,8 +48,21 @@
   .ay-dugmeler { flex-wrap: wrap }
 }
 
-/* Çok dar (küçük telefon): üst çubuk da sığmıyor. */
-@media (max-width: 400px) {
+/* ── üst çubuk ───────────────────────────────────────────
+   Telefon genişliğinde sığmıyor ve sağdaki "kapat" düğmesi ekran
+   dışında kalıyordu. İngilizcede sözcükler daha uzun olduğu için önce
+   orada görüldü; Türkçede de sınırdaydı. Marka yazısı düşüyor —
+   uygulamanın adını uygulamanın içinde tekrar etmenin bir işi yok. */
+@media (max-width: 620px) {
+  header { padding: 0 10px; gap: 8px }
   .marka { display: none }
-  nav button { padding: 7px 9px; font-size: 12px }
+  nav { margin-left: 0 }
+  nav button { padding: 7px 10px; font-size: 12px }
+  .ust-btn { padding: 6px 10px; font-size: 11px }
+}
+
+/* Çok dar (küçük telefon): ayar düğmesi de metnini bırakıyor. */
+@media (max-width: 380px) {
+  nav button { padding: 7px 7px; font-size: 11.5px }
+  .ust-btn { padding: 6px 8px; font-size: 10.5px }
 }

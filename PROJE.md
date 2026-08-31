@@ -137,7 +137,7 @@ Sıra önemli. Her adım bir öncekine yaslanıyor.
 
 ### Faz 4 — Yayın
 13. ~~Gizlilik etiketleri, App Store metinleri, ekran görüntüleri.~~ **Tamam.** `yayin/` altında: mağaza metinleri (TR + EN), "Data Not Collected" beyanı, yaş sınırı cevapları, App Review notu ve gizlilik politikası. Ekran görüntüleri `npm run gorsel` ile üretiliyor — ilk koşuda dar ekranda **bırak düğmesinin ekran dışında kaldığını** buldu ve düzeltildi (KARARLAR.md · K-034).
-14. İngilizce yerelleştirme.
+14. ~~İngilizce yerelleştirme.~~ **Tamam.** Arayüz değil, **dil makineleri de**: tarih, gövdeleme, arşiv cümleleri, defterin soruları ve **kriz sınıflandırıcısı** İngilizce için baştan yazıldı — yoksa ilke 2.1 İngilizce yazan kullanıcı için hiç var olmazdı. Yol boyunca `krizIsareti`'nin varsayılan `dil` argümanı üç çağrı yerinde atlanmış çıktı; varsayılan kaldırıldı, derleyici üçünü de gösterdi. Bilinen sınır: İngilizce kriz kartı bir acil numara söylemiyor (KARARLAR.md · K-035).
 
 ---
 

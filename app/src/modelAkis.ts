@@ -1,5 +1,6 @@
 import type { Anlatim } from './cekirdek/anlatim.js'
 import type { AnahtarDepo } from './veri/anahtarDepo.js'
+import { S, dil } from './ekran/ortak.js'
 
 /**
  * Model cevabının durumu: anahtar var mı, çağrı açık mı.
@@ -58,7 +59,7 @@ export class ModelAkis {
    * SDK hiç indirilmiyor.
    */
   async sor(anlatim: Anlatim, parca: (m: string) => void): Promise<void> {
-    if (!this.anahtar) throw new Error('Anahtar girilmemiş.')
+    if (!this.anahtar) throw new Error(S('genel.anahtarYok'))
     const { cevapAkit } = await import('./veri/model.js')
     await cevapAkit(anlatim, this.anahtar, parca)
   }
@@ -72,7 +73,7 @@ export class ModelAkis {
   async soruSor(kayitMetni: string): Promise<string | null> {
     if (!this.anahtar || !this.soruAcik) return null
     const { soruUret } = await import('./veri/model.js')
-    return soruUret(kayitMetni, this.anahtar)
+    return soruUret(kayitMetni, this.anahtar, dil())
   }
 
   /** Yazdıktan sonra soru düğmesi çıkacak mı. */

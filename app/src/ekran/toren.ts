@@ -1,9 +1,9 @@
 import { defterOzeti } from '../cekirdek/ozet.js'
-import { romen, tamTarih } from '../cekirdek/tr.js'
+import { romen } from '../cekirdek/tr.js'
 import type { Durum } from '../durum.js'
 import type { Depo } from '../veri/depo.js'
-import { KAPAKLAR } from './kapaklar.js'
-import { $, $$, kacir } from './ortak.js'
+import { kapaklar } from './kapaklar.js'
+import { $, $$, S, kacir, tarihYaz } from './ortak.js'
 
 /**
  * Cilt kapanma töreni — PROJE.md Faz 1.4.
@@ -43,12 +43,11 @@ export function toreniBagla(
       return
     }
     $('#torBaslik').textContent = d.ad + (d.cilt > 1 ? ` · Cilt ${romen(d.cilt)}` : '')
-    $('#torBaslikEt').textContent = durum.dolu ? 'bu defter doldu' : 'defteri kapatıyorsun'
+    $('#torBaslikEt').textContent = durum.dolu ? S('tor.et') : S('tor.kapatiyorsun')
     $('#torGiris').textContent = durum.dolu
       ? `${durum.sayfalar.length} sayfa doldu. Bu defteri burada bitirebilir ya da biraz daha ` +
-        'uzatabilirsin. Kapattığında bir daha yazamazsın.'
-      : `${durum.sayfalar.length} sayfa yazdın. Bu defteri şimdi kapatabilirsin — ` +
-        'kapandıktan sonra buraya bir daha yazamazsın.'
+        S('tor.girisDolu')
+      : S('tor.girisErken', { n: durum.sayfalar.length })
     /* Dolmamış defterde "uzat" anlamsız. */
     $('#torUzat').style.display = durum.dolu ? '' : 'none'
     $<HTMLInputElement>('#torAd').value = d.ad
@@ -59,7 +58,7 @@ export function toreniBagla(
   }
 
   const kapaklariCiz = (): void => {
-    $('#torKapaklar').innerHTML = KAPAKLAR.map(
+    $('#torKapaklar').innerHTML = kapaklar().map(
       (k) =>
         `<button class="k-${k.anahtar}" data-kapak="${k.anahtar}" title="${kacir(k.ad)}"
           aria-pressed="${k.anahtar === secilenKapak}"></button>`,
@@ -114,47 +113,47 @@ export function toreniBagla(
     const o = defterOzeti(durum.gunler, durum.sayfalar, durum.basliklar, durum.temalar)
 
     $('#ozBaslik').textContent = d.ad + (d.cilt > 1 ? ` · Cilt ${romen(d.cilt)}` : '')
-    $('#ozAralik').textContent = o.aralik || 'Bu defter boş kapandı.'
+    $('#ozAralik').textContent = o.aralik || S('tor.bosKapandi')
 
     /* "0 gün sürdü" kötü okunuyor: tek günlük defterde o kutu hiç çıkmasın. */
     const sayilar: [number, string][] = [
       [o.sayfaSayisi, 'sayfa'],
-      [o.kayitSayisi, 'kayıt'],
-      [o.yazilanGun, 'gün yazdın'],
+      [o.kayitSayisi, S('tor.kayit')],
+      [o.yazilanGun, S('tor.gunYazdin')],
     ]
-    if (o.surenGun > 0) sayilar.push([o.surenGun, 'gün sürdü'])
+    if (o.surenGun > 0) sayilar.push([o.surenGun, S('tor.gunSurdu')])
     $('#ozSayilar').innerHTML = sayilar
       .map(([n, et]) => `<div><b>${n}</b><span>${et}</span></div>`)
       .join('')
 
     $('#ozTemalar').innerHTML = o.enSik.length
-      ? `<span class="et">en sık geçenler</span>` +
+      ? `<span class="et">${S('tor.enSik')}</span>` +
         o.enSik.map(([ad, n]) => `<b>${kacir(ad)}</b> (${n})`).join(', ')
       : ''
 
     $('#ozBasliklar').innerHTML = o.baslikliSayfalar.length
-      ? `<span class="et">ad verdiğin sayfalar</span><ul class="oz-liste">` +
+      ? `<span class="et">${S('tor.adliSayfalar')}</span><ul class="oz-liste">` +
         o.baslikliSayfalar
           .map(
             (b) =>
               `<li><span>${kacir(b.baslik)}</span><span class="nokta"></span>` +
-              `<span class="no">s. ${b.ciltSayfa}</span></li>`,
+              `<span class="no">${S('tor.sayfaKisa', { n: b.ciltSayfa })}</span></li>`,
           )
           .join('') +
         '</ul>'
       : ''
 
     const uc = (et: string, tarih: string, metin: string) =>
-      `<div class="oz-uc"><time>${et} · ${tamTarih(tarih)}</time>${kacir(metin)}</div>`
+      `<div class="oz-uc"><time>${et} · ${tarihYaz(tarih)}</time>${kacir(metin)}</div>`
     $('#ozUclar').innerHTML =
       o.ilkKayit && o.sonKayit
-        ? uc('ilk yazdığın', o.ilkKayit.tarih, o.ilkKayit.metin) +
+        ? uc(S('tor.ilkYazdigin'), o.ilkKayit.tarih, o.ilkKayit.metin) +
           (o.ilkKayit.id !== o.sonKayit.id
-            ? uc('son yazdığın', o.sonKayit.tarih, o.sonKayit.metin)
+            ? uc(S('tor.sonYazdigin'), o.sonKayit.tarih, o.sonKayit.metin)
             : '')
         : ''
 
-    $('#ozYeniCilt').textContent = `${d.ad} · Cilt ${romen(d.cilt + 1)} aç`
+    $('#ozYeniCilt').textContent = S('tor.yeniCilt', { ad: d.ad, n: romen(d.cilt + 1) })
     /* Bu cildin devamı zaten açılmışsa ikinci kez açmayı önerme. */
     $('#ozYeniCilt').style.display = sonrakiCiltVar ? 'none' : ''
   }

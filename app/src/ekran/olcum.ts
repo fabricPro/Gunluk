@@ -1,5 +1,6 @@
 import type { SayfaOlcu } from '../cekirdek/sayfa.js'
 import { VARSAYILAN_OLCU } from '../cekirdek/sayfa.js'
+import { S } from './ortak.js'
 
 /**
  * Sayfanın gerçek taşıma kapasitesini ölçer.
@@ -20,12 +21,12 @@ const EK_SAYFA_PAYI = 0.42
  */
 const EK_MARJIN = 20
 
-/* Ölçüm metni: Türkçe harf dağılımı ve sözcük uzunluğu gerçekçi olsun. */
-const ORNEK = (
-  'Bugün yine erken kalktım ve pencereyi açtım, hava soğuktu. ' +
-  'Aşağıda birileri konuşuyordu, uzun süre onları dinledim. ' +
-  'Sonra çay koydum ve düşündüm ki bu aylarda ilk defa bir şey istiyorum. '
-).repeat(6)
+/*
+ * Ölçüm metni aktif dilde: harf dağılımı ve sözcük uzunluğu gerçekçi
+ * olsun. Türkçe ölçüp İngilizce dizmek sayfa kapasitesini kaydırıyordu
+ * (KARARLAR.md · K-035).
+ */
+const ornek = (): string => S('olcum.ornek').repeat(6)
 
 /** Ölçüm için sayfanın içine geçici bir kopya kurar, ölçer, kaldırır. */
 function olc<T = number>(
@@ -53,22 +54,23 @@ export function sayfaOlc(): SayfaOlcu {
   if (kullanilabilir < 40) return VARSAYILAN_OLCU
 
   /* 1 — gövde metninin piksel başına kaç karakter taşıdığı. */
+  const metin = ornek()
   const govdeYukseklik = olc(
     kagitIc,
-    `<div class="satir"><time>00:00</time><p>${ORNEK}</p></div>`,
+    `<div class="satir"><time>00:00</time><p>${metin}</p></div>`,
   )
   if (govdeYukseklik < 1) return VARSAYILAN_OLCU
-  const karakterPiksel = ORNEK.length / govdeYukseklik
+  const karakterPiksel = metin.length / govdeYukseklik
 
   /* 2 — boş bir kayıt satırının kendi payı (dolgu, boşluk). */
   const bosSatir = olc(kagitIc, '<div class="satir"><time>00:00</time><p>x</p></div>')
   /* 3 — gün başlığı ve kenar notunun yüksekliği. */
-  const gunBasligi = olc(kagitIc, '<div class="g-bas">perşembe, 1 ocak 2026</div>')
+  const gunBasligi = olc(kagitIc, `<div class="g-bas">${S('olcum.gunBasligi')}</div>`)
   const kenar = olc(kagitIc, '<div class="kenar">x<span>kenar notu · 1 ocak</span></div>')
   /* 4 — sayfa başlığı şeridi her sayfanın tepesinde duruyor. */
   const syfBaslik = olc(
     kagitIc,
-    '<div class="syf-baslik"><button class="ekle">başlık ekle</button></div>',
+    `<div class="syf-baslik"><button class="ekle">${S('defter.baslikEkle')}</button></div>`,
   )
   /* 5 — kayda eşlik eden sorunun kendi payı. */
   const soru = olc(kagitIc, '<div class="kayit-soru">x</div>')

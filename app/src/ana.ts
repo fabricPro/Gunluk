@@ -1,4 +1,5 @@
 import { Durum } from './durum.js'
+import { cihazDili, type Dil } from './cekirdek/dil.js'
 import { GomuAkis } from './gomuAkis.js'
 import { ModelAkis } from './modelAkis.js'
 import { belgeOneki, sorguOneki } from './cekirdek/gomuModel.js'
@@ -12,6 +13,7 @@ import { kilitEkraniBagla } from './ekran/kilitEkrani.js'
 import { kitapligiBagla } from './ekran/kitaplik.js'
 import { kapsuleBagla } from './ekran/kapsul.js'
 import { sayfaOlc } from './ekran/olcum.js'
+import { dilKur } from './ekran/ortak.js'
 import { toreniBagla } from './ekran/toren.js'
 import { yakmayiBagla } from './ekran/yak.js'
 import { defteriAc } from './veri/db.js'
@@ -48,6 +50,15 @@ function bayrakDusur(ad: string): void {
 
 async function baslat(): Promise<void> {
   onizlemeyiIsaretle()
+
+  /*
+   * Dil, veritabanından ÖNCE kuruluyor: kilit ekranı da çevrilmiş olsun.
+   * Seçim yoksa cihaz diline bakılıyor; tanımadığı her dilde Türkçe
+   * (KARARLAR.md · K-035). Ayarlarda değişince sayfa yeniden yükleniyor,
+   * bu yüzden saklandığı yer localStorage: veritabanı henüz açık değil.
+   */
+  const secilenDil = (localStorage.getItem('defter.dil') as Dil | null) ?? cihazDili()
+  dilKur(secilenDil)
 
   /*
    * Kilit, veritabanının ÖNÜNDE. Kayıt güvenli depodan okunuyor; kilitliyken
@@ -99,6 +110,7 @@ async function baslat(): Promise<void> {
     const acilis = await surucuSec()
     surucu = acilis.surucu
     const depo = new Depo(await defteriAc(surucu))
+    depo.dil = secilenDil
     const bayrak = new URLSearchParams(location.search)
 
     if (bayrak.has('sifirla')) {
@@ -109,11 +121,12 @@ async function baslat(): Promise<void> {
     }
     if (bayrak.has('tohum')) {
       const { tohumEk } = await import('./veri/tohum.js')
-      await tohumEk(depo)
+      await tohumEk(depo, undefined, secilenDil)
     }
 
     const durum = new Durum(depo)
     durum.sifreli = acilis.sifreli
+    durum.dil = secilenDil
 
     const sonDefter = await depo.ayarOku('aktifDefter')
     if (sonDefter && (await depo.defterGetir(sonDefter))) depo.defteriSec(sonDefter)
@@ -201,6 +214,13 @@ async function baslat(): Promise<void> {
         },
         dinle: (f) => {
           gomuDinleyici = f
+        },
+      },
+      dil: {
+        simdiki: () => secilenDil,
+        degistir: async (d) => {
+          localStorage.setItem('defter.dil', d)
+          location.reload()
         },
       },
       model: {

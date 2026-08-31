@@ -1,4 +1,5 @@
 import { SESLI, SERT, sonSesli } from './tr.js'
+import type { Dil } from './dil.js'
 
 /**
  * Türkçe gövdeleme — sözlüksüz, aday kümeli.
@@ -150,13 +151,74 @@ function kaynastirmasiz(s: string): string | null {
 const ONBELLEK = new Map<string, Set<string>>()
 const ONBELLEK_TAVAN = 20000
 
-export function govdeler(sozcuk: string): Set<string> {
-  const hazir = ONBELLEK.get(sozcuk)
+export function govdeler(sozcuk: string, dil: Dil = 'tr'): Set<string> {
+  /* Anahtar dille birlikte: aynı harf dizisi iki dilde farklı iniyor. */
+  const anahtar = dil + ':' + sozcuk
+  const hazir = ONBELLEK.get(anahtar)
   if (hazir) return hazir
-  const uretilen = govdeleriUret(sozcuk)
+  const uretilen = dil === 'en' ? govdeleriUretEn(sozcuk) : govdeleriUret(sozcuk)
   if (ONBELLEK.size >= ONBELLEK_TAVAN) ONBELLEK.clear()
-  ONBELLEK.set(sozcuk, uretilen)
+  ONBELLEK.set(anahtar, uretilen)
   return uretilen
+}
+
+/* ── İNGİLİZCE ─────────────────────────────────────────────
+   Aynı fikir, çok daha kısa liste: İngilizce eklemeli değil, birkaç
+   çekim eki var. Yine ADAY KÜMESİ üretiliyor, yine tahmin edilmiyor —
+   `running` hem `runn` hem `run` olarak kümeye giriyor, hangisinin
+   doğru olduğuna karar verilmiyor (K-027'nin İngilizce karşılığı).
+
+   Düzensiz fiiller (`went`/`go`, `wrote`/`write`) kapsam dışı: sözlük
+   gerektirir ve sözlük bu tasarımın bilerek dışında. Bedel, `went`
+   arayanın `go`yu bulamaması. */
+
+const EKLER_EN: string[] = [
+  'ingly', 'edly', 'iness', 'fully', 'ments', 'iest', 'ment', 'ness',
+  'ings', 'ily', 'ing', 'ies', 'ied', 'ier', 'est', 'ed', 'es', 'ly',
+  'er', 's',
+]
+
+function govdeleriUretEn(sozcuk: string): Set<string> {
+  const temiz = sozcuk.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const kume = new Set<string>()
+  if (!temiz) return kume
+  kume.add(temiz)
+
+  let sira = [temiz]
+  for (let tur = 0; tur < 3 && sira.length; tur++) {
+    const sonraki: string[] = []
+    for (const s of sira) {
+      for (const ek of EKLER_EN) {
+        if (!s.endsWith(ek)) continue
+        const kalan = s.slice(0, -ek.length)
+        if (kalan.length < MIN_UZUNLUK) continue
+        for (const aday of adaylarEn(kalan, ek))
+          if (!kume.has(aday)) {
+            kume.add(aday)
+            sonraki.push(aday)
+          }
+      }
+    }
+    sira = sonraki.slice(0, ADAY_TAVAN)
+  }
+  return kume
+}
+
+/**
+ * Ek düştükten sonraki yazım onarımları — hepsi ADAY, hiçbiri karar.
+ *
+ *  - çift ünsüz: `running` -> `runn` ve `run`
+ *  - düşen `e`:  `writing` -> `writ` ve `write`
+ *  - `ies`/`ied`: `studies` -> `stud` ve `study`
+ */
+function adaylarEn(kalan: string, ek: string): string[] {
+  const cikan = [kalan]
+  const son = kalan.slice(-1)
+  if (kalan.length > MIN_UZUNLUK && son === kalan.slice(-2, -1) && !'aeiou'.includes(son))
+    cikan.push(kalan.slice(0, -1))
+  if (ek === 'ing' || ek === 'ed' || ek === 'er' || ek === 'est') cikan.push(kalan + 'e')
+  if (['ies', 'ied', 'ier', 'iest', 'iness', 'ily'].includes(ek)) cikan.push(kalan + 'y')
+  return cikan
 }
 
 function govdeleriUret(sozcuk: string): Set<string> {
@@ -202,11 +264,13 @@ function govdeleriUret(sozcuk: string): Set<string> {
 }
 
 /** Metni sözcüklere ayırır; noktalama ve boşluk düşer. */
-export const sozcukler = (metin: string): string[] =>
-  metin
-    .toLocaleLowerCase('tr')
-    .split(/[^a-zçğıiöşü0-9]+/)
-    .filter(Boolean)
+export const sozcukler = (metin: string, dil: Dil = 'tr'): string[] =>
+  dil === 'en'
+    ? metin.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+    : metin
+        .toLocaleLowerCase('tr')
+        .split(/[^a-zçğıiöşü0-9]+/)
+        .filter(Boolean)
 
 /** İki aday kümesi kesişiyor mu. */
 export function ortakGovde(a: Set<string>, b: Set<string>): boolean {
@@ -222,8 +286,8 @@ export function ortakGovde(a: Set<string>, b: Set<string>): boolean {
  * için sözcük kimliğini korumaya gerek yok; birleşik küme hem daha küçük
  * hem tek karşılaştırmada cevap veriyor.
  */
-export function metinGovdeleri(metin: string): Set<string> {
+export function metinGovdeleri(metin: string, dil: Dil = 'tr'): Set<string> {
   const kume = new Set<string>()
-  for (const s of sozcukler(metin)) for (const g of govdeler(s)) kume.add(g)
+  for (const s of sozcukler(metin, dil)) for (const g of govdeler(s, dil)) kume.add(g)
   return kume
 }

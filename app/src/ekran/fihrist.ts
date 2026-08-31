@@ -1,7 +1,7 @@
 import { romen } from '../cekirdek/tr.js'
 import type { Durum } from '../durum.js'
 import type { Depo } from '../veri/depo.js'
-import { $, $$, kacir } from './ortak.js'
+import { $, $$, S, kacir } from './ortak.js'
 
 /** Başlıklı sayfaların ciltlere göre listesi. */
 export function fihristiBagla(
@@ -12,22 +12,26 @@ export function fihristiBagla(
 ): void {
   const ciz = (): void => {
     $('#fihAlt').textContent =
-      `${durum.basliklar.size} başlıklı sayfa · ${durum.sayfalar.length} sayfa · ${durum.ciltler.length} cilt`
+      S('fih.ozet', {
+        b: durum.basliklar.size,
+        s: durum.sayfalar.length,
+        c: durum.ciltler.length,
+      })
     let h = ''
     for (const c of durum.ciltler) {
       const syf = durum.sayfalar.filter((x) => x.cilt === c.no && durum.baslik(x))
       h += `<div class="fih-cilt">Cilt ${romen(c.no)}${c.ad ? ' — ' + kacir(c.ad) : ''}
-        <span>${c.sayfa} sayfa${c.kapali ? ' · kapalı' : ''}</span>
-        <button data-cilt="${c.no}">${c.ad ? 'adı değiştir' : 'deftere ad ver'}</button></div>`
+        <span>${S('fih.ciltSayfa', { n: c.sayfa })}${c.kapali ? S('fih.kapali') : ''}</span>
+        <button data-cilt="${c.no}">${c.ad ? S('fih.adDegistir') : S('fih.adVer')}</button></div>`
       if (!syf.length)
-        h += `<div class="fih-bos">Bu ciltte başlık yok. Bir sayfanın üstüne dokunup ad verebilirsin.</div>`
+        h += `<div class="fih-bos">${S('fih.ciltBos')}</div>`
       for (const s of syf)
         h += `<div class="fih-sat" data-i="${s.no - 1}">
           <span class="ad">${kacir(durum.baslik(s)!)}</span><span class="nokta"></span>
           <span class="no">s. ${s.ciltSayfa}</span></div>`
     }
     if (!durum.ciltler.length)
-      h = `<div class="fih-bos">Defter henüz boş. İlk sayfayı yazdığında burada görünecek.</div>`
+      h = `<div class="fih-bos">${S('fih.bos')}</div>`
     $('#fihListe').innerHTML = h
 
     for (const el of $$('#fihListe .fih-sat'))

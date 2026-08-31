@@ -101,3 +101,31 @@ describe('soruların kendisi', () => {
     expect(new Set(hepsi).size).toBe(hepsi.length)
   })
 })
+
+/**
+ * İki dil, aynı yapı.
+ *
+ * `havuzIndeks` ve `gun` ayarlarda saklanıyor ve dil değiştirilince
+ * TAŞINIYOR. Listeler farklı uzunlukta olsaydı dil değiştiren kullanıcı
+ * ya soruları atlar ya baştan başlardı (KARARLAR.md · K-035).
+ */
+describe('soru listeleri iki dilde de aynı uzunlukta', () => {
+  it('ilk hafta yedi soru, havuz aynı sayıda', async () => {
+    const { ILK_HAFTA, ILK_HAFTA_EN, HAVUZ, HAVUZ_EN } = await import('../src/cekirdek/sorular.js')
+    expect(ILK_HAFTA_EN).toHaveLength(ILK_HAFTA.length)
+    expect(HAVUZ_EN).toHaveLength(HAVUZ.length)
+  })
+
+  it('İngilizce soru geliyor ve Türkçesiyle aynı sırada', async () => {
+    const { gununSorusu, havuzdanSor, BASLANGIC } = await import('../src/cekirdek/yonlendirme.js')
+    const { ILK_HAFTA_EN, HAVUZ_EN } = await import('../src/cekirdek/sorular.js')
+    expect(gununSorusu(BASLANGIC, '2026-01-01', false, 'en')).toBe(ILK_HAFTA_EN[0])
+    expect(havuzdanSor({ ...BASLANGIC, havuzIndeks: 3 }, false, 'en')).toBe(HAVUZ_EN[3])
+  })
+
+  it('kriz iki dilde de susturuyor', async () => {
+    const { gununSorusu, havuzdanSor, BASLANGIC } = await import('../src/cekirdek/yonlendirme.js')
+    expect(gununSorusu(BASLANGIC, '2026-01-01', true, 'en')).toBeNull()
+    expect(havuzdanSor(BASLANGIC, true, 'en')).toBeNull()
+  })
+})

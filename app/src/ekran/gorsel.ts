@@ -1,3 +1,4 @@
+import { S } from './ortak.js'
 import type { Ek } from '../cekirdek/tipler.js'
 
 /**
@@ -41,7 +42,7 @@ function yukle(dosya: Blob): Promise<HTMLImageElement> {
     }
     g.onerror = () => {
       URL.revokeObjectURL(bag)
-      kir(new GorselHatasi('Bu dosya bir görsel değil ya da okunamadı.'))
+      kir(new GorselHatasi(S('gor.okunmadi')))
     }
     g.src = bag
   })
@@ -61,7 +62,7 @@ export async function gorseliHazirla(dosya: Blob, kayitId = ''): Promise<Ek> {
   tuval.width = en
   tuval.height = boy
   const ctx = tuval.getContext('2d')
-  if (!ctx) throw new GorselHatasi('Bu tarayıcıda görsel işlenemiyor.')
+  if (!ctx) throw new GorselHatasi(S('gor.islenemiyor'))
   ctx.drawImage(g, 0, 0, en, boy)
 
   /* Hedef boyutun altına inene kadar kaliteyi kademeli düşür. */

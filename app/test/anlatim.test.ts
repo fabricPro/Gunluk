@@ -39,14 +39,14 @@ const bulgu = (k: Kayit, kenarlar: Bulgu['kenarlar'] = []): Bulgu => ({
 
 describe('anlatım · ne gidiyor', () => {
   it('boş soru ya da boş bulgu hiç istek kurmuyor', () => {
-    expect(anlatimKur('', [bulgu(kayit('a', 'bir şey'))])).toBeNull()
-    expect(anlatimKur('   ', [bulgu(kayit('a', 'bir şey'))])).toBeNull()
-    expect(anlatimKur('kerem', [])).toBeNull()
+    expect(anlatimKur('', [bulgu(kayit('a', 'bir şey'))], 'tr')).toBeNull()
+    expect(anlatimKur('   ', [bulgu(kayit('a', 'bir şey'))], 'tr')).toBeNull()
+    expect(anlatimKur('kerem', [], 'tr')).toBeNull()
   })
 
   it(`en fazla ${EN_COK_KAYIT} kayıt gidiyor — defterin tamamı asla`, () => {
     const cok = Array.from({ length: 40 }, (_, i) => bulgu(kayit(`k${i}`, `kayıt ${i}`)))
-    const a = anlatimKur('ne yazmışım', cok)!
+    const a = anlatimKur('ne yazmışım', cok, 'tr')!
     expect(a.kayitlar).toHaveLength(EN_COK_KAYIT)
     const metin = kullaniciMetni(a)
     expect(metin).toContain('kayıt 0')
@@ -55,21 +55,27 @@ describe('anlatım · ne gidiyor', () => {
   })
 
   it('numaralar 1den başlıyor ve kayıt kimliğine bağlı', () => {
-    const a = anlatimKur('x', [bulgu(kayit('aa', 'bir')), bulgu(kayit('bb', 'iki'))])!
+    const a = anlatimKur('x', [bulgu(kayit('aa', 'bir')), bulgu(kayit('bb', 'iki'))], 'tr')!
     expect(a.kayitlar.map((k) => k.no)).toEqual([1, 2])
     expect(a.kayitlar.map((k) => k.kayitId)).toEqual(['aa', 'bb'])
     expect(kullaniciMetni(a)).toContain('[2]')
   })
 
   it('kenar notu kaydıyla birlikte gidiyor', () => {
-    const a = anlatimKur('x', [
-      bulgu(kayit('aa', 'gövde'), [{ id: 'n1', kayitId: 'aa', metin: 'sonradan not', tarih: '2027-01-01', olusturma: 0 }]),
-    ])!
+    const a = anlatimKur(
+      'x',
+      [
+        bulgu(kayit('aa', 'gövde'), [
+          { id: 'n1', kayitId: 'aa', metin: 'sonradan not', tarih: '2027-01-01', olusturma: 0 },
+        ]),
+      ],
+      'tr',
+    )!
     expect(kullaniciMetni(a)).toContain('kenar notu: sonradan not')
   })
 
   it('kayıt metninin dışında hiçbir defter alanı gitmiyor', () => {
-    const a = anlatimKur('x', [bulgu(kayit('gizli-kimlik', 'yağmur yağdı'))])!
+    const a = anlatimKur('x', [bulgu(kayit('gizli-kimlik', 'yağmur yağdı'))], 'tr')!
     const metin = kullaniciMetni(a)
     expect(metin).toContain('yağmur yağdı')
     /* Kimlikler, tema kimlikleri, defter adı — hiçbiri dışarı çıkmıyor. */
@@ -96,16 +102,17 @@ describe('anlatım · kriz kaydı hiçbir koşulda gitmiyor', () => {
 
   /* İkinci savunma: retrieval değişse bile burada eleniyor. */
   it('bulguya elle konsa bile anlatıma girmiyor', () => {
-    const a = anlatimKur('x', [
-      bulgu(kayit('k', 'artık yaşamak istemiyorum')),
-      bulgu(kayit('n', 'bugün yürüyüşe çıktım')),
-    ])!
+    const a = anlatimKur(
+      'x',
+      [bulgu(kayit('k', 'artık yaşamak istemiyorum')), bulgu(kayit('n', 'bugün yürüyüşe çıktım'))],
+      'tr',
+    )!
     expect(a.kayitlar.map((k) => k.kayitId)).toEqual(['n'])
     expect(kullaniciMetni(a)).not.toContain('yaşamak istemiyorum')
   })
 
   it('yalnızca kriz kaydı varsa hiç istek kurulmuyor', () => {
-    expect(anlatimKur('x', [bulgu(kayit('k', 'kendime zarar verdim'))])).toBeNull()
+    expect(anlatimKur('x', [bulgu(kayit('k', 'kendime zarar verdim'))], 'tr')).toBeNull()
   })
 })
 
@@ -170,21 +177,21 @@ describe('model çağrısı tek bir dosyada', () => {
  */
 describe('yazdıktan sonra tek soru', () => {
   it('boş kayıttan soru istenmiyor', () => {
-    expect(soruIstegi('')).toBeNull()
-    expect(soruIstegi('   \n ')).toBeNull()
+    expect(soruIstegi('', 'tr')).toBeNull()
+    expect(soruIstegi('   \n ', 'tr')).toBeNull()
   })
 
   it('kriz işaretli kayıttan soru istenmiyor — ilke 2.1', () => {
-    expect(soruIstegi('kendimi öldürmek istiyorum')).toBeNull()
-    expect(soruIstegi('bugün berbat geçti, artık yaşamak istemiyorum')).toBeNull()
+    expect(soruIstegi('kendimi öldürmek istiyorum', 'tr')).toBeNull()
+    expect(soruIstegi('bugün berbat geçti, artık yaşamak istemiyorum', 'tr')).toBeNull()
   })
 
   it('deyim kriz sayılmıyor, soru istenebiliyor', () => {
-    expect(soruIstegi('bu iş beni öldürüyor, üç gündür rapor yazıyorum')).not.toBeNull()
+    expect(soruIstegi('bu iş beni öldürüyor, üç gündür rapor yazıyorum', 'tr')).not.toBeNull()
   })
 
   it('yalnızca o kaydın metni çıkıyor — kırpılmış hâliyle', () => {
-    expect(soruIstegi('  Kerem yine yazmadı.  ')).toBe('Kerem yine yazmadı.')
+    expect(soruIstegi('  Kerem yine yazmadı.  ', 'tr')).toBe('Kerem yine yazmadı.')
   })
 
   it('yönerge yorumu değil soruyu istiyor', () => {

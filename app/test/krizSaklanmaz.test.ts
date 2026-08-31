@@ -72,8 +72,15 @@ describe('kriz işareti saklanmıyor', () => {
 
   it('sınıflandırıcı hiçbir veri katmanı modülü import etmiyor', () => {
     const kaynak = readFileSync(new URL('../src/cekirdek/kriz.ts', import.meta.url), 'utf8')
-    const importlar = [...kaynak.matchAll(/^import[^']*'([^']+)'/gm)].map((m) => m[1]!)
-    expect(importlar).toEqual([])
+    const satirlar = [...kaynak.matchAll(/^import([^']*)'([^']+)'/gm)]
+    /*
+     * Tek izinli import: dil TÜRÜ. `import type` derlemede tamamen
+     * siliniyor, yani çalışma zamanında bu modül hâlâ hiçbir şeye
+     * bağlı değil. Buraya gerçek bir import eklenirse test düşer ve
+     * düşmesi gerekir (K-030, K-035).
+     */
+    expect(satirlar.map((m) => m[2]!)).toEqual(['./dil.js'])
+    for (const m of satirlar) expect(m[1]!.trimStart().startsWith('type ')).toBe(true)
   })
 
   /* Yakılan sayfa dışarıda: orada hiçbir şey okumaz (ilke 2.2). */

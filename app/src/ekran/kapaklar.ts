@@ -1,3 +1,4 @@
+import { S } from './ortak.js'
 /**
  * Kapak seti.
  *
@@ -10,18 +11,19 @@ export interface Kapak {
   ad: string
 }
 
-export const KAPAKLAR: Kapak[] = [
-  { anahtar: 'deri', ad: 'Koyu deri' },
-  { anahtar: 'bez', ad: 'Bez' },
-  { anahtar: 'kraft', ad: 'Kraft' },
-  { anahtar: 'murekkep', ad: 'Mürekkep' },
-  { anahtar: 'kiraz', ad: 'Kiraz' },
-  { anahtar: 'zeytin', ad: 'Zeytin' },
-  { anahtar: 'gece', ad: 'Gece' },
-  { anahtar: 'altin', ad: 'Altın yaldız' },
-]
+/*
+ * Kapak anahtarları veritabanında saklanıyor ve ASLA çevrilmiyor; yalnızca
+ * ekranda görünen ad dile göre değişiyor. Dil değiştiren kullanıcının
+ * defterlerinin kapağı yerinde kalsın (KARARLAR.md · K-035).
+ */
+export const KAPAK_ANAHTARLARI = [
+  'deri', 'bez', 'kraft', 'murekkep', 'kiraz', 'zeytin', 'gece', 'altin',
+] as const
+
+export const kapaklar = (): Kapak[] =>
+  KAPAK_ANAHTARLARI.map((anahtar) => ({ anahtar, ad: S(`kapak.${anahtar}`) }))
 
 export const KAPAK_VAR = (anahtar: string): boolean =>
-  KAPAKLAR.some((k) => k.anahtar === anahtar)
+  (KAPAK_ANAHTARLARI as readonly string[]).includes(anahtar)
 
 export const VARSAYILAN_KAPAK = 'deri'

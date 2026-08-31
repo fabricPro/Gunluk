@@ -58,7 +58,7 @@ const TETIKLEMEMELI = [
 describe('kriz işareti · tetiklemeli', () => {
   for (const c of TETIKLEMELI)
     it(`"${c}"`, () => {
-      const s = krizIsareti(c)
+      const s = krizIsareti(c, 'tr')
       expect(s.var, `kalıp: ${s.kalip ?? 'yok'}`).toBe(true)
     })
 })
@@ -66,19 +66,19 @@ describe('kriz işareti · tetiklemeli', () => {
 describe('kriz işareti · tetiklememeli', () => {
   for (const c of TETIKLEMEMELI)
     it(`"${c.trim() || '(boş)'}"`, () => {
-      const s = krizIsareti(c)
+      const s = krizIsareti(c, 'tr')
       expect(s.var, `yanlış alarm — kalıp: ${s.kalip ?? 'yok'}`).toBe(false)
     })
 })
 
 describe('kriz işareti · davranış', () => {
   it('hangi kalıbın tetiklediğini söylüyor', () => {
-    expect(krizIsareti('intihar etmeyi düşünüyorum').kalip).toBe('intihar')
+    expect(krizIsareti('intihar etmeyi düşünüyorum', 'tr').kalip).toBe('intihar')
   })
 
   it('büyük/küçük harf ve noktalama fark etmiyor', () => {
-    expect(krizIsareti('KENDİMİ ÖLDÜRMEK İSTİYORUM!!!').var).toBe(true)
-    expect(krizIsareti('kendimi   öldürmek\nistiyorum').var).toBe(true)
+    expect(krizIsareti('KENDİMİ ÖLDÜRMEK İSTİYORUM!!!', 'tr').var).toBe(true)
+    expect(krizIsareti('kendimi   öldürmek\nistiyorum', 'tr').var).toBe(true)
   })
 
   it('uzun bir kaydın ortasındaki ifadeyi yakalıyor', () => {
@@ -86,12 +86,12 @@ describe('kriz işareti · davranış', () => {
       'Bugün işe gittim, hava güzeldi. Öğlen Kerem aradı. ' +
       'Sonra eve döndüm ve bileklerimi kestim. ' +
       'Akşam annem yemek yaptı, birlikte film izledik.'
-    expect(krizIsareti(uzun).var).toBe(true)
+    expect(krizIsareti(uzun, 'tr').var).toBe(true)
   })
 
   it('deyim aynı kayıtta geçse bile açık ifade önceliğini kaybetmiyor', () => {
     /* Deyim listesi bir kaçış kapısı olmamalı. */
-    const s = krizIsareti('Bu iş beni öldürüyor. Akşam eve gelince bileklerimi kestim.')
+    const s = krizIsareti('Bu iş beni öldürüyor. Akşam eve gelince bileklerimi kestim.', 'tr')
     expect(s.var).toBe(true)
   })
 })

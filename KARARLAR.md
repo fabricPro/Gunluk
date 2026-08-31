@@ -9,6 +9,87 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-31 · K-035 · İngilizce: arayüz değil, dil makineleri de
+
+Yol haritası 14. "İngilizce yerelleştirme" kolay okunur ama bu üründe
+arayüzü çevirmek işin yarısından azı.
+
+### Yarım yerelleştirme neye benzerdi
+
+Defterin altında beş tane **dile bağlı makine** var: tarih yazımı, gövdeleme
+(K-027), arşivin cümle kurucusu, defterin sorduğu sorular ve **kriz
+sınıflandırıcısı** (K-030). Yalnızca düğme yazılarını çevirip bunları Türkçe
+bırakmak şu demek olurdu: İngilizce yazan bir kullanıcı için arama
+gövdelemesi hiç tutmaz, arşiv cevabı Türkçe cümle kurar ve **kriz
+sınıflandırıcısı sessizce hiç çalışmaz.** Sonuncusu bir çeviri eksiği değil,
+ilke 2.1'in o kullanıcı için hiç var olmaması demek.
+
+Bu yüzden hepsi yazıldı:
+
+| Makine | İngilizce karşılığı |
+|---|---|
+| `tr.ts` | `en.ts` — tarih, gün adı, tekil/çoğul |
+| `govde.ts` | İngilizce ek listesi, aynı aday-kümesi fikri |
+| `kriz.ts` | İngilizce kalıplar **ve deyim listesi**, aynı dar eşik |
+| `sorgu.ts` | Arşivin cümleleri `SES` tablosunda, dil dil |
+| `sorular.ts` | Yedi ilk hafta sorusu + havuz, aynı yay |
+| `anlatim.ts` | İki sistem yönergesi |
+
+İngilizcede "kill / die / dead" tam olarak Türkçedeki "öl-" işini görüyor:
+*this job is killing me*, *dying to see you*, *dead tired*, *cut myself
+shaving*. Deyim listesi orada da özelliğin yarısı ve `test/krizEn.test.ts`
+Türkçe tablonun birebir ağırlığında.
+
+### Zorunlu `dil` argümanı — bulunan hata
+
+`krizIsareti(metin, dil = 'tr')` yazılmıştı. Derleyici sustu, üç çağrı yeri
+dili geçirmeyi atladı: `defter.ts`te kriz kartını gösteren satır, aynı
+dosyada soru düğmesini eleyen satır, ve `modelAkis.soruSor`. Sonuç:
+İngilizce yazan bir kullanıcının **açık kriz cümlesi hiç yakalanmıyordu** —
+kart çıkmıyor, ve o metin modele gönderilebiliyordu.
+
+Tarayıcıda görüldü, sonra varsayılan **kaldırıldı**. Derleyici üç yeri de
+anında gösterdi. Ders: **güvenliğe bakan bir işlevde sessiz varsayılan,
+hatanın kendisidir.** Aynı gerekçeyle `anlatimKur`, `soruIstegi` ve
+`soruUret` de varsayılansız.
+
+### Dil değişince sayfa yeniden yükleniyor
+
+Yarı yarıya çevrilmiş bir ekran hiç olmuyor; ayrıca sayfa kapasitesi
+(`sayfaOlc`) yeni dilin örnek metniyle baştan ölçülüyor — Türkçe ölçüp
+İngilizce dizmek sayfa sınırını kaydırıyordu.
+
+Seçim `localStorage`'da, veritabanında değil: kilit ekranının da çevrili
+açılması gerekiyor ve o an veritabanı henüz açılmamış oluyor.
+
+### Kullanıcının yazdığı hiçbir şey çevrilmiyor
+
+Kayıtlar, kenar notları, defter adları, sayfa başlıkları olduğu gibi kalıyor.
+`Gun.ad` (gün adı) türetilmiş bir görüntü dizesi olduğu için dil değişince
+o da değişiyor; saklansaydı defter iki dilli kalırdı. Kapak anahtarları da
+veritabanında sabit, yalnızca görünen adları çevriliyor.
+
+### Bilinen sınır: İngilizce kriz kartında numara yok
+
+Türkçe kart **112** diyor. İngilizce kart bir numara söylemiyor, "ülkendeki
+acil servisi ara" diyor. Sebep: uygulama kullanıcının ülkesini bilmiyor ve
+**yanlış bir acil numara vermek, hiç vermemekten kötü.** Dil etiketinden
+ülke tahmin etmek (`en-US` → 988) güvenilir değil ve bu ürünün
+"doğrulanmamış olguyu söyleme" kuralına aykırı.
+
+Bu bir eksik ve öyle yazılıyor: İngilizce yayın öncesi ya güvenilir bir
+bölge kaynağı bulunmalı ya da kart kullanıcıya bir kez ülkesini sormalı.
+`yayin/MAGAZA.md` kontrol listesinde duruyor.
+
+### Muhafızlar
+
+`test/dil.test.ts` şunları sabitliyor: iki katalog aynı anahtarları taşıyor,
+yer tutucular eşleşiyor, İngilizce değerlerde Türkçe harf kalmamış, HTML'de
+işaretsiz Türkçe metin yok, `ekran/` altında dar bir istisna listesi dışında
+sabit Türkçe dize yok.
+
+---
+
 ## 2026-08-31 · K-034 · Yayın: beyan koda bağlı, ekran görüntüsü üretilebilir
 
 Yol haritası 13. `yayin/` klasörü kod değil, **kodun beyanı**.

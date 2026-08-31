@@ -39,4 +39,35 @@ export const HAVUZ: readonly string[] = [
   'Uzun zamandır görmediğin biri aklına geldi mi?',
 ]
 
+/* ── İNGİLİZCE ─────────────────────────────────────────────
+   Çeviri değil, karşılık: aynı yay (neden → fark et → söylemediğin →
+   kişi → beklenti → gelecekteki sen → dönüp bak) ve aynı ses. Soru
+   olay sorar, duygu sormaz — "how did you feel today" soyut ve hiçbir
+   şey yazdırmıyor (KARARLAR.md · K-019, K-035). */
+
+export const ILK_HAFTA_EN: readonly string[] = [
+  'Why did you start this notebook?',
+  "What stayed in your head today? It can be small.",
+  "What happened today that you didn't tell anyone?",
+  'Who have you been thinking about most lately?',
+  'Were you waiting for something today? Did it come?',
+  'Six months from now, reading this — what should you know about today?',
+  "It's been a week. Go back over what you wrote — what repeated most?",
+]
+
+export const HAVUZ_EN: readonly string[] = [
+  'What kept you busy today?',
+  "Is there something you've stopped doing lately?",
+  "What's the question you asked nobody this week?",
+  'If you put something off today, what was it?',
+  'When were you last surprised?',
+  'Is there a sentence repeating in your head?',
+  'Were you angry at someone? What did you want to say to them?',
+  "Is there a conversation you're avoiding?",
+  'What was the one thing that went well today?',
+  'What do you think you were doing a year ago today?',
+  'Where would you rather be at this hour tomorrow?',
+  "Did someone you haven't seen in a long time cross your mind?"
+]
+
 export const ILK_HAFTA_GUN = ILK_HAFTA.length

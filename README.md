@@ -298,6 +298,34 @@ desteğin numarasını göstermek (KARARLAR.md · K-030).
   öğrenmek, en kötü şeyi yazdıran tek mekanizmayı öldürürdü. Bilerek
   ödenen bedel.
 
+## İki dil — ilke 2.1'in dili de var
+
+Uygulama Türkçe ve İngilizce. Yerelleştirme arayüzle bitmiyor: defterin
+altında **beş tane dile bağlı makine** var ve hepsi iki dilde de yazıldı
+(KARARLAR.md · K-035).
+
+| Makine | Neden çevrilmek zorunda |
+|---|---|
+| Tarih ve gün adı | Ekranda her yerde |
+| Gövdeleme (K-027) | Türkçe eklerle İngilizce arama hiç tutmaz |
+| Arşivin cümleleri | Cevap kullanıcının dilinde kurulmalı |
+| Defterin soruları | Yedi ilk hafta sorusu + havuz, aynı yay |
+| **Kriz sınıflandırıcısı** (K-030) | Çevrilmezse **ilke 2.1 o kullanıcı için hiç var olmaz** |
+
+Yol boyunca tam bunun bir örneği bulundu: `krizIsareti(metin, dil = 'tr')`
+imzasındaki sessiz varsayılan yüzünden üç çağrı yeri dili geçirmeyi atlamış
+ve İngilizce yazan bir kullanıcının açık kriz cümlesi hiç yakalanmıyordu.
+Varsayılan kaldırıldı; derleyici üç yeri de anında gösterdi. **Güvenliğe
+bakan bir işlevde sessiz varsayılan, hatanın kendisidir.**
+
+**Kullanıcının yazdığı hiçbir şey çevrilmiyor** — kayıtlar, kenar notları,
+defter adları, sayfa başlıkları olduğu gibi kalıyor.
+
+**Bilinen sınır:** İngilizce kriz kartı bir acil numara söylemiyor. Türkçe
+kart 112 diyor; uygulama İngilizce kullanıcının ülkesini bilmiyor ve yanlış
+bir acil numara vermek hiç vermemekten kötü. İngilizce yayın öncesi
+çözülmesi gereken bir açık ve `yayin/MAGAZA.md` kontrol listesinde duruyor.
+
 ## Değişmez ilkeler ve kodda karşılıkları
 
 PROJE.md §2'deki dört ilke pazarlığa kapalı. İkisinin kodda doğrudan
@@ -325,5 +353,9 @@ töreni çalışıyor; yazı tipleri gömülü. (El yazısı kapsam dışı — 
 **Faz 2 tamam:** fotoğraf ve ek (2.5), kenar notu (2.6), PIN + biyometri
 (2.7), mühürlü yedek (2.8). **Faz 3 tamam:** Türkçe gövdeleme ve cihaz-içi
 gömü araması (9), kaynaklı model çağrısı (10), kriz sınıflandırıcısı (11),
-yazdıktan sonra tek soru (12). Sırada Faz 4 — yayın metinleri ve İngilizce
-yerelleştirme.
+yazdıktan sonra tek soru (12). **Faz 4 tamam:** yayın metinleri, gizlilik
+beyanı ve ekran görüntüleri (13), İngilizce yerelleştirme (14).
+
+Yol haritasının tamamı bitti. Kalanlar cihazda doğrulanacak şeyler:
+SQLCipher, biyometri, gömü modelinin indirilmesi ve model çağrısının gerçek
+bir anahtarla çalışması (`yayin/MAGAZA.md` kontrol listesi).

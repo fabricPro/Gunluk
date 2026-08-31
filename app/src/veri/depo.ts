@@ -1,6 +1,8 @@
 import type { DefterBilgi, Ek, EkBilgi, Gun, Kapsul, Kayit, KenarNotu } from '../cekirdek/tipler.js'
 import type { TemaTanim } from '../cekirdek/sorgu.js'
 import { gunAdi, iso } from '../cekirdek/tr.js'
+import { gunAdiEn } from '../cekirdek/en.js'
+import type { Dil } from '../cekirdek/dil.js'
 import type { SqlSurucu } from './db.js'
 
 const kimlik = (): string =>
@@ -54,7 +56,21 @@ export class Depo {
   /** Okuma ve yazmanın hangi deftere ait olduğu. */
   private defterId = 'defter-1'
 
+  /**
+   * Gün adının yazılacağı dil.
+   *
+   * `Gun.ad` türetilmiş bir görüntü dizesi — veritabanında saklanmıyor,
+   * her okumada tarihten hesaplanıyor. Bu yüzden dil değişince eski
+   * kayıtlar da yeni dilde okunuyor; saklansaydı defter iki dilli
+   * kalırdı (KARARLAR.md · K-035).
+   */
+  dil: Dil = 'tr'
+
   constructor(private readonly db: SqlSurucu) {}
+
+  private gunAdi(tarih: string): string {
+    return this.dil === 'en' ? gunAdiEn(tarih) : gunAdi(tarih)
+  }
 
   defteriSec(id: string): void {
     this.defterId = id
@@ -137,7 +153,7 @@ export class Depo {
     let acik: Gun | null = null
     for (const r of satirlar) {
       if (!acik || acik.tarih !== r.tarih) {
-        acik = { tarih: r.tarih, ad: gunAdi(r.tarih), kayitlar: [] }
+        acik = { tarih: r.tarih, ad: this.gunAdi(r.tarih), kayitlar: [] }
         gunler.push(acik)
       }
       acik.kayitlar.push(satirdanKayit(r))

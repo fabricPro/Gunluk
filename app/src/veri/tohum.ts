@@ -1,4 +1,5 @@
 import { gunAdi, iso } from '../cekirdek/tr.js'
+import type { Dil } from '../cekirdek/dil.js'
 import type { Depo } from './depo.js'
 
 /**
@@ -31,6 +32,71 @@ const TEMALAR: [string, string, string[]][] = [
   ['ev', 'Ev', ['ev', 'oda']],
   ['yuruyus', 'Yürüyüş', ['yürüyüş', 'yürüdüm']],
 ]
+
+/*
+ * Tema adları ve cümleler iki dilde.
+ *
+ * Mağaza görselleri iki dilde çekiliyor ve İngilizce listede Türkçe
+ * günlük metni görünmesi ürünü bozuk gösterirdi. Aynı örüntü, aynı
+ * tohum, aynı yoğunluk — yalnızca dil değişiyor (KARARLAR.md · K-035).
+ */
+const TEMALAR_EN: [string, string, string[]][] = [
+  ['tez', 'Thesis', ['thesis', 'dissertation']],
+  ['is', 'Work', ['work', 'interview', 'cv', 'application']],
+  ['annem', 'Mum', ['mum', 'mother']],
+  ['ece', 'Ece', ['ece']],
+  ['kerem', 'Kerem', ['kerem']],
+  ['baris', 'Baris', ['baris']],
+  ['uyku', 'Sleep', ['sleep', 'slept', 'sleepless']],
+  ['yetersiz', 'Not enough', ['not enough', "can't do", 'failing']],
+  ['beklemek', 'Waiting', ['waiting', 'waited', "didn't write"]],
+  ['umut', 'Hope', ['hope', 'helped', 'glad']],
+  ['ev', 'Home', ['home', 'room']],
+  ['yuruyus', 'Walking', ['walk', 'walked']],
+]
+
+const CUMLE_EN: Record<string, string[]> = {
+  tez: [
+    "Couldn't sit down for the thesis again today.",
+    "My supervisor hasn't replied; I'm waiting.",
+    'Wrote one paragraph, then deleted it.',
+  ],
+  is: [
+    'Sent out three more applications.',
+    "None of them came back to me.",
+    'Rewrote the CV from scratch again.',
+  ],
+  annem: [
+    'Mum asked again and I had no answer.',
+    'My voice shook while talking to Mum.',
+    'Lied to Mum. Said I was fine.',
+  ],
+  ece: [
+    "Ece called, I didn't pick up.",
+    'Talked to Ece; it helped.',
+    'Wanted to tell Ece, and could not.',
+  ],
+  kerem: [
+    "Kerem didn't write again.",
+    "Looked at Kerem's story.",
+    'Kerem liked one thing today, that was all.',
+  ],
+  baris: ['Met up with Baris.', 'Baris called; we talked for a long time.', 'No word from Baris.'],
+  uyku: ['Fell asleep near dawn again.', 'Slept two hours.', "Can't sleep, it's three."],
+  yetersiz: [
+    "Couldn't manage this either.",
+    'Everyone is doing something and I am standing still.',
+    "I'm twenty-three and there is nothing.",
+  ],
+  beklemek: [
+    "I'm waiting. I don't know what for.",
+    "I can't stop looking at my phone.",
+    "I keep waiting for something to happen.",
+  ],
+  umut: ['Today was a little better.', 'Maybe it will work out.', 'Felt good for the first time in a long while.'],
+  ev: ['Stayed in the room all day.', "Didn't leave the house.", 'The house is very quiet.'],
+  yuruyus: ['Went out for a walk; it helped.', 'Walked for an hour.', 'Walking cleared my head.'],
+}
 
 const CUMLE: Record<string, string[]> = {
   tez: ['Tez için bugün de oturamadım.', 'Danışman dönmedi, bekliyorum.', 'Bir paragraf yazdım, sonra sildim.'],
@@ -65,12 +131,19 @@ const DONEMLER: Donem[] = [
   { ay: '2026-08', yaz: 2.4, w: { is: 4, kerem: 3, beklemek: 2, umut: 2, yuruyus: 1 } },
 ]
 
-export async function tohumEk(depo: Depo, bitis = '2026-08-28'): Promise<number> {
+export async function tohumEk(
+  depo: Depo,
+  bitis = '2026-08-28',
+  dil: Dil = 'tr',
+): Promise<number> {
   if ((await depo.kayitSayisi()) > 0) return 0
   const rnd = cekirdek(20260828)
   const sec = <T>(d: T[]): T => d[Math.floor(rnd() * d.length)]!
+  const en = dil === 'en'
+  const temalar = en ? TEMALAR_EN : TEMALAR
+  const cumleler = en ? CUMLE_EN : CUMLE
 
-  for (const [id, ad, anahtar] of TEMALAR) await depo.temaTanimla(id, ad, anahtar)
+  for (const [id, ad, anahtar] of temalar) await depo.temaTanimla(id, ad, anahtar)
 
   const agirlikliSec = (w: Record<string, number>, adet: number): string[] => {
     const havuz: string[] = []
@@ -106,7 +179,7 @@ export async function tohumEk(depo: Depo, bitis = '2026-08-28'): Promise<number>
       const s = saatSec(tm)
       gunlukler.push({
         saat: `${String(s).padStart(2, '0')}:${String(Math.floor(rnd() * 60)).padStart(2, '0')}`,
-        metin: tm.map((x) => sec(CUMLE[x] ?? ['…'])).join(' '),
+        metin: tm.map((x) => sec(cumleler[x] ?? ['…'])).join(' '),
         temalar: tm,
       })
     }
@@ -121,11 +194,11 @@ export async function tohumEk(depo: Depo, bitis = '2026-08-28'): Promise<number>
       ilkKayitId ??= kayit.id
       adetToplam++
     }
-    await depo.defterAdiYaz(depo.aktifDefterId, 'Son yıl')
+    await depo.defterAdiYaz(depo.aktifDefterId, en ? 'Last year' : 'Son yıl')
     /* Tohum verisi 45 sayfayı aşıyor; defter dolu görünüp yazmayı
        engellemesin diye sınırı içeriğe göre açıyoruz. */
     await depo.sayfaSiniriYaz(depo.aktifDefterId, 120)
-    if (ilkKayitId) await depo.baslikYaz(ilkKayitId, 'Son yaz')
+    if (ilkKayitId) await depo.baslikYaz(ilkKayitId, en ? 'Last summer' : 'Son yaz')
   })
   console.info(`[defter] tohum: ${adetToplam} kayıt eklendi (${gunAdi(bitis)} gününe kadar).`)
   return adetToplam

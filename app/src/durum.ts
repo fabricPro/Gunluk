@@ -4,6 +4,7 @@ import { BASLANGIC, gununSorusu, havuzdanSor, havuzuIlerlet, ilkHaftaBitti, kayi
 import type { YonlendirmeDurum } from './cekirdek/yonlendirme.js'
 import type { TemaTanim } from './cekirdek/sorgu.js'
 import { krizIsareti } from './cekirdek/kriz.js'
+import type { Dil } from './cekirdek/dil.js'
 import type { Cilt, DefterBilgi, EkBilgi, Gun, KenarNotu, Sayfa } from './cekirdek/tipler.js'
 import type { Depo } from './veri/depo.js'
 
@@ -46,6 +47,11 @@ export class Durum {
   sorguGom: ((metin: string) => Promise<Float32Array | null>) | null = null
   /** Tarayıcı derlemesinde false — veritabanı şifresiz. */
   sifreli = false
+  /**
+   * Arayüz ve dil makinelerinin dili. Açılışta bir kez kuruluyor;
+   * değiştirilince sayfa yeniden yükleniyor (KARARLAR.md · K-035).
+   */
+  dil: Dil = 'tr'
   /** Ölçülmüş sayfa kapasitesi; ekran katmanı doldurur. */
   olcu: SayfaOlcu = VARSAYILAN_OLCU
   /** İlk hafta yönlendirmesinin durumu. */
@@ -118,7 +124,7 @@ export class Durum {
 
     /* Bugünün kayıtlarında kriz işareti var mı — hesaplanır, saklanmaz. */
     const buGun = this.gunler[this.gunler.length - 1]
-    this.krizVar = !!buGun && buGun.kayitlar.some((k) => krizIsareti(k.metin).var)
+    this.krizVar = !!buGun && buGun.kayitlar.some((k) => krizIsareti(k.metin, this.dil).var)
 
     const akis = sayfalariKur({
       gunler: this.gunler,
@@ -142,13 +148,13 @@ export class Durum {
       this.aktifSoru = null
       return
     }
-    this.aktifSoru = gununSorusu(this.yonlendirme, bugun, this.krizVar)
+    this.aktifSoru = gununSorusu(this.yonlendirme, bugun, this.krizVar, this.dil)
   }
 
   /** Kullanıcı "bana bir şey sor" dedi. */
   async baskaSoruIste(): Promise<void> {
     if (!this.yazilabilir) return
-    this.aktifSoru = havuzdanSor(this.yonlendirme, this.krizVar)
+    this.aktifSoru = havuzdanSor(this.yonlendirme, this.krizVar, this.dil)
     this.yonlendirme = havuzuIlerlet(this.yonlendirme)
     await this.depo.ayarYaz('yonlendirme.havuz', String(this.yonlendirme.havuzIndeks))
   }
@@ -197,7 +203,7 @@ export class Durum {
 
   /** Metinden bilinen temaları yakalar. */
   temalariCikar(metin: string): string[] {
-    const k = metin.toLocaleLowerCase('tr')
+    const k = metin.toLocaleLowerCase(this.dil)
     return this.temalar.filter((t) => t.anahtar.some((a) => k.includes(a))).map((t) => t.id)
   }
 }

@@ -8,6 +8,9 @@
  *   node arac/ekranGoruntusu.mjs
  *
  * Not: tohum verisiyle koşuyor — gerçek bir defter kullanılmıyor.
+ *
+ * İki dilde de çekiyor: uygulama iki dilde de yayınlanıyor ve mağaza
+ * görselleri o dilin metinleriyle olmak zorunda (KARARLAR.md · K-035).
  */
 import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
@@ -22,12 +25,21 @@ const OLCULER = [
   { ad: 'ipad', en: 2064, boy: 2752, olcek: 2 },
 ]
 
+/** Dil, cihaz yerelinden değil AÇIKÇA seçiliyor — görsel rastlantıya kalmasın. */
+const DILLER = [
+  { kod: 'tr', yerel: 'tr-TR' },
+  { kod: 'en', yerel: 'en-US' },
+]
+
 const SAHNELER = [
   {
     ad: '1-defter',
     kur: async (p) => {
       await p.click('nav button[data-ekran="defter"]')
-      await p.waitForTimeout(400)
+      /* Son sayfa çoğu zaman yarı boş; bir geri git ki dolu bir sayfa
+         görünsün — mağaza görselinin işi ürünü göstermek. */
+      await p.click('#geri')
+      await p.waitForTimeout(600)
     },
   },
   {
@@ -45,7 +57,7 @@ const SAHNELER = [
       await p.click('nav button[data-ekran="defter"]')
       await p.click('#yakBtn')
       await p.waitForTimeout(300)
-      await p.fill('#yakYazi', 'Kimseye söyleyemediğim şey.')
+      await p.fill('#yakYazi', 'The thing I could never say to anyone.')
       await p.click('#yakBas')
       await p.waitForTimeout(750)
     },
@@ -70,20 +82,24 @@ const SAHNELER = [
 mkdirSync(CIKTI, { recursive: true })
 const tarayici = await chromium.launch(KROM ? { executablePath: KROM } : {})
 
-for (const o of OLCULER) {
-  for (const s of SAHNELER) {
-    const baglam = await tarayici.newContext({
-      viewport: { width: Math.round(o.en / o.olcek), height: Math.round(o.boy / o.olcek) },
-      deviceScaleFactor: o.olcek,
-    })
-    const p = await baglam.newPage()
-    await p.goto(`${ADRES}/?tohum`, { waitUntil: 'networkidle' })
-    await p.waitForTimeout(900)
-    await s.kur(p)
-    const yol = `${CIKTI}${o.ad}-${s.ad}.png`
-    await p.screenshot({ path: yol })
-    console.log(yol)
-    await baglam.close()
+for (const d of DILLER) {
+  for (const o of OLCULER) {
+    for (const s of SAHNELER) {
+      const baglam = await tarayici.newContext({
+        viewport: { width: Math.round(o.en / o.olcek), height: Math.round(o.boy / o.olcek) },
+        deviceScaleFactor: o.olcek,
+        locale: d.yerel,
+      })
+      const p = await baglam.newPage()
+      await p.addInitScript((kod) => localStorage.setItem('defter.dil', kod), d.kod)
+      await p.goto(`${ADRES}/?tohum`, { waitUntil: 'networkidle' })
+      await p.waitForTimeout(900)
+      await s.kur(p)
+      const yol = `${CIKTI}${d.kod}-${o.ad}-${s.ad}.png`
+      await p.screenshot({ path: yol })
+      console.log(yol)
+      await baglam.close()
+    }
   }
 }
 await tarayici.close()

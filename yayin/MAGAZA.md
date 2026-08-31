@@ -15,6 +15,7 @@ zaman yapıldığı yazılıyor.
 | Alan | Değer |
 |---|---|
 | Ad | Defter |
+| Diller | Türkçe, İngilizce |
 | Alt başlık (TR) | Yazdığın yerde kalır |
 | Alt başlık (EN) | A diary that stays on your device |
 | Kategori | Sağlık ve Fitness → yok. **Yaşam Tarzı** (birincil), **Verimlilik** (ikincil) |
@@ -193,7 +194,12 @@ yeniden üretiliyorlar.
 Ölçüler: iPhone 6.9" (1320×2868) ve iPad 13" (2064×2752). Play Store
 telefon görselleri için iPhone dosyaları kullanılabilir.
 
-| Dosya | Ne gösteriyor | Altyazı önerisi (TR / EN) |
+Dosya adı `{dil}-{cihaz}-{sahne}.png`: her sahne **iki dilde** çekiliyor,
+çünkü uygulama iki dilde yayınlanıyor ve mağaza görselleri o dilin
+metinleriyle olmak zorunda. İngilizce görsellerde defter içeriği de
+İngilizce örnek veridir.
+
+| Sahne | Ne gösteriyor | Altyazı önerisi (TR / EN) |
 |---|---|---|
 | `1-defter` | Yazılmış bir sayfa, günün sorusu | Defterin sayfa sayfa dolar. / Your notebook fills page by page. |
 | `2-arsiv` | Kaynaklı arşiv cevabı | Cevap yalnızca senin yazdıklarından. / Answers only from what you wrote. |
@@ -216,3 +222,9 @@ telefon görselleri için iPhone dosyaları kullanılabilir.
 - [ ] Cihazda gömü modeli indirmesi doğrulandı (K-029)
 - [ ] Kriz kartının cihazda göründüğü ve kaydırıldığı doğrulandı (K-030)
 - [ ] Model cevabı gerçek bir anahtarla cihazda denendi (K-031)
+- [ ] **İngilizce kriz kartındaki acil numara açığı kapatıldı (K-035).**
+      Türkçe kart 112 diyor; İngilizce kart bir numara söylemiyor, çünkü
+      uygulama kullanıcının ülkesini bilmiyor ve yanlış numara vermek hiç
+      vermemekten kötü. İngilizce yayın bu çözülmeden yapılmamalı: ya
+      güvenilir bir bölge kaynağı, ya kullanıcıya bir kez sorulan ülke.
+- [ ] Ekran görüntüleri iki dilde de tazelendi (`npm run gorsel`)

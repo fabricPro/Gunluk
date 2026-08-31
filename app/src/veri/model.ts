@@ -13,7 +13,8 @@
  * gömü modelinde alınan tavırla aynı (K-029).
  */
 import type { Anlatim } from '../cekirdek/anlatim.js'
-import { SISTEM, SORU_SISTEM, kullaniciMetni, soruIstegi } from '../cekirdek/anlatim.js'
+import { kullaniciMetni, sistemi, soruIstegi, soruSistemi } from '../cekirdek/anlatim.js'
+import type { Dil } from '../cekirdek/dil.js'
 
 export const MODEL = 'claude-opus-5'
 
@@ -53,7 +54,7 @@ export async function cevapAkit(
          parası boşuna yanmasın. */
       output_config: { effort: 'low' },
       thinking: { type: 'adaptive' },
-      system: SISTEM,
+      system: sistemi(anlatim.dil),
       messages: [{ role: 'user', content: kullaniciMetni(anlatim) }],
     })
     akis.on('text', parca)
@@ -85,8 +86,12 @@ export async function cevapAkit(
  */
 export const SORU_JETON = 120
 
-export async function soruUret(kayitMetni: string, anahtar: string): Promise<string | null> {
-  const gidecek = soruIstegi(kayitMetni)
+export async function soruUret(
+  kayitMetni: string,
+  anahtar: string,
+  dil: Dil,
+): Promise<string | null> {
+  const gidecek = soruIstegi(kayitMetni, dil)
   if (!gidecek) return null
   const { default: Anthropic } = await import('@anthropic-ai/sdk')
   const istemci = new Anthropic({ apiKey: anahtar, dangerouslyAllowBrowser: true })
@@ -96,7 +101,7 @@ export async function soruUret(kayitMetni: string, anahtar: string): Promise<str
       max_tokens: SORU_JETON,
       output_config: { effort: 'low' },
       thinking: { type: 'adaptive' },
-      system: SORU_SISTEM,
+      system: soruSistemi(dil),
       messages: [{ role: 'user', content: gidecek }],
     })
     const metin = c.content

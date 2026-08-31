@@ -1,3 +1,8 @@
+import type { Dil } from '../cekirdek/dil.js'
+import { METIN } from '../cekirdek/metin.js'
+import { gunAdi, tamTarih } from '../cekirdek/tr.js'
+import { gunAdiEn, tamTarihEn } from '../cekirdek/en.js'
+
 export const $ = <T extends HTMLElement = HTMLElement>(s: string): T =>
   document.querySelector<T>(s)!
 export const $$ = <T extends HTMLElement = HTMLElement>(s: string): T[] => [
@@ -56,3 +61,42 @@ export const suanSaat = (): string => {
   const d = new Date()
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
+
+/* ── dil ───────────────────────────────────────────────────
+   Modül düzeyinde tek bir dil var ve açılışta bir kez kuruluyor. Her
+   ekrana parametre olarak geçirmek yerine burada durması bilinçli: dil
+   uygulama ömrü boyunca sabit, değişince sayfa yeniden yükleniyor.
+   Yarı yarıya çevrilmiş bir ekran hiç olmuyor (KARARLAR.md · K-035). */
+
+let aktifDil: Dil = 'tr'
+
+export const dil = (): Dil => aktifDil
+
+/**
+ * Dili kurar ve HTML'deki durağan metinleri yerleştirir.
+ *
+ * `data-m` metni, `data-m-h` HTML'i (içinde <b> olanlar), `data-m-y`
+ * yer tutucuyu, `data-m-b` başlık (title) özniteliğini dolduruyor.
+ */
+export function dilKur(d: Dil): void {
+  aktifDil = d
+  document.documentElement.lang = d
+  for (const e of $$('[data-m]')) e.textContent = S(e.dataset.m!)
+  for (const e of $$('[data-m-h]')) e.innerHTML = S(e.dataset.mH!)
+  for (const e of $$<HTMLInputElement>('[data-m-y]')) e.placeholder = S(e.dataset.mY!)
+  for (const e of $$('[data-m-b]')) e.title = S(e.dataset.mB!)
+}
+
+/** Katalogdan dize; `{n}` gibi yer tutucular ikinci argümanla dolar. */
+export function S(anahtar: string, degerler?: Record<string, string | number>): string {
+  let m = METIN[aktifDil][anahtar] ?? METIN.tr[anahtar] ?? anahtar
+  if (degerler)
+    for (const [k, v] of Object.entries(degerler)) m = m.split(`{${k}}`).join(String(v))
+  return m
+}
+
+/* Tarih yazımı aktif dile göre — ekranlar hangi dilde olduğunu bilmesin. */
+export const tarihYaz = (t: string): string =>
+  aktifDil === 'en' ? tamTarihEn(t) : tamTarih(t)
+
+export const gunAd = (t: string): string => (aktifDil === 'en' ? gunAdiEn(t) : gunAdi(t))

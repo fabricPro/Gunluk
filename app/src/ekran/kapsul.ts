@@ -1,6 +1,6 @@
-import { gunFark, iso, tamTarih } from '../cekirdek/tr.js'
+import { gunFark, iso } from '../cekirdek/tr.js'
 import type { Depo } from '../veri/depo.js'
-import { $, $$, bugun, kacir } from './ortak.js'
+import { $, $$, S, bugun, kacir, tarihYaz } from './ortak.js'
 
 /**
  * Zaman kapsülü: kendine mektup. Açılış gününe kadar mühürlü — kullanıcı da
@@ -26,8 +26,8 @@ export function kapsuleBagla(depo: Depo): { ciz: () => Promise<void> } {
     const f = gunFark(bugun(), h)
     $('#kapUyari').textContent =
       f > 0
-        ? `${tamTarih(h)} günü açılacak — ${f} gün sonra. O güne kadar sen de açamazsın.`
-        : 'Geçmiş bir tarih seçilemez.'
+        ? S('kap.acilacak', { tarih: tarihYaz(h), n: f })
+        : S('kap.gecmisTarih')
   }
 
   for (const b of dugmeler)
@@ -54,21 +54,27 @@ export function kapsuleBagla(depo: Depo): { ciz: () => Promise<void> } {
           const kalan = gunFark(bugun(), m.acilma)
           const yil = Math.floor(kalan / 365)
           return `<div class="mektup muhurlu">
-            <div class="m-et">mühürlü · ${tamTarih(m.yazilma)} tarihinde yazıldı</div>
-            <div class="m-muhur">Bu mektubu ${tamTarih(m.acilma)} gününe kadar sen bile açamazsın.</div>
-            <div class="m-sayac">${kalan} gün kaldı${yil > 0 ? ` · yaklaşık ${yil} yıl` : ''}</div></div>`
+            <div class="m-et">${S('kap.muhurlu', { tarih: tarihYaz(m.yazilma) })}</div>
+            <div class="m-muhur">${S('kap.muhurNot', { tarih: tarihYaz(m.acilma) })}</div>
+            <div class="m-sayac">${S('kap.kalan', { n: kalan })}${
+              yil > 0 ? S('kap.yaklasikYil', { n: yil }) : ''
+            }</div></div>`
         }
         return `<div class="mektup acildi">
-          <div class="m-et">açıldı · ${tamTarih(m.yazilma)} → ${tamTarih(m.acilma)} · ${gunFark(m.yazilma, m.acilma)} gün beklendi</div>
+          <div class="m-et">${S('kap.acildi', {
+            yaz: tarihYaz(m.yazilma),
+            ac: tarihYaz(m.acilma),
+            n: gunFark(m.yazilma, m.acilma),
+          })}</div>
           <div class="m-govde">${kacir(m.metin)}</div>
           ${
             m.cevap
-              ? `<div class="m-cevap"><div class="m-et">cevabın · ${tamTarih(m.cevapTarihi!)}</div>
+              ? `<div class="m-cevap"><div class="m-et">${S('kap.cevabin')} · ${tarihYaz(m.cevapTarihi!)}</div>
                   <div class="m-govde">${kacir(m.cevap)}</div></div>`
-              : `<button class="m-cevap-ac" data-id="${m.id}">bu mektuba cevap yaz</button>
+              : `<button class="m-cevap-ac" data-id="${m.id}">${S('kap.cevapYaz')}</button>
                  <div class="m-cevapla" id="cev${m.id}" style="display:none">
-                   <textarea placeholder="o gün yazan bana…"></textarea>
-                   <button data-gonder="${m.id}">cevabı ekle</button></div>`
+                   <textarea placeholder="${S('kap.cevapYer')}"></textarea>
+                   <button data-gonder="${m.id}">${S('kap.cevapEkle')}</button></div>`
           }</div>`
       })
       .join('')

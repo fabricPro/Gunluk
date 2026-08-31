@@ -1,5 +1,5 @@
 import type { Kilit } from '../kilitAkis.js'
-import { $, $$ } from './ortak.js'
+import { $, $$, S } from './ortak.js'
 
 /**
  * Kilit ekranı.
@@ -34,8 +34,8 @@ export function kilitEkraniBagla(
     const sn = Math.ceil(kalan / 1000)
     uyari(
       sn > 90
-        ? `Çok fazla deneme. ${Math.ceil(sn / 60)} dakika sonra tekrar dene.`
-        : `Çok fazla deneme. ${sn} saniye sonra tekrar dene.`,
+        ? S('kil.beklemeDk', { n: Math.ceil(sn / 60) })
+        : S('kil.beklemeSn', { n: sn }),
     )
   }
 
@@ -51,7 +51,7 @@ export function kilitEkraniBagla(
     }
     if (s.sebep === 'bekleme') return beklemeYaz(s.kalan ?? 0)
     if (s.kalan) return beklemeYaz(s.kalan)
-    uyari('Olmadı. Bir daha dene.')
+    uyari(S('kil.yanlis'))
   }
 
   alan().addEventListener('input', () => {

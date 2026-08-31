@@ -16,14 +16,14 @@
 <div id="isik"></div><div id="ahsap"></div>
 
 <header>
-  <div class="marka">defter</div>
+  <div class="marka" data-m="ust.marka">defter</div>
   <nav>
-    <button data-ekran="defter" aria-current="true">defter</button>
-    <button data-ekran="arsiv">arşiv</button>
-    <button data-ekran="kapsul">kapsül</button>
+    <button data-ekran="defter" aria-current="true" data-m="ust.defter">defter</button>
+    <button data-ekran="arsiv" data-m="ust.arsiv">arşiv</button>
+    <button data-ekran="kapsul" data-m="ust.kapsul">kapsül</button>
   </nav>
-  <button class="ust-btn" id="ayarlarBtn" title="ayarlar">ayarlar</button>
-  <button class="ust-btn" id="kilitle">kapat</button>
+  <button class="ust-btn" id="ayarlarBtn" data-m-b="ust.ayarlar" data-m="ust.ayarlar">ayarlar</button>
+  <button class="ust-btn" id="kilitle" data-m="ust.kapat">kapat</button>
 </header>
 
 <main>
@@ -33,29 +33,28 @@
       <div class="defter-ust"><b id="ciltAd"></b><span id="sayfaNo"></span><span class="kalan" id="kalanYazi"></span></div>
       <div id="kagit-kap"></div>
       <div class="arac">
-        <button class="ok" id="geri" title="önceki sayfa">‹</button>
-        <button class="ok" id="ileri" title="sonraki sayfa">›</button>
-        <button id="bugune">bugüne dön</button>
-        <button id="fihristBtn">fihrist</button>
-        <button id="soruIste">bana bir şey sor</button>
-        <button id="soruYazdan">yazdığıma bir soru sor</button>
-        <button id="dikte">sesli yaz</button>
-        <button id="ekIlistir">bir şey iliştir</button>
-        <button id="yakBtn">yakılan sayfa</button>
-        <button id="birak">bırak</button>
+        <button class="ok" id="geri" data-m-b="arac.geri">‹</button>
+        <button class="ok" id="ileri" data-m-b="arac.ileri">›</button>
+        <button id="bugune" data-m="arac.bugune">bugüne dön</button>
+        <button id="fihristBtn" data-m="arac.fihrist">fihrist</button>
+        <button id="soruIste" data-m="arac.soruIste">bana bir şey sor</button>
+        <button id="soruYazdan" data-m="arac.soruYazdan">yazdığıma bir soru sor</button>
+        <button id="dikte" data-m="arac.dikte">sesli yaz</button>
+        <button id="ekIlistir" data-m="arac.ek">bir şey iliştir</button>
+        <button id="yakBtn" data-m="arac.yak">yakılan sayfa</button>
+        <button id="birak" data-m="arac.birak">bırak</button>
       </div>
     </div>
   </section>
 
   <section class="ekran" id="arsiv">
     <div class="ar-ic">
-      <div class="ar-ust"><h2>arşiv</h2></div>
+      <div class="ar-ust"><h2 data-m="arsiv.baslik">arşiv</h2></div>
       <div class="sor">
-        <input id="soruKutu" placeholder="defterine sor…" autocomplete="off" spellcheck="false">
-        <button id="sorBtn">ara</button>
+        <input id="soruKutu" data-m-y="arsiv.sor" placeholder="defterine sor…" autocomplete="off" spellcheck="false">
+        <button id="sorBtn" data-m="arsiv.ara">ara</button>
       </div>
-      <div class="sor-ipucu">«şubatta neden bu kadar kötüydüm» · «kerem» · «annemle kavgalarım»<br>
-        Cevap yalnızca senin yazdıklarından kurulur. Yazmadığın bir şey uydurulmaz.</div>
+      <div class="sor-ipucu" data-m-h="arsiv.ipucu"></div>
       <div id="cevapAlan"></div>
       <div id="gecenYil"></div>
     </div>
@@ -63,21 +62,20 @@
 
   <section class="ekran" id="kapsul">
     <div class="kap-ic">
-      <div class="kap-ust"><h2>zaman kapsülü</h2>
-        <div class="alt">Kendine mektup yaz. Seçtiğin güne kadar mühürlü kalır — sen bile açamazsın.<br>
-          Açıldığında cevap yazarsın; mektup ve cevabı yan yana durur.</div></div>
+      <div class="kap-ust"><h2 data-m="kapsul.baslik">zaman kapsülü</h2>
+        <div class="alt" data-m-h="kapsul.alt"></div></div>
       <div class="kap-yeni">
-        <textarea id="mektupYazi" placeholder="sevgili ben,"></textarea>
+        <textarea id="mektupYazi" data-m-y="kapsul.yer" placeholder="sevgili ben,"></textarea>
         <div class="kap-alt">
-          <span>ne zaman açılsın</span>
-          <button data-gun="7">1 hafta</button>
-          <button data-ay="1">1 ay</button>
-          <button data-ay="3" class="secili">3 ay</button>
-          <button data-ay="6">6 ay</button>
-          <button data-ay="12">1 yıl</button>
-          <button data-ay="60">5 yıl</button>
-          <input type="date" id="ozelTarih" title="kendi tarihini seç">
-          <button class="muhurle" id="muhurle">mühürle</button>
+          <span data-m="kapsul.neZaman">ne zaman açılsın</span>
+          <button data-gun="7" data-m="kapsul.hafta1">1 hafta</button>
+          <button data-ay="1" data-m="kapsul.ay1">1 ay</button>
+          <button data-ay="3" class="secili" data-m="kapsul.ay3">3 ay</button>
+          <button data-ay="6" data-m="kapsul.ay6">6 ay</button>
+          <button data-ay="12" data-m="kapsul.yil1">1 yıl</button>
+          <button data-ay="60" data-m="kapsul.yil5">5 yıl</button>
+          <input type="date" id="ozelTarih" data-m-b="kapsul.ozelTarih">
+          <button class="muhurle" id="muhurle" data-m="kapsul.muhurle">mühürle</button>
         </div>
         <div class="kap-uyari" id="kapUyari"></div>
       </div>
@@ -87,11 +85,11 @@
 </main>
 
 <div id="fihrist"><div class="fih-kagit">
-  <h3>Fihrist</h3><div class="alt" id="fihAlt"></div>
+  <h3 data-m="fihrist.baslik">Fihrist</h3><div class="alt" id="fihAlt"></div>
   <div id="fihListe"></div>
   <div class="fih-alt-arac">
-    <button id="defteriBitir">bu defteri kapat</button>
-    <button class="fih-kapat" id="fihKapat">kapat</button>
+    <button id="defteriBitir" data-m="fihrist.defteriBitir">bu defteri kapat</button>
+    <button class="fih-kapat" id="fihKapat" data-m="fihrist.kapat">kapat</button>
   </div>
 </div></div>
 
@@ -99,30 +97,29 @@
 <div id="ekTam"></div>
 
 <div id="yak">
-  <div class="uyari">Bu sayfa <b>hiçbir yere kaydedilmiyor.</b> Aranamaz, geri getirilemez, arşive girmez.
-    Yaktığında bir daha kimse — sen dahil — göremez.</div>
+  <div class="uyari" data-m-h="yak.uyari"></div>
   <div id="yakAlan">
-    <textarea id="yakYazi" placeholder="burada ne yazdığın kimseyi ilgilendirmiyor."
+    <textarea id="yakYazi" data-m-y="yak.yer" placeholder="burada ne yazdığın kimseyi ilgilendirmiyor."
       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
       data-klavye-ogrenmesin="1"></textarea>
     <div id="yakGoster" style="display:none"></div>
   </div>
-  <div id="yakSon">Gitti.</div>
-  <div class="altlik" id="yakAltlik"><button id="yakVaz">vazgeç</button><button id="yakBas">YAK</button></div>
+  <div id="yakSon" data-m="yak.son">Gitti.</div>
+  <div class="altlik" id="yakAltlik"><button id="yakVaz" data-m="yak.vazgec">vazgeç</button><button id="yakBas" data-m="yak.yak">YAK</button></div>
 </div>
 <div id="korlar"></div>
 
 <div id="kilitEkrani">
   <div class="kil-ic">
-    <div class="kil-kapak"><b>defter</b><small id="kilAlt">kilitli</small></div>
+    <div class="kil-kapak"><b data-m="kilit.marka">defter</b><small id="kilAlt" data-m="kilit.alt">kilitli</small></div>
     <div class="kil-giris">
       <div class="kil-noktalar" id="kilNoktalar"></div>
       <input id="kilPin" inputmode="numeric" autocomplete="off" spellcheck="false"
         aria-label="PIN" maxlength="64">
       <div class="kil-uyari" id="kilUyari"></div>
       <div class="kil-dugmeler">
-        <button id="kilBiyo">biyometriyle aç</button>
-        <button id="kilParola">parola kullan</button>
+        <button id="kilBiyo" data-m="kilit.biyo">biyometriyle aç</button>
+        <button id="kilParola" data-m="kilit.parola">parola kullan</button>
       </div>
     </div>
   </div>
@@ -130,64 +127,65 @@
 
 <div id="ayarlar">
   <div class="ay-kagit">
-    <h3>Ayarlar</h3>
+    <h3 data-m="ay.baslik">Ayarlar</h3>
     <div class="ay-bolum">
-      <div class="ay-baslik">Kilit</div>
+      <div class="ay-baslik" data-m="ay.kilit">Kilit</div>
       <div class="ay-alt" id="ayKilitDurum"></div>
       <div class="ay-dugmeler" id="ayKilitDugmeler"></div>
     </div>
     <div class="ay-bolum">
-      <div class="ay-baslik">Yedek</div>
-      <div class="ay-alt">Defterin tamamı tek dosyaya çıkar. Mühürlü yedek şifrelidir ve
-        yalnızca kurtarma kodunla açılır; açık dışa aktarma şifresizdir, on yıl sonra bu
-        uygulama olmasa da okunur.</div>
+      <div class="ay-baslik" data-m="ay.yedek">Yedek</div>
+      <div class="ay-alt" data-m="ay.yedekAlt"></div>
       <div class="ay-dugmeler">
-        <button data-eylem="yedekAl">mühürlü yedek al</button>
-        <button data-eylem="geriYukle">yedekten geri yükle</button>
-        <button data-eylem="mdAktar">Markdown olarak çıkar</button>
+        <button data-eylem="yedekAl" data-m="ay.yedekAl">mühürlü yedek al</button>
+        <button data-eylem="geriYukle" data-m="ay.geriYukle">yedekten geri yükle</button>
+        <button data-eylem="mdAktar" data-m="ay.mdAktar">Markdown olarak çıkar</button>
       </div>
     </div>
     <div class="ay-bolum">
-      <div class="ay-baslik">Anlam araması</div>
+      <div class="ay-baslik" data-m="ay.gomu">Anlam araması</div>
       <div class="ay-alt" id="ayGomuDurum"></div>
       <div class="ay-dugmeler" id="ayGomuDugmeler"></div>
     </div>
     <div class="ay-bolum">
-      <div class="ay-baslik">Model cevabı</div>
+      <div class="ay-baslik" data-m="ay.model">Model cevabı</div>
       <div class="ay-alt" id="ayModelDurum"></div>
       <div class="ay-dugmeler" id="ayModelDugmeler"></div>
     </div>
+    <div class="ay-bolum">
+      <div class="ay-baslik" data-m="ay.dil">Dil</div>
+      <div class="ay-alt" data-m="ay.dilAlt"></div>
+      <div class="ay-dugmeler" id="ayDilDugmeler"></div>
+    </div>
     <div class="ay-not" id="ayNot"></div>
-    <div class="ay-kapat"><button id="ayKapat">kapat</button></div>
+    <div class="ay-kapat"><button id="ayKapat" data-m="ay.kapat">kapat</button></div>
   </div>
 </div>
 
 <div id="kurtarmaKarti">
   <div class="kur-kagit">
-    <div class="kur-et">kurtarma kodu</div>
-    <h3>Bunu bir yere yaz</h3>
-    <p>Yedeğini yalnızca bu kod açar. Kaybedersen yedeğin de açılmaz —
-      biz de açamayız, bir kopyası bizde yok.</p>
+    <div class="kur-et" data-m="kur.et">kurtarma kodu</div>
+    <h3 data-m="kur.baslik">Bunu bir yere yaz</h3>
+    <p data-m="kur.metin"></p>
     <div class="kur-kod" id="kurKod"></div>
-    <button class="kur-kopyala" id="kurKopyala">kopyala</button>
+    <button class="kur-kopyala" id="kurKopyala" data-m="kur.kopyala">kopyala</button>
     <label class="kur-onay"><input type="checkbox" id="kurOnay">
-      <span>Bu kodu güvenli bir yere yazdım.</span></label>
+      <span data-m="kur.onay"></span></label>
     <div class="tek-dugmeler">
-      <button id="kurVaz">vazgeç</button>
-      <button class="birincil" id="kurDevam" disabled>yedeği indir</button>
+      <button id="kurVaz" data-m="kur.vazgec">vazgeç</button>
+      <button class="birincil" id="kurDevam" disabled data-m="kur.devam">yedeği indir</button>
     </div>
   </div>
 </div>
 
 <div id="kilitTeklif">
   <div class="tek-kagit">
-    <div class="tek-et">bir öneri</div>
-    <h3>Defterine kilit koymak ister misin?</h3>
-    <p>Telefonun açıkken bile defter kapalı kalır. Bir PIN belirlersin,
-      biyometrin varsa onunla açarsın. Sonra da kurabilirsin.</p>
+    <div class="tek-et" data-m="tek.et">bir öneri</div>
+    <h3 data-m="tek.baslik">Defterine kilit koymak ister misin?</h3>
+    <p data-m="tek.metin"></p>
     <div class="tek-dugmeler">
-      <button id="tekSonra">şimdi değil</button>
-      <button class="birincil" id="tekKur">kilit kur</button>
+      <button id="tekSonra" data-m="tek.sonra">şimdi değil</button>
+      <button class="birincil" id="tekKur" data-m="tek.kur">kilit kur</button>
     </div>
   </div>
 </div>
@@ -195,33 +193,33 @@
 <div id="toren">
   <div class="tor-kagit">
     <div id="torSoru">
-      <div class="tor-et" id="torBaslikEt">bu defter doldu</div>
+      <div class="tor-et" id="torBaslikEt" data-m="tor.et">bu defter doldu</div>
       <h2 id="torBaslik"></h2>
       <p class="tor-giris" id="torGiris"></p>
       <label class="tor-alan">
-        <span>defterin adı</span>
+        <span data-m="tor.ad">defterin adı</span>
         <input id="torAd" autocomplete="off" spellcheck="false">
       </label>
       <label class="tor-alan">
-        <span>kapağı</span>
+        <span data-m="tor.kapak">kapağı</span>
         <div class="tor-kapaklar" id="torKapaklar"></div>
       </label>
       <div class="tor-dugmeler">
-        <button id="torUzat">biraz daha uzat</button>
-        <button class="birincil" id="torKapatDefter">bu defteri kapat</button>
+        <button id="torUzat" data-m="tor.uzat">biraz daha uzat</button>
+        <button class="birincil" id="torKapatDefter" data-m="tor.kapatDefter">bu defteri kapat</button>
       </div>
       <div class="tor-uzat" id="torUzatAlan">
-        <span>kaç sayfa eklensin</span>
+        <span data-m="tor.kacSayfa">kaç sayfa eklensin</span>
         <button data-ek="5">5</button>
         <button data-ek="10">10</button>
         <button data-ek="20">20</button>
         <button data-ek="45">45</button>
-        <button id="torUzatVaz">vazgeç</button>
+        <button id="torUzatVaz" data-m="tor.uzatVaz">vazgeç</button>
       </div>
     </div>
 
     <div id="torOzet">
-      <div class="tor-et">kapandı</div>
+      <div class="tor-et" data-m="tor.kapandi">kapandı</div>
       <h2 id="ozBaslik"></h2>
       <div class="oz-aralik" id="ozAralik"></div>
       <div class="oz-sayilar" id="ozSayilar"></div>
@@ -229,7 +227,7 @@
       <div class="oz-bolum" id="ozBasliklar"></div>
       <div class="oz-uclar" id="ozUclar"></div>
       <div class="tor-dugmeler">
-        <button id="ozKitaplik">kitaplığa koy</button>
+        <button id="ozKitaplik" data-m="tor.kitapliga">kitaplığa koy</button>
         <button class="birincil" id="ozYeniCilt"></button>
       </div>
     </div>
@@ -238,9 +236,9 @@
 
 <div id="kitaplik">
   <div class="kit-ust">
-    <h2>kitaplık</h2>
+    <h2 data-m="kit.baslik">kitaplık</h2>
     <span class="alt" id="kitAlt"></span>
-    <button class="ust-btn kapat-btn" id="kitKapat">defterine dön</button>
+    <button class="ust-btn kapat-btn" id="kitKapat" data-m="kit.geri">defterine dön</button>
   </div>
   <div id="raflar"></div>
 </div>
@@ -256,12 +254,12 @@
 <div id="kayitSilKarti">
   <div class="ks-kart">
     <div class="ks-et" id="ksZaman"></div>
-    <h3>Bu kayıt silinsin mi?</h3>
+    <h3 data-m="ks.baslik">Bu kayıt silinsin mi?</h3>
     <div class="ks-metin" id="ksMetin"></div>
     <div class="ks-uyari" id="ksUyari"></div>
     <div class="ks-dugmeler">
-      <button id="ksVaz">vazgeç</button>
-      <button class="yikici" id="ksSil">sil</button>
+      <button id="ksVaz" data-m="ks.vazgec">vazgeç</button>
+      <button class="yikici" id="ksSil" data-m="ks.sil">sil</button>
     </div>
   </div>
 </div>
@@ -273,8 +271,8 @@
     <div class="dk-uyari" id="dkUyari"></div>
     <input id="dkOnay" placeholder="" autocomplete="off" spellcheck="false" hidden>
     <div class="dk-dugmeler">
-      <button id="dkVaz">vazgeç</button>
-      <button id="dkAktar" hidden>önce Markdown olarak çıkar</button>
+      <button id="dkVaz" data-m="dk.vazgec">vazgeç</button>
+      <button id="dkAktar" hidden data-m="dk.aktar">önce Markdown olarak çıkar</button>
       <button class="yikici" id="dkSil"></button>
     </div>
   </div>
@@ -282,18 +280,18 @@
 
 <div id="yeniDefter">
   <div class="yd-kart">
-    <h3>Yeni defter</h3>
-    <div class="yd-alt">Ad ver ve bir kapak seç. Aynı adda bir defterin varsa yenisi onun cildi olur.</div>
-    <input id="ydAd" placeholder="deftere bir ad ver…" autocomplete="off" spellcheck="false">
+    <h3 data-m="yd.baslik">Yeni defter</h3>
+    <div class="yd-alt" data-m="yd.alt"></div>
+    <input id="ydAd" data-m-y="yd.ad" placeholder="deftere bir ad ver…" autocomplete="off" spellcheck="false">
     <div class="yd-uyari" id="ydUyari"></div>
     <div class="yd-kapaklar" id="ydKapaklar"></div>
     <div class="yd-sinir">
-      <span>kaç sayfa olsun</span>
+      <span data-m="yd.sinir">kaç sayfa olsun</span>
       <div id="ydSinirlar"></div>
     </div>
     <div class="yd-dugmeler">
-      <button id="ydVaz">vazgeç</button>
-      <button class="birincil" id="ydAc">defteri aç</button>
+      <button id="ydVaz" data-m="yd.vazgec">vazgeç</button>
+      <button class="birincil" id="ydAc" data-m="yd.ac">defteri aç</button>
     </div>
   </div>
 </div>

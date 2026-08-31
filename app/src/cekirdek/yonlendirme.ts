@@ -1,4 +1,8 @@
-import { HAVUZ, ILK_HAFTA, ILK_HAFTA_GUN } from './sorular.js'
+import { HAVUZ, HAVUZ_EN, ILK_HAFTA, ILK_HAFTA_EN, ILK_HAFTA_GUN } from './sorular.js'
+import type { Dil } from './dil.js'
+
+const ilkHafta = (dil: Dil): readonly string[] => (dil === 'en' ? ILK_HAFTA_EN : ILK_HAFTA)
+const havuz = (dil: Dil): readonly string[] => (dil === 'en' ? HAVUZ_EN : HAVUZ)
 
 /**
  * İlk hafta yönlendirmesi.
@@ -31,17 +35,19 @@ export function gununSorusu(
   d: YonlendirmeDurum,
   bugun: string,
   kriz = false,
+  dil: Dil = 'tr',
 ): string | null {
   if (kriz) return null
   if (d.gun >= ILK_HAFTA_GUN) return null
   if (d.sonTarih === bugun) return null
-  return ILK_HAFTA[d.gun] ?? null
+  return ilkHafta(dil)[d.gun] ?? null
 }
 
 /** Kullanıcı "bana bir şey sor" dediğinde havuzdan sıradaki soru. */
-export function havuzdanSor(d: YonlendirmeDurum, kriz = false): string | null {
+export function havuzdanSor(d: YonlendirmeDurum, kriz = false, dil: Dil = 'tr'): string | null {
   if (kriz) return null
-  return HAVUZ[d.havuzIndeks % HAVUZ.length] ?? null
+  const h = havuz(dil)
+  return h[d.havuzIndeks % h.length] ?? null
 }
 
 /** Havuzda bir sonrakine geçer. */
