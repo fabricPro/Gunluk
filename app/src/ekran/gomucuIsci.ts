@@ -1,3 +1,4 @@
+import { S } from '../cekirdek/metin.js'
 import type { Gomucu } from '../cekirdek/gomucu.js'
 import { BOYUT, MODEL_KIMLIK } from '../cekirdek/gomuModel.js'
 /* YALNIZCA tip: değer olarak içe aktarmak transformers.js'i ana pakete çeker. */
@@ -19,12 +20,13 @@ export function gercekGomucu(ilerleme?: Ilerleme): Gomucu & { kapat: () => void 
   let sonId = 0
 
   isci.onmessage = (e: MessageEvent<GomuYanit>) => {
-    const { id, vektorler, hata, hazir, ilerleme: i } = e.data
+    const { id, vektorler, hata, anahtar, hazir, ilerleme: i } = e.data
     if (i) return void ilerleme?.(i.asama, i.oran)
     const b = bekleyen.get(id)
     if (!b) return
     bekleyen.delete(id)
-    if (hata) b.kir(new Error(hata))
+    /* Worker dili bilmiyor; anahtar geldiyse çeviri burada. */
+    if (hata) b.kir(new Error(anahtar ? S(anahtar) : hata))
     else b.coz(vektorler ?? (hazir ? [] : []))
   }
   isci.onerror = (e) => {

@@ -1,3 +1,4 @@
+import { S } from '../cekirdek/metin.js'
 import type { SenkronKimlik } from '../cekirdek/senkronKimlik.js'
 import type { Zarf } from '../cekirdek/senkronBicim.js'
 
@@ -104,23 +105,27 @@ export class SenkronDepo implements Sunucu {
   }
 
   private authIstek(yol: string, govde: string): Promise<Response> {
-    return fetch(this.ayar.auth + yol, {
-      method: 'POST',
-      /* Oturum çerezi için: auth başka bir kaynakta duruyor. */
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: govde,
-    })
+    return this.iste(() =>
+      fetch(this.ayar.auth + yol, {
+        method: 'POST',
+        /* Oturum çerezi için: auth başka bir kaynakta duruyor. */
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: govde,
+      }),
+    )
   }
 
   /** Geçerli JWT; yoksa ya da bitmek üzereyse yenisini alır. */
   private async jwt(): Promise<string> {
     if (this.jeton && this.jeton.biter - PAY_MS > Date.now()) return this.jeton.jwt
 
-    let y = await fetch(this.ayar.auth + '/token', { credentials: 'include' })
+    const jeton = () =>
+      this.iste(() => fetch(this.ayar.auth + '/token', { credentials: 'include' }))
+    let y = await jeton()
     if (!y.ok) {
       await this.oturumAc()
-      y = await fetch(this.ayar.auth + '/token', { credentials: 'include' })
+      y = await jeton()
       if (!y.ok) throw new SenkronHatasi(await this.hataMetni(y))
     }
     const { token } = (await y.json()) as { token?: string }
@@ -129,38 +134,51 @@ export class SenkronDepo implements Sunucu {
      * döner. Sessiz geçilmiyor: kullanıcı "senkron çalışmıyor" değil,
      * NEDEN çalışmadığını görmeli.
      */
-    if (!token)
-      throw new SenkronHatasi(
-        'Oturum kurulamadı — tarayıcı çerezi engelliyor olabilir. ' +
-          'Cihaz uygulamasında dene.',
-      )
+    if (!token) throw new SenkronHatasi(S('ag.senkronOturum'))
     this.jeton = { jwt: token, biter: bitisZamani(token) }
     return token
   }
 
+  /**
+   * Kullanıcının göreceği cümle. Kütüphane ya da sunucu metni ham hâlde
+   * arayüze düşmüyor: uygulama Türkçe-öncelikli ve hata da çevrilmek
+   * zorunda (KARARLAR.md · K-035).
+   */
   private async hataMetni(y: Response): Promise<string> {
+    if (y.status === 401 || y.status === 403) return S('ag.senkronKimlik')
+    if (y.status >= 500) return S('ag.senkronSunucu')
     const ham = await y.text().catch(() => '')
+    console.warn('[defter] senkron', y.status, ham.slice(0, 300))
+    return S('ag.senkronSunucu')
+  }
+
+  /**
+   * `fetch` ağ seviyesinde patlarsa (DNS, çevrimdışı, CORS) tarayıcı
+   * "Failed to fetch" atıyor — kullanıcıya İngilizce sızmasın.
+   */
+  private async iste(f: () => Promise<Response>): Promise<Response> {
     try {
-      const j = JSON.parse(ham) as { message?: string }
-      if (j.message) return `${y.status}: ${j.message}`
-    } catch {
-      /* düz metin */
+      return await f()
+    } catch (e) {
+      console.warn('[defter] senkron ağ', e)
+      throw new SenkronHatasi(S('ag.baglanilamadi'))
     }
-    return `${y.status}: ${ham.slice(0, 200) || y.statusText}`
   }
 
   /* ── veri ────────────────────────────────────────────────── */
 
   private async apiIstek(yol: string, secenek: RequestInit = {}): Promise<Response> {
     const jwt = await this.jwt()
-    return fetch(this.ayar.api + yol, {
-      ...secenek,
-      headers: {
-        ...secenek.headers,
-        Authorization: `Bearer ${jwt}`,
-        'Content-Type': 'application/json',
-      },
-    })
+    return this.iste(() =>
+      fetch(this.ayar.api + yol, {
+        ...secenek,
+        headers: {
+          ...secenek.headers,
+          Authorization: `Bearer ${jwt}`,
+          'Content-Type': 'application/json',
+        },
+      }),
+    )
   }
 
   /**

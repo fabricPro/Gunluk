@@ -79,9 +79,9 @@
 .tek-dugmeler .birincil{background:var(--murekkep);color:var(--kagit);border-color:var(--murekkep)}
 
 /* ══════ KURTARMA KODU ══════ */
-#kurtarmaKarti{position:fixed;inset:0;z-index:90;display:none;align-items:center;
-  justify-content:center;background:rgba(10,8,6,.78);padding:22px}
-#kurtarmaKarti.acik{display:flex}
+#kurtarmaKarti,#senkronKimlikKarti{position:fixed;inset:0;z-index:90;display:none;
+  align-items:center;justify-content:center;background:rgba(10,8,6,.78);padding:22px}
+#kurtarmaKarti.acik,#senkronKimlikKarti.acik{display:flex}
 .kur-kagit{width:100%;max-width:430px;border-radius:3px;padding:26px 26px 20px;
   color:var(--murekkep);background:linear-gradient(158deg,var(--kagit),var(--kagit3));
   box-shadow:0 44px 96px -32px rgba(0,0,0,.95)}

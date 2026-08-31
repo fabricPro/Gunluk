@@ -1,4 +1,5 @@
 import type { KilitKaydi } from './kilit.js'
+import { S } from '../cekirdek/metin.js'
 
 /**
  * Kilit kaydının saklandığı yer — veritabanının DIŞI.
@@ -98,8 +99,8 @@ export async function cihazDepo(): Promise<KilitDepo> {
       if (!(await biyometriVarMi())) return null
       try {
         await BiometricAuth.authenticate({
-          reason: 'Defterini aç',
-          cancelTitle: 'Vazgeç',
+          reason: S('kilit.biyoSebep'),
+          cancelTitle: S('kilit.biyoVazgec'),
           allowDeviceCredential: true,
         })
       } catch {

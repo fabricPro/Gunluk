@@ -1,4 +1,5 @@
 import { kurtarmaCoz } from '../cekirdek/kurtarma.js'
+import { S } from '../cekirdek/metin.js'
 import {
   VARSAYILAN_PARAM,
   aesAnahtar,
@@ -64,7 +65,7 @@ async function ac(b: Uint8Array, nasil: Sikistirma): Promise<Uint8Array> {
   if (nasil === 'yok') return b
   if (typeof DecompressionStream === 'undefined')
     throw new YedekHatasi(
-      'Bu yedek sıkıştırılmış ve bu ortam gzip açamıyor. Başka bir cihazda dene.',
+      S('veri.gzipYok'),
     )
   const akis = new Blob([b as BlobPart]).stream().pipeThrough(new DecompressionStream('gzip'))
   return new Uint8Array(await new Response(akis).arrayBuffer())
@@ -80,7 +81,7 @@ export async function muhurle(
   param: KilitParam = VARSAYILAN_PARAM,
 ): Promise<MuhurluYedek> {
   const gizli = kurtarmaCoz(kurtarmaKodu)
-  if (!gizli) throw new YedekHatasi('Kurtarma kodu geçersiz.')
+  if (!gizli) throw new YedekHatasi(S('veri.kodGecersiz'))
 
   const tuz = rastgele(16)
   const iv = rastgele(12)
@@ -105,10 +106,10 @@ export async function muhurle(
 
 /** Mührü kurtarma koduyla açar. Kod yanlışsa anlaşılır bir hata verir. */
 export async function muhruAc(yedek: MuhurluYedek, kurtarmaKodu: string): Promise<Dokum> {
-  if (yedek?.bicim !== YEDEK_BICIM) throw new YedekHatasi('Bu bir Defter yedeği değil.')
-  if (yedek.surum !== 1) throw new YedekHatasi('Bu yedeğin biçimi tanınmıyor.')
+  if (yedek?.bicim !== YEDEK_BICIM) throw new YedekHatasi(S('veri.yedekDegil'))
+  if (yedek.surum !== 1) throw new YedekHatasi(S('veri.yedekBicim'))
   const gizli = kurtarmaCoz(kurtarmaKodu)
-  if (!gizli) throw new YedekHatasi('Kurtarma kodu geçersiz.')
+  if (!gizli) throw new YedekHatasi(S('veri.kodGecersiz'))
 
   let govde: Uint8Array
   try {
@@ -120,7 +121,7 @@ export async function muhruAc(yedek: MuhurluYedek, kurtarmaKodu: string): Promis
       ),
     )
   } catch {
-    throw new YedekHatasi('Kurtarma kodu bu yedeği açmıyor.')
+    throw new YedekHatasi(S('veri.kodAcmiyor'))
   }
   const nasil = yedek.sikistirma ?? 'gzip'
   return JSON.parse(new TextDecoder().decode(await ac(govde, nasil))) as Dokum

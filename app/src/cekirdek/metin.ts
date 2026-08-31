@@ -389,6 +389,78 @@ const TR: Metinler = {
   'kapak.altin': 'Altın yaldız',
   'genel.anahtarYok': 'Anahtar girilmemiş.',
   'defter.kesitCilt': 'cilt <b>{n}</b>',
+
+  /* ── senkron (K-036) ─────────────────────────────────── */
+  'ay.senkron': 'Cihazlar arası senkron',
+  'ay.senkronKapali':
+    'Kapalı. Açarsan defterin başka cihazlarında da açılır — telefonda yaz, ' +
+    'bilgisayarda oku.<br>' +
+    '<b>Sunucu defterini okuyamaz.</b> Her satır cihazında şifrelenip öyle ' +
+    'gidiyor; anahtar cihazdan hiç çıkmıyor. Sunucunun gördüğü tek şey: kaç ' +
+    'satırın olduğu ve ne zaman eşitlediğin. Metin, tarih, saat, defter adı, ' +
+    'başlıklar, fotoğraflar — hiçbiri.<br>' +
+    'Hesap yok, e-posta yok, parola yok. Tek bir <b>Defter Kimliği</b> var; ' +
+    'diğer cihazda onu yazıyorsun.',
+  'ay.senkronAcik':
+    'Açık. Defterin <b>{n}</b> satırı sunucuda, hepsi şifreli (~{boyut}).',
+  'ay.senkronBekleyen': '<br><b>{n}</b> değişiklik sırada.',
+  'ay.senkronCalisiyor': '<br>{asama}…',
+  'ay.senkronHata': '<br>Son deneme başarısız: {hata}',
+  'ay.senkronSonSenkron': '<br>Son eşitleme: {zaman}',
+  'ay.senkronHicSenkron': '<br>Henüz eşitlenmedi.',
+  'ay.senkronAc': 'senkronu aç',
+  'ay.senkronBagla': 'başka cihazdaki deftere bağlan',
+  'ay.senkronSimdi': 'şimdi eşitle',
+  'ay.senkronKimlikGoster': 'Defter Kimliğini göster',
+  'ay.senkronKapat': 'senkronu kapat',
+  'ay.senkronKodSor': 'Diğer cihazdaki Defter Kimliği:',
+  'ay.senkronKodGecersiz': 'Bu bir Defter Kimliğine benzemiyor. Kodu olduğu gibi yapıştır.',
+  'ay.senkronKapatOnay':
+    'Senkron kapatılsın mı?\n\nSunucudaki şifreli kopya SİLİNECEK. ' +
+    'Bu cihazdaki defterin olduğu gibi kalıyor.',
+  'ay.senkronKilitli': 'Defter kilitliyken senkron durur — anahtar bellekte değil.',
+  'ay.senkronTarayici':
+    'Tarayıcı derlemesinde Defter Kimliği <b>korumasız</b> duruyor (localStorage) ' +
+    've çerez kısıtları senkronu engelleyebilir. Gerçek kullanım için cihaz ' +
+    'uygulamasını kullan.',
+
+  /* Defter Kimliği kartı */
+  'sk.et': 'Defter Kimliği',
+  'sk.baslik': 'Bunu bir yere yaz',
+  'sk.metin':
+    'Diğer cihazda bu kodu yazacaksın. Sunucudaki şifreli kopyayı yalnızca bu ' +
+    'kod açar — kaybedersen biz de açamayız, bir kopyası bizde yok. ' +
+    'Bu kodu bilen defterini okuyabilir; parolan gibi sakla.',
+  'sk.kopyala': 'kopyala',
+  'sk.kopyalandi': 'kopyalandı',
+  'sk.onay': 'Bu kodu güvenli bir yere yazdım.',
+  'sk.vazgec': 'vazgeç',
+  'sk.devam': 'senkronu başlat',
+  'sk.kapat': 'kapat',
+
+  /* ağ hataları — `veri/` katmanı da bu katalogdan okuyor */
+  'ag.baglanilamadi': 'Bağlanılamadı. İnternet bağlantını kontrol et.',
+  'ag.senkronOturum':
+    'Oturum kurulamadı — tarayıcı çerezi engelliyor olabilir. Cihaz uygulamasında dene.',
+  'ag.senkronKimlik': 'Defter Kimliği kabul edilmedi.',
+  'ag.senkronSunucu': 'Sunucu şu an cevap vermiyor. Biraz sonra yeniden denenecek.',
+  'ag.modelAnahtar': 'Anahtar kabul edilmedi. Ayarlardan kontrol et.',
+  'ag.modelKota': 'Anthropic şu an istek almıyor (kota ya da hız sınırı). Biraz sonra dene.',
+  'ag.modelGecersiz': 'İstek geçersiz sayıldı: {mesaj}',
+
+  /* veri katmanı — kullanıcıya görünen hatalar */
+  'veri.surumYeni': 'Daha yeni bir sürümle yazılmış defter eski uygulamayla açılamaz.',
+  'veri.dokumDegil': 'Bu bir defter yedeği değil.',
+  'veri.dokumYeni': 'Bu yedek daha yeni bir sürümle alınmış. Önce uygulamayı güncelle.',
+  'veri.yedekDegil': 'Bu bir Defter yedeği değil.',
+  'veri.yedekBicim': 'Bu yedeğin biçimi tanınmıyor.',
+  'veri.kodGecersiz': 'Kurtarma kodu geçersiz.',
+  'veri.kodAcmiyor': 'Kurtarma kodu bu yedeği açmıyor.',
+  'veri.gzipYok': 'Bu yedek sıkıştırılmış ve bu ortam gzip açamıyor. Başka bir cihazda dene.',
+  'veri.guvenliDepoYok': 'Cihazda güvenli anahtar deposu bulunamadı. Defter şifresiz açılmaz.',
+  'veri.modelInmedi': 'Model indirilemedi — ağ bağlantını kontrol et.',
+  'kilit.biyoSebep': 'Defterini aç',
+  'kilit.biyoVazgec': 'Vazgeç',
 }
 
 const EN: Metinler = {
@@ -735,6 +807,100 @@ const EN: Metinler = {
   'kapak.altin': 'Gold leaf',
   'genel.anahtarYok': 'No key has been entered.',
   'defter.kesitCilt': 'vol. <b>{n}</b>',
+
+  'ay.senkron': 'Sync across devices',
+  'ay.senkronKapali':
+    'Off. Turn it on and your notebook opens on your other devices too — write ' +
+    'on your phone, read on your laptop.<br>' +
+    "<b>The server cannot read your diary.</b> Every row is encrypted on your " +
+    'device before it leaves; the key never goes anywhere. All the server sees ' +
+    'is how many rows you have and when you synced. Not the text, not the dates, ' +
+    'not the times, not notebook names, titles or photos.<br>' +
+    'No account, no email, no password. There is one <b>Notebook Key</b>; you ' +
+    'type it on the other device.',
+  'ay.senkronAcik':
+    'On. <b>{n}</b> rows of your notebook are on the server, all encrypted (~{boyut}).',
+  'ay.senkronBekleyen': '<br><b>{n}</b> changes queued.',
+  'ay.senkronCalisiyor': '<br>{asama}…',
+  'ay.senkronHata': '<br>Last attempt failed: {hata}',
+  'ay.senkronSonSenkron': '<br>Last sync: {zaman}',
+  'ay.senkronHicSenkron': '<br>Not synced yet.',
+  'ay.senkronAc': 'turn on sync',
+  'ay.senkronBagla': 'connect to a notebook on another device',
+  'ay.senkronSimdi': 'sync now',
+  'ay.senkronKimlikGoster': 'show the Notebook Key',
+  'ay.senkronKapat': 'turn off sync',
+  'ay.senkronKodSor': 'The Notebook Key from your other device:',
+  'ay.senkronKodGecersiz': "That doesn't look like a Notebook Key. Paste the code exactly.",
+  'ay.senkronKapatOnay':
+    'Turn off sync?\n\nThe encrypted copy on the server WILL BE DELETED. ' +
+    'The notebook on this device stays exactly as it is.',
+  'ay.senkronKilitli': 'Sync pauses while the notebook is locked — the key is not in memory.',
+  'ay.senkronTarayici':
+    'In the browser build the Notebook Key is stored <b>unprotected</b> ' +
+    '(localStorage) and cookie restrictions may block sync. Use the device app ' +
+    'for real use.',
+
+  'sk.et': 'Notebook Key',
+  'sk.baslik': 'Write this down somewhere',
+  'sk.metin':
+    'You will type this code on your other device. It is the only thing that ' +
+    "opens the encrypted copy on the server — lose it and we can't open it " +
+    'either, we have no copy. Anyone who has this code can read your diary; ' +
+    'keep it like a password.',
+  'sk.kopyala': 'copy',
+  'sk.kopyalandi': 'copied',
+  'sk.onay': "I've written this code down somewhere safe.",
+  'sk.vazgec': 'cancel',
+  'sk.devam': 'start syncing',
+  'sk.kapat': 'close',
+
+  'ag.baglanilamadi': "Couldn't connect. Check your internet connection.",
+  'ag.senkronOturum':
+    "Couldn't sign in — your browser may be blocking cookies. Try the device app.",
+  'ag.senkronKimlik': 'The Notebook Key was not accepted.',
+  'ag.senkronSunucu': "The server isn't responding right now. It will retry shortly.",
+  'ag.modelAnahtar': 'The key was not accepted. Check it in settings.',
+  'ag.modelKota': "Anthropic isn't accepting requests right now (quota or rate limit). Try later.",
+  'ag.modelGecersiz': 'The request was rejected: {mesaj}',
+
+  'veri.surumYeni': 'A notebook written by a newer version cannot be opened by an older app.',
+  'veri.dokumDegil': 'This is not a notebook backup.',
+  'veri.dokumYeni': 'This backup was made with a newer version. Update the app first.',
+  'veri.yedekDegil': 'This is not a Defter backup.',
+  'veri.yedekBicim': "This backup's format is not recognised.",
+  'veri.kodGecersiz': 'The recovery code is not valid.',
+  'veri.kodAcmiyor': 'That recovery code does not open this backup.',
+  'veri.gzipYok': 'This backup is compressed and this environment cannot unzip it. Try another device.',
+  'veri.guvenliDepoYok': 'No secure key store found on this device. The notebook will not open unencrypted.',
+  'veri.modelInmedi': "The model couldn't be downloaded — check your connection.",
+  'kilit.biyoSebep': 'Open your notebook',
+  'kilit.biyoVazgec': 'Cancel',
 }
 
 export const METIN: Record<Dil, Metinler> = { tr: TR, en: EN }
+
+/* ── etkin dil ─────────────────────────────────────────────
+   Dil `cekirdek/`te tutuluyor, `ekran/`da değil: `veri/senkronDepo.ts`
+   ve `veri/model.ts` de kullanıcıya gösterilecek hata cümlesi kuruyor
+   ve o cümleler de çevrilmek zorunda. Katman kuralı gereği `veri/`
+   `ekran/`dan bir şey alamaz (KARARLAR.md · K-035, K-036).
+
+   Dil açılışta bir kez kuruluyor ve değişince sayfa yeniden yükleniyor;
+   modül düzeyinde tek bir değer yeterli. */
+
+let aktifDil: Dil = 'tr'
+
+export const dil = (): Dil => aktifDil
+
+export const dilAyarla = (d: Dil): void => {
+  aktifDil = d
+}
+
+/** Katalogdan dize; `{n}` gibi yer tutucular ikinci argümanla dolar. */
+export function S(anahtar: string, degerler?: Record<string, string | number>): string {
+  let m = METIN[aktifDil][anahtar] ?? METIN.tr[anahtar] ?? anahtar
+  if (degerler)
+    for (const [k, v] of Object.entries(degerler)) m = m.split(`{${k}}`).join(String(v))
+  return m
+}

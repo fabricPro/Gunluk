@@ -153,6 +153,11 @@
       <div class="ay-dugmeler" id="ayModelDugmeler"></div>
     </div>
     <div class="ay-bolum">
+      <div class="ay-baslik" data-m="ay.senkron">Cihazlar arası senkron</div>
+      <div class="ay-alt" id="aySenkronDurum"></div>
+      <div class="ay-dugmeler" id="aySenkronDugmeler"></div>
+    </div>
+    <div class="ay-bolum">
       <div class="ay-baslik" data-m="ay.dil">Dil</div>
       <div class="ay-alt" data-m="ay.dilAlt"></div>
       <div class="ay-dugmeler" id="ayDilDugmeler"></div>
@@ -174,6 +179,27 @@
     <div class="tek-dugmeler">
       <button id="kurVaz" data-m="kur.vazgec">vazgeç</button>
       <button class="birincil" id="kurDevam" disabled data-m="kur.devam">yedeği indir</button>
+    </div>
+  </div>
+</div>
+
+<!--
+  Defter Kimliği kartı. Kurtarma kodu kartıyla aynı dil: kod bir kez
+  gösterilir, kullanıcı yazdığını onaylar. Farkı, bu kodun kalıcı
+  olması — senkron ondan türüyor (KARARLAR.md · K-036).
+-->
+<div id="senkronKimlikKarti">
+  <div class="kur-kagit">
+    <div class="kur-et" data-m="sk.et">Defter Kimliği</div>
+    <h3 data-m="sk.baslik">Bunu bir yere yaz</h3>
+    <p data-m="sk.metin"></p>
+    <div class="kur-kod" id="skKod"></div>
+    <button class="kur-kopyala" id="skKopyala" data-m="sk.kopyala">kopyala</button>
+    <label class="kur-onay"><input type="checkbox" id="skOnay">
+      <span data-m="sk.onay"></span></label>
+    <div class="tek-dugmeler">
+      <button id="skVaz" data-m="sk.vazgec">vazgeç</button>
+      <button class="birincil" id="skDevam" disabled data-m="sk.devam">senkronu başlat</button>
     </div>
   </div>
 </div>

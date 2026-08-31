@@ -1,4 +1,5 @@
 import baslangicSql from './sema/001_baslangic.sql?raw'
+import { S } from '../cekirdek/metin.js'
 import kitaplikSql from './sema/002_kitaplik.sql?raw'
 import sayfaSiniriSql from './sema/003_sayfa_siniri.sql?raw'
 import soruSql from './sema/004_soru.sql?raw'
@@ -93,7 +94,7 @@ export async function gocleriUygula(db: SqlSurucu, hedef = SON_SURUM): Promise<n
   if (mevcut > SON_SURUM)
     throw new Error(
       `Veritabanı sürümü ${mevcut}, bu uygulama en fazla ${SON_SURUM} biliyor. ` +
-        'Daha yeni bir sürümle yazılmış defter eski uygulamayla açılamaz.',
+        S('veri.surumYeni'),
     )
   let uygulanan = 0
   /*

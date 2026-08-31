@@ -1,4 +1,5 @@
 import { GOCLER, SON_SURUM, gocleriUygula, type SqlSurucu } from './db.js'
+import { S } from '../cekirdek/metin.js'
 import { defteriSifirla } from './sifirla.js'
 
 /**
@@ -68,10 +69,10 @@ export class DokumHatasi extends Error {}
  * uygulamaya girebiliyor.
  */
 export async function dokumuYukle(db: SqlSurucu, d: Dokum): Promise<void> {
-  if (d.bicim !== 'defter-dokum') throw new DokumHatasi('Bu bir defter yedeği değil.')
+  if (d.bicim !== 'defter-dokum') throw new DokumHatasi(S('veri.dokumDegil'))
   if (d.semaSurum > SON_SURUM)
     throw new DokumHatasi(
-      'Bu yedek daha yeni bir sürümle alınmış. Önce uygulamayı güncelle.',
+      S('veri.dokumYeni'),
     )
 
   await defteriSifirla(db, 0)

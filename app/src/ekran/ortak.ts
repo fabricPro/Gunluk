@@ -1,5 +1,7 @@
 import type { Dil } from '../cekirdek/dil.js'
-import { METIN } from '../cekirdek/metin.js'
+import { S, dil, dilAyarla } from '../cekirdek/metin.js'
+
+export { S, dil }
 import { gunAdi, tamTarih } from '../cekirdek/tr.js'
 import { gunAdiEn, tamTarihEn } from '../cekirdek/en.js'
 
@@ -68,10 +70,6 @@ export const suanSaat = (): string => {
    uygulama ömrü boyunca sabit, değişince sayfa yeniden yükleniyor.
    Yarı yarıya çevrilmiş bir ekran hiç olmuyor (KARARLAR.md · K-035). */
 
-let aktifDil: Dil = 'tr'
-
-export const dil = (): Dil => aktifDil
-
 /**
  * Dili kurar ve HTML'deki durağan metinleri yerleştirir.
  *
@@ -79,7 +77,7 @@ export const dil = (): Dil => aktifDil
  * yer tutucuyu, `data-m-b` başlık (title) özniteliğini dolduruyor.
  */
 export function dilKur(d: Dil): void {
-  aktifDil = d
+  dilAyarla(d)
   document.documentElement.lang = d
   for (const e of $$('[data-m]')) e.textContent = S(e.dataset.m!)
   for (const e of $$('[data-m-h]')) e.innerHTML = S(e.dataset.mH!)
@@ -87,16 +85,8 @@ export function dilKur(d: Dil): void {
   for (const e of $$('[data-m-b]')) e.title = S(e.dataset.mB!)
 }
 
-/** Katalogdan dize; `{n}` gibi yer tutucular ikinci argümanla dolar. */
-export function S(anahtar: string, degerler?: Record<string, string | number>): string {
-  let m = METIN[aktifDil][anahtar] ?? METIN.tr[anahtar] ?? anahtar
-  if (degerler)
-    for (const [k, v] of Object.entries(degerler)) m = m.split(`{${k}}`).join(String(v))
-  return m
-}
 
 /* Tarih yazımı aktif dile göre — ekranlar hangi dilde olduğunu bilmesin. */
-export const tarihYaz = (t: string): string =>
-  aktifDil === 'en' ? tamTarihEn(t) : tamTarih(t)
+export const tarihYaz = (t: string): string => (dil() === 'en' ? tamTarihEn(t) : tamTarih(t))
 
-export const gunAd = (t: string): string => (aktifDil === 'en' ? gunAdiEn(t) : gunAdi(t))
+export const gunAd = (t: string): string => (dil() === 'en' ? gunAdiEn(t) : gunAdi(t))

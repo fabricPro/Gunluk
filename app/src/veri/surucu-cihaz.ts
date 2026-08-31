@@ -1,4 +1,5 @@
 import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite'
+import { S } from '../cekirdek/metin.js'
 import { yenidenGirilebilirIslem, type SqlSurucu } from './db.js'
 import { veritabaniAnahtari } from './kripto.js'
 
@@ -12,7 +13,7 @@ export async function cihazSurucusu(ad = 'defter'): Promise<SqlSurucu> {
   const { anahtar, sifreli } = await veritabaniAnahtari()
   if (!sifreli)
     throw new Error(
-      'Cihazda güvenli anahtar deposu bulunamadı. Defter şifresiz açılmaz.',
+      S('veri.guvenliDepoYok'),
     )
 
   const baglanti = new SQLiteConnection(CapacitorSQLite)

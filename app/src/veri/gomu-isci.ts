@@ -28,6 +28,14 @@ export interface GomuYanit {
   hazir?: boolean
   vektorler?: Float32Array[]
   hata?: string
+  /**
+   * Kullanıcıya gösterilecek hatanın katalog anahtarı.
+   *
+   * Worker kendi bağlamında çalışıyor ve ana iş parçacığının dil
+   * durumunu göremiyor; o yüzden cümleyi değil ANAHTARI yolluyor,
+   * çeviriyi sarmalayıcı yapıyor (KARARLAR.md · K-035).
+   */
+  anahtar?: string
   ilerleme?: { asama: string; oran: number }
 }
 
@@ -91,11 +99,13 @@ self.onmessage = async (e: MessageEvent<GomuIstek>) => {
     const ham = hata instanceof Error ? hata.message : String(hata)
     /* Ağ hatasını insanın anlayacağı bir cümleye çevir; ham mesaj
        ("Failed to fetch dynamically imported module: https://…") kimseye
-       bir şey söylemiyor. */
+       bir şey söylemiyor. Cümlenin kendisi değil anahtarı gidiyor —
+       worker dili bilmiyor. */
     const agMi = /fetch|network|load|import|Failed/i.test(ham)
     self.postMessage({
       id,
-      hata: agMi ? 'Model indirilemedi — ağ bağlantını kontrol et.' : ham,
+      hata: ham,
+      ...(agMi ? { anahtar: 'veri.modelInmedi' } : {}),
     } satisfies GomuYanit)
   }
 }

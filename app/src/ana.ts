@@ -2,6 +2,8 @@ import { Durum } from './durum.js'
 import { cihazDili, type Dil } from './cekirdek/dil.js'
 import { GomuAkis } from './gomuAkis.js'
 import { ModelAkis } from './modelAkis.js'
+import type { SenkronAkis as SenkronAkisTip } from './senkronAkis.js'
+import type { Sunucu as SunucuTip } from './veri/senkronDepo.js'
 import { belgeOneki, sorguOneki } from './cekirdek/gomuModel.js'
 import { Kilit } from './kilitAkis.js'
 import { arsiviBagla } from './ekran/arsiv.js'
@@ -19,7 +21,7 @@ import { yakmayiBagla } from './ekran/yak.js'
 import { defteriAc } from './veri/db.js'
 import { Depo } from './veri/depo.js'
 import { anahtariDayat, veritabaniAnahtari } from './veri/kripto.js'
-import { cihazAnahtarDepo, tarayiciAnahtarDepo } from './veri/anahtarDepo.js'
+import { MODEL_ANAHTARI, SENKRON_KODU, anahtarDeposu } from './veri/anahtarDepo.js'
 import { cihazDepo, tarayiciDepo } from './veri/kilitDepo.js'
 import { surucuSec } from './veri/surucu.js'
 import type { SqlSurucu } from './veri/db.js'
@@ -139,7 +141,7 @@ async function baslat(): Promise<void> {
      * Model cevabı — anahtar yoksa hiçbir yerde düğme çıkmıyor. Çağrı
      * kodu ayrı parçada: anahtar girilmemişse SDK inmiyor (K-031).
      */
-    const model = new ModelAkis(nativeMi ? await cihazAnahtarDepo() : tarayiciAnahtarDepo())
+    const model = new ModelAkis(await anahtarDeposu(nativeMi, MODEL_ANAHTARI))
     await model.yukle((await depo.ayarOku('model.soru')) === '1')
 
     let toren: { ac: () => void } | null = null
@@ -184,8 +186,70 @@ async function baslat(): Promise<void> {
     indekslemeyiDurdur = () => {
       akis?.dur()
       gomucuKapat?.()
+      /* Kilitlenince senkron da duruyor: anahtar bellekten silinecek
+         ve veritabanı kapanacak (K-021). */
+      senkronAkis?.dur()
     }
     if ((await depo.ayarOku('gomu.acik')) === '1') void gomuyuKur()
+
+    /*
+     * Cihazlar arası senkron — varsayılan KAPALI (KARARLAR.md · K-036).
+     *
+     * Defter Kimliği girilmemişse tek bayt inmiyor ve tek istek
+     * çıkmıyor: hem `senkronDepo` hem `senkronAkis` dinamik import'la
+     * geliyor. Kapalıyken uygulama bugünkü gibi çevrimdışı.
+     */
+    const kodDepo = await anahtarDeposu(nativeMi, SENKRON_KODU)
+    let senkronKod: string | null = null
+    try {
+      senkronKod = await kodDepo.oku()
+    } catch {
+      senkronKod = null
+    }
+    let senkronAkis: SenkronAkisTip | null = null
+    let senkronKullanim: { satir: number; bayt: number } | null = null
+    let senkronDinleyici: () => void = () => {}
+    let senkronSunucu: SunucuTip | null = null
+
+    const senkronuKur = async (kod: string): Promise<void> => {
+      const [{ kimlikTuret }, { SenkronDepo }, { SenkronAkis }] = await Promise.all([
+        import('./cekirdek/senkronKimlik.js'),
+        import('./veri/senkronDepo.js'),
+        import('./senkronAkis.js'),
+      ])
+      const kimlik = await kimlikTuret(kod)
+      if (!kimlik) throw new Error('Defter Kimliği geçersiz.')
+      senkronSunucu = new SenkronDepo(
+        {
+          auth: import.meta.env.VITE_DEFTER_AUTH as string,
+          api: import.meta.env.VITE_DEFTER_API as string,
+        },
+        kimlik,
+      )
+      senkronAkis = new SenkronAkis(depo, senkronSunucu, kimlik)
+      senkronAkis.dinle(() => senkronDinleyici())
+      await senkronAkis.tazele()
+    }
+
+    const senkronTur = async (): Promise<void> => {
+      if (!senkronAkis || kilit.durum === 'kilitli') return
+      const oldu = await senkronAkis.calistir()
+      if (oldu) {
+        senkronKullanim = await senkronSunucu!.kullanim().catch(() => senkronKullanim)
+        /* Uzaktan gelen kayıtlar ekrana düşsün. */
+        await durum.yenile()
+      }
+      senkronDinleyici()
+    }
+
+    if (senkronKod) {
+      try {
+        await senkronuKur(senkronKod)
+        void senkronTur()
+      } catch (e) {
+        console.warn('[defter] senkron kurulamadı', e)
+      }
+    }
 
     ayarlariBagla({
       kilit,
@@ -229,6 +293,39 @@ async function baslat(): Promise<void> {
           gomuDinleyici = f
         },
       },
+      senkron: {
+        acikMi: () => !!senkronAkis,
+        kod: () => senkronKod,
+        durum: () =>
+          senkronAkis?.durum ?? {
+            calisiyor: false, bekleyen: 0, asama: '', hata: null, sonSenkron: null,
+          },
+        kullanim: () => senkronKullanim,
+        ac: async (kod) => {
+          await kodDepo.yaz(kod)
+          senkronKod = kod
+          await senkronuKur(kod)
+          senkronDinleyici()
+        },
+        kapat: async () => {
+          senkronAkis?.dur()
+          /* Sunucudaki şifreli kopya siliniyor — "bizden talep etmenize
+             gerek yok" sözünün karşılığı. */
+          await senkronSunucu?.hepsiniSil().catch(() => {})
+          await kodDepo.sil().catch(() => {})
+          await depo.ayarYaz('senkron.sonGorulen', '0')
+          await depo.senkronHepsiniIsaretle()
+          senkronAkis = null
+          senkronSunucu = null
+          senkronKod = null
+          senkronKullanim = null
+          senkronDinleyici()
+        },
+        simdi: senkronTur,
+        dinle: (f) => {
+          senkronDinleyici = f
+        },
+      },
       dil: {
         simdiki: () => secilenDil,
         degistir: async (d) => {
@@ -260,6 +357,11 @@ async function baslat(): Promise<void> {
     durum.dinle(() => {
       defter.ciz()
       arsiv.gecenYilCiz()
+    })
+
+    /* Öne gelince eşitle — arka planda sessizce değil, uygulama açıkken. */
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') void senkronTur()
     })
     defter.ciz()
     arsiv.gecenYilCiz()

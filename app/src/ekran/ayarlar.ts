@@ -1,4 +1,4 @@
-import { kurtarmaUret } from '../cekirdek/kurtarma.js'
+import { kurtarmaCoz, kurtarmaUret } from '../cekirdek/kurtarma.js'
 import { DILLER, type Dil } from '../cekirdek/dil.js'
 import { anahtarBicimi } from '../veri/anahtarDepo.js'
 import { anahtariDayat } from '../veri/kripto.js'
@@ -35,6 +35,8 @@ export interface AyarBaglam {
   model?: ModelDenetim
   /** Dil denetimi; yoksa bölüm hiç çizilmiyor. */
   dil?: DilDenetim
+  /** Senkron denetimi; yoksa bölüm hiç çizilmiyor. */
+  senkron?: SenkronDenetim
   /** Geri yükleme sonrası uygulamayı baştan kurmak için. */
   yenidenYukle: () => void
 }
@@ -84,9 +86,32 @@ export interface DilDenetim {
 
 const DIL_ADI: Record<Dil, string> = { tr: 'Türkçe', en: 'English' }
 
+/**
+ * Cihazlar arası senkronun ayar kağıdındaki yüzü.
+ *
+ * Kapalı, açık — iki durum. Hesap açma diye bir adım yok: Defter
+ * Kimliği ya üretiliyor ya giriliyor (KARARLAR.md · K-036).
+ */
+export interface SenkronDenetim {
+  acikMi: () => boolean
+  kod: () => string | null
+  durum: () => { calisiyor: boolean; bekleyen: number; asama: string; hata: string | null; sonSenkron: number | null }
+  kullanim: () => { satir: number; bayt: number } | null
+  /** Yeni kimlik üretip senkronu başlatır. */
+  ac: (kod: string) => Promise<void>
+  kapat: () => Promise<void>
+  simdi: () => Promise<void>
+  dinle: (f: () => void) => void
+}
+
+/** Bayt sayısını okunur hâle getirir. */
+const boyutYaz = (b: number): string =>
+  b < 1024 ? `${b} B` : b < 1024 * 1024 ? `${Math.round(b / 1024)} KB` : `${(b / 1048576).toFixed(1)} MB`
+
 export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
   const { kilit, sifreli, mevcutAnahtar, db, depo, degisti, yenidenYukle, gomu, model } = b
   const dilD = b.dil
+  const senkron = b.senkron
   const kapat = () => $('#ayarlar').classList.remove('acik')
 
   /** PIN sorar; iptal edilirse null. */
@@ -107,6 +132,7 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
 
     gomuCiz()
     modelCiz()
+    senkronCiz()
     dilCiz()
 
     $('#ayKilitDurum').textContent = kurulu
@@ -139,6 +165,9 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       notlar.push(
         S('ay.notBiyo'),
       )
+    if (!sifreli && senkron?.acikMi()) notlar.push(S('ay.senkronTarayici'))
+    if (kilit.durum !== 'kurulusuz' && senkron?.acikMi())
+      notlar.push(S('ay.senkronKilitli'))
     if (!sifreli && model?.anahtarVar())
       notlar.push(
         S('ay.notModelAnahtar'),
@@ -207,6 +236,32 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
     } else if (ad === 'modelSil') {
       if (!confirm(S('ay.modelAnahtarSilOnay'))) return
       await model?.sil()
+    } else if (ad === 'senkronAc') {
+      if (!senkron) return
+      const kod = kurtarmaUret()
+      if (!(await kimlikKarti(kod, true))) return
+      await senkron.ac(kod)
+      void senkron.simdi()
+    } else if (ad === 'senkronBagla') {
+      if (!senkron) return
+      const girilen = prompt(S('ay.senkronKodSor'))
+      if (girilen === null) return
+      if (!kurtarmaCoz(girilen)) {
+        alert(S('ay.senkronKodGecersiz'))
+        return
+      }
+      await senkron.ac(girilen)
+      void senkron.simdi()
+    } else if (ad === 'senkronKimlik') {
+      const kod = senkron?.kod()
+      if (kod) await kimlikKarti(kod, false)
+      return
+    } else if (ad === 'senkronSimdi') {
+      await senkron?.simdi()
+      return
+    } else if (ad === 'senkronKapat') {
+      if (!confirm(S('ay.senkronKapatOnay'))) return
+      await senkron?.kapat()
     } else if (ad === 'modelSoru') {
       await model?.soruDegistir(!model.soruAcik())
     }
@@ -273,6 +328,74 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
     for (const dg of $$<HTMLButtonElement>('#ayModelDugmeler button'))
       dg.onclick = () => void eylem(dg.dataset.eylem!)
   }
+
+  /* ── senkron ───────────────────────────────────────────── */
+
+  function senkronCiz(): void {
+    const bolum = $('#aySenkronDurum').parentElement!
+    if (!senkron) {
+      bolum.style.display = 'none'
+      return
+    }
+    bolum.style.display = ''
+    const acik = senkron.acikMi()
+
+    if (!acik) {
+      $('#aySenkronDurum').innerHTML = S('ay.senkronKapali')
+      $('#aySenkronDugmeler').innerHTML =
+        `<button class="birincil" data-eylem="senkronAc">${S('ay.senkronAc')}</button>` +
+        `<button data-eylem="senkronBagla">${S('ay.senkronBagla')}</button>`
+    } else {
+      const d = senkron.durum()
+      const k = senkron.kullanim()
+      let m = S('ay.senkronAcik', {
+        n: k?.satir ?? 0,
+        boyut: boyutYaz(k?.bayt ?? 0),
+      })
+      if (d.calisiyor) m += S('ay.senkronCalisiyor', { asama: kacir(d.asama) })
+      else if (d.bekleyen) m += S('ay.senkronBekleyen', { n: d.bekleyen })
+      if (d.hata) m += S('ay.senkronHata', { hata: kacir(d.hata) })
+      m += d.sonSenkron
+        ? S('ay.senkronSonSenkron', { zaman: new Date(d.sonSenkron).toLocaleTimeString() })
+        : S('ay.senkronHicSenkron')
+      $('#aySenkronDurum').innerHTML = m
+      $('#aySenkronDugmeler').innerHTML =
+        `<button data-eylem="senkronSimdi"${d.calisiyor ? ' disabled' : ''}>${S('ay.senkronSimdi')}</button>` +
+        `<button data-eylem="senkronKimlik">${S('ay.senkronKimlikGoster')}</button>` +
+        `<button data-eylem="senkronKapat">${S('ay.senkronKapat')}</button>`
+    }
+    for (const dg of $$<HTMLButtonElement>('#aySenkronDugmeler button'))
+      dg.onclick = () => void eylem(dg.dataset.eylem!)
+  }
+
+  /**
+   * Defter Kimliği kartı. Kurtarma kodu kartıyla aynı dil: kod bir kez
+   * gösteriliyor ve kullanıcı yazdığını onaylamadan devam edemiyor.
+   */
+  const kimlikKarti = (kod: string, baslatilacak: boolean): Promise<boolean> =>
+    new Promise((bitti) => {
+      $('#skKod').textContent = kod
+      $<HTMLInputElement>('#skOnay').checked = false
+      $<HTMLButtonElement>('#skDevam').disabled = true
+      $('#skDevam').textContent = baslatilacak ? S('sk.devam') : S('sk.kapat')
+      $('#skVaz').style.display = baslatilacak ? '' : 'none'
+      $('#senkronKimlikKarti').classList.add('acik')
+
+      $<HTMLInputElement>('#skOnay').onchange = (e) => {
+        $<HTMLButtonElement>('#skDevam').disabled = !(e.target as HTMLInputElement).checked
+      }
+      $('#skKopyala').onclick = () => {
+        void navigator.clipboard?.writeText(kod)
+        $('#skKopyala').textContent = S('sk.kopyalandi')
+        setTimeout(() => ($('#skKopyala').textContent = S('sk.kopyala')), 1800)
+      }
+      const kapat = (sonuc: boolean) => {
+        $('#senkronKimlikKarti').classList.remove('acik')
+        bitti(sonuc)
+      }
+      $('#skVaz').onclick = () => kapat(false)
+      $('#skDevam').onclick = () => kapat(true)
+    })
 
   /* ── dil ───────────────────────────────────────────────── */
 
@@ -358,6 +481,9 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
 
   gomu?.dinle(() => {
     if ($('#ayarlar').classList.contains('acik')) gomuCiz()
+  })
+  senkron?.dinle(() => {
+    if ($('#ayarlar').classList.contains('acik')) senkronCiz()
   })
 
   $('#ayarlarBtn').onclick = () => void ac()

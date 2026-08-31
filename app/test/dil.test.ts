@@ -98,7 +98,7 @@ describe('HTML · görünen her metin katalogdan geliyor', () => {
   })
 })
 
-describe('kod · ekran katmanında sabit Türkçe dize kalmadı', () => {
+describe('kod · kullanıcıya görünen sabit Türkçe dize kalmadı', () => {
   const yorumsuz = (k: string): string =>
     k.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1')
 
@@ -109,20 +109,36 @@ describe('kod · ekran katmanında sabit Türkçe dize kalmadı', () => {
    *  - defter.ts: Türkçe ek uyumu (dahiEki) dile göre dallanan tek yer
    *  - gomucuIsci.ts: konsola giden worker hatası, kullanıcı görmüyor
    */
-  const IZINLI = new Set(['kapaklar.ts', 'ayarlar.ts', 'defter.ts', 'gomucuIsci.ts'])
+  const IZINLI = new Set([
+    'kapaklar.ts', // yalnızca veritabanı anahtarları
+    'ayarlar.ts', // DIL_ADI: dil adları kendi dillerinde yazılır
+    'defter.ts', // Türkçe ek uyumu (dahiEki) dile göre dallanan tek yer
+    'gomucuIsci.ts', // konsola giden worker hatası
+    'tohum.ts', // demo verisi; iki dilde de kendi metinlerini taşıyor
+    'kripto.ts', // yalnızca konsol uyarısı
+    'surucu.ts', // yalnızca konsol uyarısı
+    'sifirla.ts', // geliştirme aracı
+  ])
 
-  it('ekran/ altında yalnızca bilinen istisnalar var', () => {
-    const bulunan: string[] = []
-    const ekran = join(kok, 'ekran')
-    for (const f of dosyalar(ekran)) {
-      const ad = f.slice(ekran.length + 1)
-      if (IZINLI.has(ad)) continue
-      const kod = yorumsuz(readFileSync(f, 'utf8'))
-      for (const m of kod.matchAll(/'([^'\n]*[şçğıöüŞÇĞİÖÜ][^'\n]*)'/g))
-        if (!m[1]!.startsWith('[defter]')) bulunan.push(`${ad}: ${m[1]!}`)
-    }
-    expect(bulunan, bulunan.join('\n')).toEqual([])
-  })
+  /*
+   * `veri/` de taranıyor: `model.ts` ve `senkronDepo.ts` kullanıcıya
+   * gösterilecek hata cümlesi kuruyor ve o cümleler de çevrilmek
+   * zorunda. Açık tam oradaydı — senkron eklenirken ham "Failed to
+   * fetch" arayüze düşüyordu (KARARLAR.md · K-036).
+   */
+  for (const katman of ['ekran', 'veri'])
+    it(`${katman}/ altında yalnızca bilinen istisnalar var`, () => {
+      const bulunan: string[] = []
+      const dizin = join(kok, katman)
+      for (const f of dosyalar(dizin)) {
+        const ad = f.slice(dizin.length + 1)
+        if (IZINLI.has(ad)) continue
+        const kod = yorumsuz(readFileSync(f, 'utf8'))
+        for (const m of kod.matchAll(/'([^'\n]*[şçğıöüŞÇĞİÖÜ][^'\n]*)'/g))
+          if (!m[1]!.startsWith('[defter]')) bulunan.push(`${katman}/${ad}: ${m[1]!}`)
+      }
+      expect(bulunan, bulunan.join('\n')).toEqual([])
+    })
 })
 
 describe('cihaz dili', () => {

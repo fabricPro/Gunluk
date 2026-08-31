@@ -15,6 +15,7 @@
 import type { Anlatim } from '../cekirdek/anlatim.js'
 import { kullaniciMetni, sistemi, soruIstegi, soruSistemi } from '../cekirdek/anlatim.js'
 import type { Dil } from '../cekirdek/dil.js'
+import { S } from '../cekirdek/metin.js'
 
 export const MODEL = 'claude-opus-5'
 
@@ -62,19 +63,20 @@ export async function cevapAkit(
   } catch (e) {
     /* SDK'nın tipli hata sınıfları — mesaj eşleştirmesi yok. */
     if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError)
-      throw new Error('Anahtar kabul edilmedi. Ayarlardan kontrol et.')
+      throw new Error(S('ag.modelAnahtar'))
     if (e instanceof Anthropic.RateLimitError)
-      throw new Error('Anthropic şu an istek almıyor (kota ya da hız sınırı). Biraz sonra dene.')
-    if (e instanceof Anthropic.BadRequestError) throw new Error(`İstek geçersiz sayıldı: ${e.message}`)
+      throw new Error(S('ag.modelKota'))
+    if (e instanceof Anthropic.BadRequestError)
+      throw new Error(S('ag.modelGecersiz', { mesaj: e.message }))
     if (e instanceof Anthropic.APIConnectionError)
-      throw new Error('Bağlanılamadı. İnternet bağlantını kontrol et.')
-    if (e instanceof Anthropic.APIError) throw new Error(`Anthropic ${e.status}: ${e.message}`)
+      throw new Error(S('ag.baglanilamadi'))
+    if (e instanceof Anthropic.APIError) throw new Error(S('ag.modelKota'))
     /*
      * Beklenmeyen hata. Kullanıcı Türkçe bir cümle görüyor, ayrıntı
      * konsola gidiyor: arayüzde İngilizce kütüphane metni belirmesin.
      */
     console.error('[defter] model çağrısı', e)
-    throw new Error('Cevap alınamadı. Ayrıntı konsolda.')
+    throw new Error(S('model.hata'))
   }
 }
 
@@ -112,12 +114,12 @@ export async function soruUret(
     return metin || null
   } catch (e) {
     if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError)
-      throw new Error('Anahtar kabul edilmedi. Ayarlardan kontrol et.')
+      throw new Error(S('ag.modelAnahtar'))
     if (e instanceof Anthropic.RateLimitError)
-      throw new Error('Anthropic şu an istek almıyor. Biraz sonra dene.')
+      throw new Error(S('ag.modelKota'))
     if (e instanceof Anthropic.APIConnectionError)
-      throw new Error('Bağlanılamadı. İnternet bağlantını kontrol et.')
+      throw new Error(S('ag.baglanilamadi'))
     console.error('[defter] soru üretimi', e)
-    throw new Error('Soru alınamadı.')
+    throw new Error(S('model.soruHata'))
   }
 }
