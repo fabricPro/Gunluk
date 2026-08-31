@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core'
 import { S } from '../cekirdek/metin.js'
 import type { SenkronKimlik } from '../cekirdek/senkronKimlik.js'
 import type { Zarf } from '../cekirdek/senkronBicim.js'
@@ -26,6 +27,34 @@ export interface SunucuAyar {
   auth: string
   /** Data API (PostgREST) taban adresi. */
   api: string
+}
+
+/**
+ * Hangi adrese konuşulacağı — ve neden iki tane olduğu.
+ *
+ * **Cihazda doğrudan Neon.** Capacitor sayfayı `https://localhost`ten
+ * servis ediyor, çerez oradan yazılıyor, araya kimse girmiyor.
+ *
+ * **Tarayıcıda kendi kaynağımız üzerinden.** Sayfa Vercel'de, auth
+ * `*.neon.tech`te olsaydı oturum çerezi ÇAPRAZ SİTE olurdu; Safari'nin
+ * izleme koruması bunu doğrudan düşürüyor, Chrome da üçüncü taraf
+ * çerezlerini kapatıyor. `/auth` ve `/rest`, `app/vercel.json`taki
+ * yönlendirmelerle (ve `vite.config.ts`teki aynı yönlendirmelerle,
+ * geliştirmede) Neon'a taşınıyor; tarayıcı bakımından her şey aynı
+ * kaynakta, çerez birinci taraf (KARARLAR.md · K-037).
+ *
+ * Vekilden GEÇEN: türetilmiş parola ve JWT.
+ * Vekilden GEÇMEYEN: şifreleme anahtarı ve düz metin. Şifreleme
+ * `cekirdek/senkronBicim.ts`te bitiyor; buraya hazır `Zarf` geliyor ve
+ * `test/senkronGizlilik.test.ts` bunu sabitliyor.
+ */
+export function sunucuAyari(): SunucuAyar {
+  if (Capacitor.isNativePlatform())
+    return {
+      auth: import.meta.env.VITE_DEFTER_AUTH as string,
+      api: import.meta.env.VITE_DEFTER_API as string,
+    }
+  return { auth: '/auth', api: '/rest' }
 }
 
 export class SenkronHatasi extends Error {}

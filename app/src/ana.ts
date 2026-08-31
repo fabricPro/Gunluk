@@ -212,20 +212,15 @@ async function baslat(): Promise<void> {
     let senkronSunucu: SunucuTip | null = null
 
     const senkronuKur = async (kod: string): Promise<void> => {
-      const [{ kimlikTuret }, { SenkronDepo }, { SenkronAkis }] = await Promise.all([
+      const [{ kimlikTuret }, { SenkronDepo, sunucuAyari }, { SenkronAkis }] = await Promise.all([
         import('./cekirdek/senkronKimlik.js'),
         import('./veri/senkronDepo.js'),
         import('./senkronAkis.js'),
       ])
       const kimlik = await kimlikTuret(kod)
       if (!kimlik) throw new Error('Defter Kimliği geçersiz.')
-      senkronSunucu = new SenkronDepo(
-        {
-          auth: import.meta.env.VITE_DEFTER_AUTH as string,
-          api: import.meta.env.VITE_DEFTER_API as string,
-        },
-        kimlik,
-      )
+      /* Cihazda doğrudan Neon, tarayıcıda kendi kaynağımızdan (K-037). */
+      senkronSunucu = new SenkronDepo(sunucuAyari(), kimlik)
       senkronAkis = new SenkronAkis(depo, senkronSunucu, kimlik)
       senkronAkis.dinle(() => senkronDinleyici())
       await senkronAkis.tazele()
