@@ -85,20 +85,25 @@ describe('vercel.json kodun istediği yolları taşıyor', () => {
     expect(vercel.buildCommand).toContain('npm test')
   })
 
-  it('ignoreCommand ile derleme engellenmiyor', () => {
+  it('derleme hiçbir koşulda atlanmıyor', () => {
     /*
-     * Önizleme dağıtımları herkese açık olmasın diye önce
-     * `"ignoreCommand": "[ \"$VERCEL_ENV\" != production ]"` konmuştu.
-     * Canlıda ÜRETİM dağıtımını da atladı: `VERCEL_ENV` o adımda boş
-     * geliyor, koşul her zaman "atla" diyor ve derleme hiç çalışmıyor —
-     * kayıt bile düşmüyor, dağıtım sessizce CANCELED oluyor.
+     * `ignoreCommand` çıkış kodu 0 ise derleme ATLANIYOR, 1 ise
+     * sürüyor. Burada `exit 1` yazılı olmasının iki sebebi var:
      *
-     * Doğru mekanizma Vercel'in kendi Deployment Protection'ı: önizleme
-     * dağıtımları Vercel Authentication arkasında, üretim açık. O bir
-     * proje ayarı, bu dosyada duramıyor — burada duran, geri konmasın
-     * diye dersin kendisi (KARARLAR.md · K-037).
+     * 1. Önizleme dağıtımları herkese açık olmasın diye önce
+     *    `[ "$VERCEL_ENV" != production ]` konmuştu. Canlıda ÜRETİM
+     *    dağıtımını da atladı — `VERCEL_ENV` o adımda boş geliyor,
+     *    koşul her zaman "atla" diyor. Dağıtım sessizce CANCELED oldu
+     *    ve tek satır derleme kaydı düşmedi: hata görünmüyordu bile.
+     * 2. Alanı `vercel.json`dan SİLMEK yetmedi. Vercel bu ayarı proje
+     *    tarafında da tutuyor; anahtar kalkınca eski değer kalıyor ve
+     *    derlemeler atlanmaya devam etti. Ezmenin tek yolu açıkça
+     *    yazmak.
+     *
+     * Önizlemeler Vercel Authentication ile korunuyor — o bir proje
+     * ayarı, bu dosyada duramıyor (KARARLAR.md · K-037).
      */
-    expect(vercel.ignoreCommand).toBeUndefined()
+    expect(vercel.ignoreCommand).toBe('exit 1')
   })
 })
 

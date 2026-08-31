@@ -3,6 +3,7 @@
   "framework": "vite",
   "buildCommand": "npm test && npm run build",
   "outputDirectory": "dist",
+  "ignoreCommand": "exit 1",
   "github": { "silent": true },
   "rewrites": [
     { "source": "/auth/:yol*", "destination": "/api/vekil/auth/:yol*" },
