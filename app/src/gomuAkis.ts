@@ -90,7 +90,12 @@ export class GomuAkis {
           for (let i = 0; i < kuyruk.length; i++) {
             const v = vektorler[i]
             if (!v) continue
-            await this.depo.gomuYaz(kuyruk[i]!.id, this.gomucu.kimlik, paketle(v))
+            await this.depo.gomuYaz(
+              kuyruk[i]!.id,
+              this.gomucu.kimlik,
+              paketle(v),
+              kuyruk[i]!.guncelleme,
+            )
           }
         })
         await this.tazele()

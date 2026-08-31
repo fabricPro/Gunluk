@@ -167,3 +167,34 @@ describe('gömü akışı', () => {
     expect(enIyi[1]).toBeGreaterThan(0.9)
   })
 })
+
+/**
+ * Aynı milisaniyede düzeltilen kayıt.
+ *
+ * Eskiden bayatlık `g.guncelleme < k.guncelleme` ile ölçülüyordu ve iki
+ * damga da `Date.now()`'dan geliyordu: hızlı bir düzeltme eşit damga
+ * üretiyor, kayıt bayat sayılmıyor ve arama eski metinden cevap vermeye
+ * devam ediyordu. Testler bunu ara sıra yakalıyordu — o titreklik hatanın
+ * kendisiydi.
+ */
+describe('gömü bayatlığı saate bağlı değil', () => {
+  it('saat donmuşken bile düzeltilen kayıt yeniden gömülüyor', async () => {
+    const sabit = Date.now()
+    const gercek = Date.now
+    Date.now = () => sabit
+    try {
+      const k = await kayitAc('ilk hâli')
+      const g = sahteGomucu()
+      await new GomuAkis(depo, g).calistir()
+      expect((await depo.gomuDurum(g.kimlik)).bekleyen).toBe(0)
+
+      await depo.kayitDuzelt(k.id, 'bambaşka bir metin oldu')
+      expect((await depo.gomuDurum(g.kimlik)).bekleyen).toBe(1)
+
+      await new GomuAkis(depo, g).calistir()
+      expect((await depo.gomuDurum(g.kimlik)).bekleyen).toBe(0)
+    } finally {
+      Date.now = gercek
+    }
+  })
+})

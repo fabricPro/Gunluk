@@ -8,7 +8,17 @@ const kimlik = (): string =>
     ? crypto.randomUUID()
     : `k${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
 
-const simdi = (): number => Date.now()
+/**
+ * Yazma damgası — **tekdüze artan**.
+ *
+ * Düz `Date.now()` aynı milisaniyede iki kez çağrıldığında aynı sayıyı
+ * veriyordu; gömü bayatlığı gibi "sonra mı oldu" karşılaştırmaları o eşit
+ * damgada sessizce yanlış cevap veriyordu. Saatin geri atması da aynı
+ * kapıya çıkıyor. Bu sarmalayıcı her çağrıda bir öncekinden kesin olarak
+ * büyük bir sayı döndürüyor.
+ */
+let sonDamga = 0
+const simdi = (): number => (sonDamga = Math.max(Date.now(), sonDamga + 1))
 const gunISO = (ms: number): string => iso(new Date(ms))
 
 interface KayitSatir {
@@ -522,13 +532,24 @@ export class Depo {
   /* ── gömü vektörleri (K-029) ───────────────────────────── */
 
   /** Kaydın vektörünü yazar; varsa üstüne yazar. */
-  async gomuYaz(kayitId: string, model: string, vektor: string): Promise<void> {
+  /**
+   * `guncelleme` burada "ne zaman gömüldü" değil, **hangi sürümden
+   * gömüldü**: kaydın kendi damgası olduğu gibi kopyalanıyor.
+   *
+   * Önce `simdi()` yazılıyordu ve bayatlık `g.guncelleme < k.guncelleme`
+   * ile ölçülüyordu. İkisi de milisaniye: aynı milisaniyede gömülüp
+   * düzeltilen bir kayıt eşit damga taşıyor ve bayat sayılmıyordu —
+   * kullanıcı kaydını düzeltiyor, arama eski metinden cevap veriyordu.
+   * Damgayı kopyalayınca ölçüt saat yarışından çıkıp eşitlik
+   * karşılaştırmasına dönüyor.
+   */
+  async gomuYaz(kayitId: string, model: string, vektor: string, surum: number): Promise<void> {
     await this.db.calistir(
       `INSERT INTO gomu (kayit_id, model, vektor, guncelleme) VALUES (?, ?, ?, ?)
        ON CONFLICT (kayit_id) DO UPDATE SET
          model = excluded.model, vektor = excluded.vektor,
          guncelleme = excluded.guncelleme`,
-      [kayitId, model, vektor, simdi()],
+      [kayitId, model, vektor, surum],
     )
   }
 
@@ -553,12 +574,16 @@ export class Depo {
    * gömülmüş olanlar. Düzeltilen kayıtlar da buraya düşüyor —
    * `kayit.guncelleme` vektörün tarihinden yeniyse metin değişmiş demektir.
    */
-  async gomusuzKayitlar(model: string, sinir = 32): Promise<{ id: string; metin: string }[]> {
-    return this.db.hepsi<{ id: string; metin: string }>(
-      `SELECT k.id, k.metin FROM kayit k
+  /** Gömülmemiş ya da bayatlamış kayıtlar — kaydın damgasıyla birlikte. */
+  async gomusuzKayitlar(
+    model: string,
+    sinir = 32,
+  ): Promise<{ id: string; metin: string; guncelleme: number }[]> {
+    return this.db.hepsi<{ id: string; metin: string; guncelleme: number }>(
+      `SELECT k.id, k.metin, k.guncelleme FROM kayit k
        LEFT JOIN gomu g ON g.kayit_id = k.id
        WHERE k.defter_id = ?
-         AND (g.kayit_id IS NULL OR g.model <> ? OR g.guncelleme < k.guncelleme)
+         AND (g.kayit_id IS NULL OR g.model <> ? OR g.guncelleme <> k.guncelleme)
        ORDER BY k.tarih DESC, k.sira DESC
        LIMIT ?`,
       [this.defterId, model, sinir],
@@ -570,7 +595,7 @@ export class Depo {
     const r = await this.db.tek<{ bekleyen: number; toplam: number }>(
       `SELECT
          count(*) AS toplam,
-         sum(CASE WHEN g.kayit_id IS NULL OR g.model <> ? OR g.guncelleme < k.guncelleme
+         sum(CASE WHEN g.kayit_id IS NULL OR g.model <> ? OR g.guncelleme <> k.guncelleme
                   THEN 1 ELSE 0 END) AS bekleyen
        FROM kayit k LEFT JOIN gomu g ON g.kayit_id = k.id
        WHERE k.defter_id = ?`,

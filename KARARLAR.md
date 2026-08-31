@@ -9,6 +9,36 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-31 · K-033 · Gömü bayatlığı saate değil, sürüme bakıyor
+
+Titrek bir test hatanın kendisiydi. `test/gomuAkis.test.ts`'teki "düzeltilen
+kayıt yeniden gömülüyor" beş koşudan birinde düşüyordu.
+
+Sebep: bayatlık `g.guncelleme < k.guncelleme` ile ölçülüyordu ve iki damga
+da `Date.now()`'dan geliyordu. Aynı milisaniyede gömülüp düzeltilen bir
+kayıt eşit damga taşıyor, `<` yanlış dönüyor, kayıt bayat sayılmıyordu.
+Ürün tarafındaki karşılığı şu: **kullanıcı kaydını düzeltiyor, anlam
+araması eski metinden cevap vermeye devam ediyor** ve bunu hiçbir yerde
+söylemiyor.
+
+İki değişiklik:
+
+1. **Gömü, kaydın damgasını kopyalıyor.** `gomu.guncelleme` artık "ne zaman
+   gömüldü" değil, *hangi sürümden gömüldü*. Ölçüt de `<` değil `<>`:
+   saat karşılaştırması değil, eşitlik.
+2. **`simdi()` tekdüze artan.** Aynı milisaniyede iki kez çağrılsa da
+   ikincisi kesin olarak büyük. Saatin geri atması da aynı kapıya
+   çıkıyordu.
+
+`<=` denendi ve reddedildi: aynı milisaniyede oluşup gömülen bir kaydı
+sonsuza kadar bayat sayıyordu, yani bu kez ters yönde yanlış.
+
+Ders, K-029 ve K-030'daki desenin bir başka yüzü: **titrek bir test
+kırılgan bir test değildir, çoğu zaman gerçek bir yarışın kendisidir.**
+Yeşile boyamadan önce neyi yakaladığı sorulmalı.
+
+---
+
 ## 2026-08-31 · K-032 · Yazdıktan sonra tek soru — ve neden otomatik değil
 
 Yol haritası 12: *"her yazıdan sonra tek soru. Yorum değil, soru. Yorum
