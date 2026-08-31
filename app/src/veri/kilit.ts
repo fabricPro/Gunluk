@@ -1,4 +1,12 @@
-import { argon2id } from 'hash-wasm'
+import {
+  VARSAYILAN_PARAM,
+  aesAnahtar,
+  onaltilikOku,
+  onaltilikYaz,
+  rastgele,
+  yavasTuret,
+} from './gizle.js'
+import type { KilitParam } from './gizle.js'
 
 /**
  * Defterin kilidi — PIN + biyometri (KARARLAR.md · K-021).
@@ -16,19 +24,12 @@ import { argon2id } from 'hash-wasm'
  * PIN unutulsa da defter açılır.
  *
  * Bu modül DOM bilmez ve depo bilmez: yalnızca bayt üretir ve çözer.
+ * Kripto ilkelleri `gizle.ts`te — üç yerde üç kopya olmasın (K-036).
  */
 
-/** Argon2id parametreleri. Telefonda bir seferlik açılış maliyeti. */
-export interface KilitParam {
-  /** yineleme */
-  t: number
-  /** bellek (KiB) */
-  m: number
-  /** paralellik */
-  p: number
-}
-
-export const VARSAYILAN_PARAM: KilitParam = { t: 3, m: 49152, p: 1 }
+/* Geriye dönük uyum: bu adlar buradan içe aktarılıyordu. */
+export { VARSAYILAN_PARAM, onaltilikOku, onaltilikYaz }
+export type { KilitParam }
 
 /** Veritabanının dışında saklanan kilit kaydı. */
 export interface KilitKaydi {
@@ -46,43 +47,13 @@ export interface KilitKaydi {
   bekleme: number
 }
 
-/* ── bayt yardımcıları ─────────────────────────────────────── */
-
-export const onaltilikYaz = (b: Uint8Array): string =>
-  [...b].map((x) => x.toString(16).padStart(2, '0')).join('')
-
-export const onaltilikOku = (s: string): Uint8Array => {
-  const b = new Uint8Array(s.length / 2)
-  for (let i = 0; i < b.length; i++) b[i] = parseInt(s.slice(i * 2, i * 2 + 2), 16)
-  return b
-}
-
-const rastgele = (n: number): Uint8Array => {
-  const b = new Uint8Array(n)
-  crypto.getRandomValues(b)
-  return b
-}
-
 /** Yeni bir ana anahtar (AV) üretir. */
 export const yeniAnaAnahtar = (): string => onaltilikYaz(rastgele(32))
 
 /* ── sarmalama ─────────────────────────────────────────────── */
 
-async function kek(pin: string, tuz: Uint8Array, param: KilitParam): Promise<Uint8Array> {
-  const ham = await argon2id({
-    password: pin,
-    salt: tuz,
-    parallelism: param.p,
-    iterations: param.t,
-    memorySize: param.m,
-    hashLength: 32,
-    outputType: 'binary',
-  })
-  return ham
-}
-
-const aesAnahtar = (ham: Uint8Array): Promise<CryptoKey> =>
-  crypto.subtle.importKey('raw', ham as BufferSource, 'AES-GCM', false, ['encrypt', 'decrypt'])
+const kek = (pin: string, tuz: Uint8Array, param: KilitParam): Promise<Uint8Array> =>
+  yavasTuret(pin, tuz, param)
 
 /**
  * PIN ile yeni bir kilit kaydı kurar.

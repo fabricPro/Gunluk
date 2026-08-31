@@ -1,6 +1,15 @@
-import { argon2id } from 'hash-wasm'
 import { kurtarmaCoz } from '../cekirdek/kurtarma.js'
-import { VARSAYILAN_PARAM, onaltilikOku, onaltilikYaz, type KilitParam } from './kilit.js'
+import {
+  VARSAYILAN_PARAM,
+  aesAnahtar,
+  b64Oku,
+  b64Yaz,
+  onaltilikOku,
+  onaltilikYaz,
+  rastgele,
+  yavasTuret,
+  type KilitParam,
+} from './gizle.js'
 import type { Dokum } from './dokum.js'
 
 /**
@@ -43,14 +52,6 @@ export interface MuhurluYedek {
 
 export class YedekHatasi extends Error {}
 
-const b64Yaz = (b: Uint8Array): string => {
-  let s = ''
-  for (const x of b) s += String.fromCharCode(x)
-  return btoa(s)
-}
-const b64Oku = (s: string): Uint8Array =>
-  Uint8Array.from(atob(s), (c) => c.charCodeAt(0))
-
 /** Sıkıştırır ve NE YAPTIĞINI söyler. */
 async function sikistir(b: Uint8Array): Promise<{ govde: Uint8Array; nasil: Sikistirma }> {
   if (typeof CompressionStream === 'undefined') return { govde: b, nasil: 'yok' }
@@ -69,21 +70,8 @@ async function ac(b: Uint8Array, nasil: Sikistirma): Promise<Uint8Array> {
   return new Uint8Array(await new Response(akis).arrayBuffer())
 }
 
-async function anahtar(gizli: Uint8Array, tuz: Uint8Array, p: KilitParam): Promise<CryptoKey> {
-  const ham = await argon2id({
-    password: gizli,
-    salt: tuz,
-    parallelism: p.p,
-    iterations: p.t,
-    memorySize: p.m,
-    hashLength: 32,
-    outputType: 'binary',
-  })
-  return crypto.subtle.importKey('raw', ham as BufferSource, 'AES-GCM', false, [
-    'encrypt',
-    'decrypt',
-  ])
-}
+const anahtar = async (gizli: Uint8Array, tuz: Uint8Array, p: KilitParam): Promise<CryptoKey> =>
+  aesAnahtar(await yavasTuret(gizli, tuz, p))
 
 /** Dökümü kurtarma koduyla mühürler. */
 export async function muhurle(
@@ -94,8 +82,8 @@ export async function muhurle(
   const gizli = kurtarmaCoz(kurtarmaKodu)
   if (!gizli) throw new YedekHatasi('Kurtarma kodu geçersiz.')
 
-  const tuz = crypto.getRandomValues(new Uint8Array(16))
-  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const tuz = rastgele(16)
+  const iv = rastgele(12)
   const { govde, nasil } = await sikistir(new TextEncoder().encode(JSON.stringify(dokum)))
   const sifreli = new Uint8Array(
     await crypto.subtle.encrypt(
