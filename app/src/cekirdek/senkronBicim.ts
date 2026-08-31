@@ -44,12 +44,24 @@ export interface YerelSatir {
   guncelleme: number
 }
 
-/** Sunucuda duran satır. `govde` dışında hiçbir şey içerik taşımıyor. */
+/**
+ * Sunucuda duran satır. Üç alan, biri şifreli.
+ *
+ * `silindi` diye bir bayrak YOK — silme de şifreli gövdenin içinde
+ * (`alanlar: null`). İki sebep:
+ *
+ *  1. **Doğruluk.** Mezar taşı da bir sürüm taşımak zorunda. Taşımadığı
+ *     ilk tasarımda, A'da silinen kayıt kendi gönderdiği satırı geri
+ *     çekince diriliyordu: yerelde satır yok, uzakta var, "uzak kazanır"
+ *     deniyordu. Sürüm gövdenin içine girince silme de karşılaştırılabilir
+ *     oldu.
+ *  2. **Gizlilik.** Bayrak olsaydı sunucu hangi satırların silindiğini
+ *     bilirdi. Şimdi bilmiyor: her satır aynı görünüyor.
+ */
 export interface Zarf {
   satir: string
-  iv: string | null
-  govde: string | null
-  silindi: boolean
+  iv: string
+  govde: string
 }
 
 /** Zarfın içindeki düz metin — yalnızca cihazda var olur. */
@@ -57,48 +69,43 @@ interface Ic {
   v: Varlik
   i: string
   g: number
-  a: Record<string, unknown>
+  /** null ise bu bir silme. */
+  a: Record<string, unknown> | null
 }
 
-/** Yerel satırı şifreli zarfa çevirir. */
-export async function zarfla(s: YerelSatir, k: SenkronKimlik): Promise<Zarf> {
-  const ic: Ic = { v: s.varlik, i: s.id, g: s.guncelleme, a: s.alanlar }
-  const kapali = await kapat(new TextEncoder().encode(JSON.stringify(ic)), k.sifre)
-  return {
-    satir: await satirKimligi(k, s.varlik, s.id),
-    iv: kapali.iv,
-    govde: kapali.govde,
-    silindi: false,
-  }
+/** Çözülmüş zarf. `alanlar` null ise satır silinmiş. */
+export interface Cozulmus {
+  varlik: Varlik
+  id: string
+  guncelleme: number
+  alanlar: Record<string, unknown> | null
 }
 
 /**
- * Mezar taşı — silinmiş satır.
+ * Yerel satırı şifreli zarfa çevirir.
  *
- * İçerik taşımıyor: `govde` null. Sunucuda kalan tek şey opak satır
- * kimliği ve "silindi" bilgisi. K-028 "silinen kayıt sayfada iz
- * bırakmaz" diyor; sayfada bırakmıyor, ama diğer cihazın silmeyi
- * öğrenmesinin başka yolu yok. Bu bir bedel ve belgeleniyor.
+ * `alanlar` null verilirse mezar taşı üretiliyor — ayrı bir işleve gerek
+ * yok, çünkü sunucudan bakınca ikisi ayırt edilemez.
  */
-export async function mezarTasi(
-  varlik: Varlik,
-  id: string,
+export async function zarfla(
+  s: { varlik: Varlik; id: string; guncelleme: number; alanlar: Record<string, unknown> | null },
   k: SenkronKimlik,
 ): Promise<Zarf> {
-  return { satir: await satirKimligi(k, varlik, id), iv: null, govde: null, silindi: true }
+  const ic: Ic = { v: s.varlik, i: s.id, g: s.guncelleme, a: s.alanlar }
+  const kapali = await kapat(new TextEncoder().encode(JSON.stringify(ic)), k.sifre)
+  return { satir: await satirKimligi(k, s.varlik, s.id), iv: kapali.iv, govde: kapali.govde }
 }
 
 /**
  * Zarfı açar. Anahtar yanlışsa ya da bayt oynanmışsa null döner —
  * GCM etiketi tutmaz ve senkron o satırı atlar, çökmez.
  */
-export async function zarfiAc(z: Zarf, k: SenkronKimlik): Promise<YerelSatir | null> {
-  if (z.silindi || !z.iv || !z.govde) return null
+export async function zarfiAc(z: Zarf, k: SenkronKimlik): Promise<Cozulmus | null> {
   try {
     const ham = await ac({ iv: z.iv, govde: z.govde }, k.sifre)
     const ic = JSON.parse(new TextDecoder().decode(ham)) as Ic
     if (!VARLIKLAR.includes(ic.v)) return null
-    return { varlik: ic.v, id: ic.i, alanlar: ic.a, guncelleme: ic.g }
+    return { varlik: ic.v, id: ic.i, alanlar: ic.a ?? null, guncelleme: ic.g }
   } catch {
     return null
   }
@@ -108,14 +115,29 @@ export async function zarfiAc(z: Zarf, k: SenkronKimlik): Promise<YerelSatir | n
 
 export type Karar =
   /** Uzak sürüm yerele yazılacak. */
-  | { tur: 'uzak' }
-  /** Yerel duruyor; uzak eski, yapılacak bir şey yok. */
+  | { tur: 'uzak'; kurtarilacakMetin?: string }
+  /** Yerel duruyor; yapılacak bir şey yok. */
   | { tur: 'yerel' }
-  /**
-   * Uzak kazanıyor ama yerel metin KAYBOLMUYOR: kenar notuna dönüyor.
-   * Bir günlükte sessiz "son yazan kazanır" kabul edilemez.
-   */
-  | { tur: 'uzak', kurtarilacakMetin: string }
+
+/** Yerelin bu satır hakkında bildiği her şey. */
+export interface YerelDurum {
+  /** Lamport sırası; iz yoksa 0. */
+  sira: number
+  /** Satırın alanları; silinmişse ya da hiç yoksa null. */
+  alanlar: Record<string, unknown> | null
+}
+
+/**
+ * Karşılaştırma için kararlı bir dize — beraberlik bozucu.
+ *
+ * İki cihaz aynı Lamport değerinde farklı şeyler yazmış olabilir
+ * (birbirini görmeden düzelttiler). O durumda "yerel kazanır" demek
+ * ıraksama demek: her cihaz kendininkinde kalır ve defter ikiye ayrılır.
+ * Bu yüzden beraberlik İÇERİKLE bozuluyor — iki taraf da aynı iki
+ * değeri gördüğü için aynı kazananı seçiyor ve buluşuyorlar.
+ */
+const damga = (a: Record<string, unknown> | null): string =>
+  a === null ? '' : JSON.stringify(Object.entries(a).sort(([x], [y]) => (x < y ? -1 : 1)))
 
 /**
  * İki sürüm arasında karar.
@@ -123,19 +145,26 @@ export type Karar =
  * Sıralama sunucunun `surum` alanıyla YAPILMIYOR — o alan yalnızca
  * "neyi henüz çekmedim" sorusunun cevabı ve sunucuya varış sırasına
  * bakıyor. Çevrimdışı bir cihaz saatler sonra eşitlenince eski
- * düzeltmesi yeni sayılırdı. Karar, şifreli gövdenin içindeki cihaz
+ * düzeltmesi yeni sayılırdı. Karar, şifreli gövdenin içindeki Lamport
  * damgasıyla veriliyor.
  *
  * Metin taşıyan tek varlık `kayit`; kurtarma yalnızca orada geçerli.
  */
-export function catismaKarari(yerel: YerelSatir | null, uzak: YerelSatir): Karar {
+export function catismaKarari(yerel: YerelDurum | null, uzak: Cozulmus): Karar {
   if (!yerel) return { tur: 'uzak' }
-  if (uzak.guncelleme <= yerel.guncelleme) return { tur: 'yerel' }
 
-  const y = yerel.alanlar.metin
-  const u = uzak.alanlar.metin
+  const yd = damga(yerel.alanlar)
+  const ud = damga(uzak.alanlar)
+  if (yd === ud) return { tur: 'yerel' }
+
+  if (uzak.guncelleme < yerel.sira) return { tur: 'yerel' }
+  /* Beraberlikte içerik karar veriyor — iki cihaz da aynı sonuca varsın. */
+  if (uzak.guncelleme === yerel.sira && ud < yd) return { tur: 'yerel' }
+
+  const y = yerel.alanlar?.metin
+  const u = uzak.alanlar?.metin
   const metinKayboluyor =
     uzak.varlik === 'kayit' && typeof y === 'string' && y.trim() !== '' && y !== u
 
-  return metinKayboluyor ? { tur: 'uzak', kurtarilacakMetin: y as string } : { tur: 'uzak' }
+  return metinKayboluyor ? { tur: 'uzak', kurtarilacakMetin: y } : { tur: 'uzak' }
 }

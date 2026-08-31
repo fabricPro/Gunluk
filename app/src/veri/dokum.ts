@@ -27,8 +27,14 @@ export interface Dokum {
  * önbellek; yedeğe koymak hem dosyayı şişirir hem yedeği bir model
  * sürümüne bağlardı. Geri yüklemeden sonra indeks yeniden kuruluyor
  * (KARARLAR.md · K-029).
+ *
+ * `senkron_*` de dışarıda ve aynı sebeple: "bu cihaz neyi henüz
+ * göndermedi" bilgisi yedeğin içeriği değil, o cihazın muhasebesi.
+ * Başka cihaza taşınsa yanlış olurdu. Geri yükleme sırasında
+ * tetikleyiciler zaten yeniden iz düşüyor — defterin tamamı gönderilecek
+ * diye işaretleniyor (KARARLAR.md · K-036).
  */
-const ATLA = /^(sqlite_|kayit_fts|gomu$)/
+const ATLA = /^(sqlite_|kayit_fts|gomu$|senkron_)/
 
 async function tabloAdlari(db: SqlSurucu): Promise<string[]> {
   const satirlar = await db.hepsi<{ name: string }>(

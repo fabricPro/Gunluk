@@ -5,10 +5,9 @@ import {
   SENKRONSUZ,
   VARLIKLAR,
   catismaKarari,
-  mezarTasi,
   zarfiAc,
   zarfla,
-  type YerelSatir,
+  type Cozulmus,
 } from '../src/cekirdek/senkronBicim.js'
 
 /**
@@ -20,7 +19,7 @@ import {
 
 const HIZLI = { t: 1, m: 1024, p: 1 }
 
-const kayit = (metin: string, guncelleme = 100): YerelSatir => ({
+const kayit = (metin: string, guncelleme = 100): Cozulmus => ({
   varlik: 'kayit',
   id: 'kayit-1',
   guncelleme,
@@ -47,7 +46,7 @@ describe('zarf · gidiş-dönüş', () => {
 
   it('bütün varlık tipleri gidip geliyor', async () => {
     for (const v of VARLIKLAR) {
-      const s: YerelSatir = { varlik: v, id: 'x', guncelleme: 1, alanlar: { a: 1 } }
+      const s: Cozulmus = { varlik: v, id: 'x', guncelleme: 1, alanlar: { a: 1 } }
       expect((await zarfiAc(await zarfla(s, await kimlik()), await kimlik()))?.varlik).toBe(v)
     }
   })
@@ -87,9 +86,21 @@ describe('zarf · sunucuya giden şey', () => {
     expect(z.satir).toMatch(/^[0-9a-f]{64}$/)
   })
 
-  it('zarfın alanları yalnızca dört tane — fazladan üstveri yok', async () => {
+  it('zarfın alanları yalnızca üç tane — fazladan üstveri yok', async () => {
     const z = await zarfla(kayit('bir şey'), await kimlik())
-    expect(Object.keys(z).sort()).toEqual(['govde', 'iv', 'satir', 'silindi'])
+    expect(Object.keys(z).sort()).toEqual(['govde', 'iv', 'satir'])
+  })
+
+  it('silme ile normal satır sunucudan bakınca ayırt edilemiyor', async () => {
+    /* Mezar taşında `silindi` diye bir bayrak YOK: sunucu hangi satırın
+       silindiğini bilmiyor. Silme bilgisi şifreli gövdenin içinde. */
+    const canli = await zarfla(kayit('x'), await kimlik())
+    const olu = await zarfla(
+      { varlik: 'kayit', id: 'kayit-1', guncelleme: 101, alanlar: null },
+      await kimlik(),
+    )
+    expect(Object.keys(olu).sort()).toEqual(Object.keys(canli).sort())
+    expect(olu.govde.length).toBeGreaterThan(0)
   })
 
   it('aynı satır iki kez zarflanınca gövde farklı — IV yeniden kullanılmıyor', async () => {
@@ -111,57 +122,97 @@ describe('zarf · yanlış anahtar', () => {
 
   it('oynanmış gövde çözülmüyor', async () => {
     const z = await zarfla(kayit('gizli'), await kimlik())
-    const bozuk = { ...z, govde: 'A' + z.govde!.slice(1) }
+    const bozuk = { ...z, govde: 'A' + z.govde.slice(1) }
     expect(await zarfiAc(bozuk, await kimlik())).toBeNull()
   })
 })
 
 describe('mezar taşı', () => {
-  it('içerik taşımıyor', async () => {
-    const m = await mezarTasi('kayit', 'kayit-1', await kimlik())
-    expect(m.silindi).toBe(true)
-    expect(m.govde).toBeNull()
-    expect(m.iv).toBeNull()
-  })
+  const mezar = (guncelleme = 200) =>
+    zarfla({ varlik: 'kayit' as const, id: 'kayit-1', guncelleme, alanlar: null }, k)
 
   it('silinen satırın kimliği canlıyken kullanılanla aynı', async () => {
     const canli = await zarfla(kayit('x'), await kimlik())
-    const olu = await mezarTasi('kayit', 'kayit-1', await kimlik())
-    expect(olu.satir).toBe(canli.satir)
+    expect((await mezar()).satir).toBe(canli.satir)
   })
 
-  it('mezar taşı açılmaya çalışılırsa null', async () => {
-    expect(await zarfiAc(await mezarTasi('kayit', 'a', await kimlik()), await kimlik())).toBeNull()
+  it('açılınca "silinmiş" diye çözülüyor ve SÜRÜM taşıyor', async () => {
+    const c = (await zarfiAc(await mezar(200), await kimlik()))!
+    expect(c.alanlar).toBeNull()
+    expect(c.guncelleme).toBe(200)
+    expect(c.id).toBe('kayit-1')
+  })
+
+  it('kullanıcı metni taşımıyor', async () => {
+    const m = await mezar()
+    expect(JSON.stringify(m)).not.toContain('kayit-1')
   })
 })
 
 describe('çakışma · metin asla sessizce kaybolmuyor', () => {
+  const yerelDurum = (metin: string | null, sira: number) => ({
+    sira,
+    alanlar: metin === null ? null : kayit(metin, sira).alanlar,
+  })
+
   it('yerel yoksa uzak alınıyor', () => {
     expect(catismaKarari(null, kayit('uzak', 5))).toEqual({ tur: 'uzak' })
   })
 
   it('uzak eskiyse yerel duruyor', () => {
-    expect(catismaKarari(kayit('yerel', 10), kayit('uzak', 5))).toEqual({ tur: 'yerel' })
+    expect(catismaKarari(yerelDurum('yerel', 10), kayit('uzak', 5))).toEqual({ tur: 'yerel' })
   })
 
-  it('eşit damgada yerel duruyor — gereksiz yazma yok', () => {
-    expect(catismaKarari(kayit('a', 10), kayit('b', 10))).toEqual({ tur: 'yerel' })
+  it('içerik aynıysa hiçbir şey yapılmıyor', () => {
+    expect(catismaKarari(yerelDurum('aynı', 5), kayit('aynı', 5))).toEqual({ tur: 'yerel' })
   })
 
   it('uzak yeniyse ve metin farklıysa yerel metin kurtarılıyor', () => {
-    const karar = catismaKarari(kayit('telefonda yazdığım', 5), kayit('bilgisayarda yazdığım', 9))
-    expect(karar.tur).toBe('uzak')
-    expect((karar as { kurtarilacakMetin: string }).kurtarilacakMetin).toBe('telefonda yazdığım')
-  })
-
-  it('metin aynıysa kurtaracak bir şey yok', () => {
-    expect(catismaKarari(kayit('aynı', 5), kayit('aynı', 9))).toEqual({ tur: 'uzak' })
+    const karar = catismaKarari(
+      yerelDurum('telefonda yazdığım', 5),
+      kayit('bilgisayarda yazdığım', 9),
+    )
+    expect(karar).toEqual({ tur: 'uzak', kurtarilacakMetin: 'telefonda yazdığım' })
   })
 
   it('metin taşımayan varlıkta kurtarma yok', () => {
-    const y: YerelSatir = { varlik: 'defter', id: 'd', guncelleme: 5, alanlar: { ad: 'Eski' } }
-    const u: YerelSatir = { varlik: 'defter', id: 'd', guncelleme: 9, alanlar: { ad: 'Yeni' } }
+    const y = { sira: 5, alanlar: { ad: 'Eski' } }
+    const u: Cozulmus = { varlik: 'defter', id: 'd', guncelleme: 9, alanlar: { ad: 'Yeni' } }
     expect(catismaKarari(y, u)).toEqual({ tur: 'uzak' })
+  })
+})
+
+describe('çakışma · silme dirilmiyor', () => {
+  it('yerelde silinmiş, uzakta eski canlı sürüm varsa silme kalıyor', () => {
+    /*
+     * Hatanın kendisi buydu: A bir kaydı siliyor, sonra kendi daha önce
+     * gönderdiği canlı satırı geri çekiyor ve kayıt diriliyordu.
+     */
+    const silinmis = { sira: 10, alanlar: null }
+    expect(catismaKarari(silinmis, kayit('eski canlı', 4))).toEqual({ tur: 'yerel' })
+  })
+
+  it('uzaktan gelen silme yerel eskiyse uygulanıyor', () => {
+    const yerel = { sira: 4, alanlar: kayit('duruyor', 4).alanlar }
+    const uzakSilme: Cozulmus = { varlik: 'kayit', id: 'kayit-1', guncelleme: 9, alanlar: null }
+    const karar = catismaKarari(yerel, uzakSilme)
+    expect(karar).toEqual({ tur: 'uzak', kurtarilacakMetin: 'duruyor' })
+  })
+})
+
+describe('çakışma · iki cihaz aynı sonuca varıyor', () => {
+  it('beraberlikte iki taraf da aynı kazananı seçiyor', () => {
+    /*
+     * Aynı Lamport değerinde farklı yazılar: "yerel kazanır" deseydik
+     * her cihaz kendininkinde kalır ve defter ikiye ayrılırdı. Beraberlik
+     * içerikle bozuluyor, o yüzden ikisi de aynı yere varıyor.
+     */
+    const A = 'telefonda yazdığım'
+    const B = 'bilgisayarda yazdığım'
+    const aKarari = catismaKarari({ sira: 7, alanlar: kayit(A, 7).alanlar }, kayit(B, 7))
+    const bKarari = catismaKarari({ sira: 7, alanlar: kayit(B, 7).alanlar }, kayit(A, 7))
+    /* Tam olarak biri değişiyor — ikisi de değil, hiçbiri de değil. */
+    expect([aKarari.tur, bKarari.tur].filter((t) => t === 'uzak')).toHaveLength(1)
   })
 })
 

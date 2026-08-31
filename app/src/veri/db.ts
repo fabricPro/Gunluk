@@ -5,6 +5,7 @@ import soruSql from './sema/004_soru.sql?raw'
 import ekSql from './sema/005_ek.sql?raw'
 import kenarSql from './sema/006_kenar.sql?raw'
 import gomuSql from './sema/007_gomu.sql?raw'
+import senkronSql from './sema/008_senkron.sql?raw'
 
 /**
  * Sürücüden bağımsız asgari SQL arayüzü.
@@ -69,6 +70,7 @@ export const GOCLER: Goc[] = [
   { surum: 5, sql: ekSql },
   { surum: 6, sql: kenarSql },
   { surum: 7, sql: gomuSql },
+  { surum: 8, sql: senkronSql },
 ]
 
 export const SON_SURUM = GOCLER[GOCLER.length - 1]!.surum

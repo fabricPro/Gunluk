@@ -52,6 +52,16 @@ const KAYIT_SECIM = `
  * Defterin veri kapısı. Çekirdek katman buraya bağımlı değil; bağımlılık
  * tek yönlü: ekran -> depo -> çekirdek.
  */
+/** Uzaktan gelen bir satırın yerele uygulanması. */
+export interface SenkronUygulama {
+  varlik: string
+  id: string
+  /** Uzağın Lamport sırası. */
+  sira: number
+  /** null ise satır siliniyor. */
+  alanlar: Record<string, unknown> | null
+}
+
 export class Depo {
   /** Okuma ve yazmanın hangi deftere ait olduğu. */
   private defterId = 'defter-1'
@@ -723,5 +733,157 @@ export class Depo {
       [anahtar],
     )
     return r?.deger ?? null
+  }
+
+  /* ── senkron ───────────────────────────────────────────── */
+
+
+  /**
+   * Senkronun okuduğu tablolar ve her birinin kimlik sütunu.
+   *
+   * `kayit_tema` bileşik anahtarlı; izde kimlik iki parçanın birleşimi
+   * (`kayit_id|tema_id`) ve buradaki ifade onu yeniden kuruyor.
+   */
+  private static readonly SENKRON_TABLO: Record<string, { kimlik: string; nerede: string }> = {
+    defter: { kimlik: 'id', nerede: 'id = ?' },
+    kayit: { kimlik: 'id', nerede: 'id = ?' },
+    tema: { kimlik: 'id', nerede: 'id = ?' },
+    kayit_tema: {
+      kimlik: "kayit_id || '|' || tema_id",
+      nerede: "kayit_id || '|' || tema_id = ?",
+    },
+    kenar: { kimlik: 'id', nerede: 'id = ?' },
+    sayfa_baslik: { kimlik: 'kayit_id', nerede: 'kayit_id = ?' },
+    ek: { kimlik: 'kayit_id', nerede: 'kayit_id = ?' },
+    kapsul: { kimlik: 'id', nerede: 'id = ?' },
+  }
+
+  /** Gönderilmeyi bekleyen değişiklikler, eskiden yeniye. */
+  async senkronBekleyen(
+    sinir = 100,
+  ): Promise<{ varlik: string; id: string; sira: number; silindi: boolean }[]> {
+    const satirlar = await this.db.hepsi<{
+      varlik: string
+      id: string
+      sira: number
+      silindi: number
+    }>(
+      `SELECT varlik, id, sira, silindi FROM senkron_iz
+       WHERE gonderildi = 0 ORDER BY sira LIMIT ?`,
+      [sinir],
+    )
+    return satirlar.map((s) => ({ ...s, silindi: !!s.silindi }))
+  }
+
+  /** Kaç değişiklik sırada — ayar kağıdı bunu gösteriyor. */
+  async senkronBekleyenSayisi(): Promise<number> {
+    const r = await this.db.tek<{ n: number }>(
+      'SELECT count(*) AS n FROM senkron_iz WHERE gonderildi = 0',
+    )
+    return r?.n ?? 0
+  }
+
+  /** Bir izin gösterdiği satırın tüm sütunları; satır silinmişse null. */
+  async senkronSatir(varlik: string, id: string): Promise<Record<string, unknown> | null> {
+    const t = Depo.SENKRON_TABLO[varlik]
+    if (!t) return null
+    return this.db.tek(`SELECT * FROM "${varlik}" WHERE ${t.nerede}`, [id])
+  }
+
+  async senkronGonderildi(isaretler: { varlik: string; id: string; sira: number }[]): Promise<void> {
+    if (!isaretler.length) return
+    await this.islem(async () => {
+      for (const i of isaretler)
+        /* `sira` koşulu bilerek: gönderim sürerken kayıt yeniden
+           değiştiyse iz gönderilmiş sayılmamalı, yoksa o değişiklik
+           sessizce kaybolur. */
+        await this.db.calistir(
+          'UPDATE senkron_iz SET gonderildi = 1 WHERE varlik = ? AND id = ? AND sira = ?',
+          [i.varlik, i.id, i.sira],
+        )
+    })
+  }
+
+  /**
+   * Uzaktan gelen satırı yerele yazar.
+   *
+   * Tetikleyiciler bu sırada SUSUYOR (`uygulaniyor = 1`): susmasaydı
+   * çekilen her satır "gönderilecek" diye işaretlenir ve iki cihaz
+   * birbirine sonsuza kadar aynı satırı yollardı (KARARLAR.md · K-036).
+   */
+  async senkronUygula(islemler: SenkronUygulama[]): Promise<void> {
+    if (!islemler.length) return
+    await this.islem(async () => {
+      await this.db.calistir('UPDATE senkron_sayac SET uygulaniyor = 1')
+      try {
+        for (const i of islemler) {
+          const t = Depo.SENKRON_TABLO[i.varlik]
+          if (!t) continue
+          if (i.alanlar) {
+            const sutunlar = Object.keys(i.alanlar)
+            if (!sutunlar.length) continue
+            await this.db.calistir(
+              `INSERT OR REPLACE INTO "${i.varlik}" (${sutunlar.map((c) => `"${c}"`).join(', ')})
+               VALUES (${sutunlar.map(() => '?').join(', ')})`,
+              sutunlar.map((c) => i.alanlar![c]),
+            )
+          } else {
+            await this.db.calistir(`DELETE FROM "${i.varlik}" WHERE ${t.nerede}`, [i.id])
+          }
+          /*
+           * İz elle yazılıyor (tetikleyiciler susuyor) ve `gonderildi = 1`
+           * konuyor: bu satır zaten sunucudan geldi, geri gönderilmeyecek.
+           * `sira` uzağın Lamport değeri — sonraki çakışma kararı bunu
+           * kullanacak. `satir` de burada doluyor, mezar taşlarını
+           * çözebilmek için.
+           */
+          await this.db.calistir(
+            `INSERT INTO senkron_iz (varlik, id, sira, silindi, gonderildi)
+             VALUES (?, ?, ?, ?, 1)
+             ON CONFLICT (varlik, id) DO UPDATE SET
+               sira = excluded.sira, silindi = excluded.silindi, gonderildi = 1`,
+            [i.varlik, i.id, i.sira, i.alanlar ? 0 : 1],
+          )
+        }
+      } finally {
+        await this.db.calistir('UPDATE senkron_sayac SET uygulaniyor = 0')
+      }
+    })
+  }
+
+  /** Bir izin Lamport sırası — çakışma kararı bununla veriliyor. */
+  async senkronIziOku(
+    varlik: string,
+    id: string,
+  ): Promise<{ sira: number; silindi: boolean } | null> {
+    const r = await this.db.tek<{ sira: number; silindi: number }>(
+      'SELECT sira, silindi FROM senkron_iz WHERE varlik = ? AND id = ?',
+      [varlik, id],
+    )
+    return r ? { sira: r.sira, silindi: !!r.silindi } : null
+  }
+
+
+  /** Lamport saati: yerel değer ile çekilenlerin en büyüğünün büyüğü. */
+  async senkronSaatiIlerlet(gorulen: number): Promise<void> {
+    await this.db.calistir(
+      'UPDATE senkron_sayac SET deger = max(deger, ?) WHERE tek = 1',
+      [gorulen],
+    )
+  }
+
+  async senkronSaati(): Promise<number> {
+    const r = await this.db.tek<{ deger: number }>('SELECT deger FROM senkron_sayac WHERE tek = 1')
+    return r?.deger ?? 0
+  }
+
+  /** Senkron kapatılınca izler temizleniyor; defter olduğu gibi kalıyor. */
+  async senkronIzleriSil(): Promise<void> {
+    await this.db.calistir('DELETE FROM senkron_iz')
+  }
+
+  /** Senkron açılınca defterin tamamı gönderilsin diye izleri tazeler. */
+  async senkronHepsiniIsaretle(): Promise<void> {
+    await this.db.calistir('UPDATE senkron_iz SET gonderildi = 0')
   }
 }
