@@ -9,6 +9,53 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-31 · K-034 · Yayın: beyan koda bağlı, ekran görüntüsü üretilebilir
+
+Yol haritası 13. `yayin/` klasörü kod değil, **kodun beyanı**.
+
+### Ekran görüntüleri elle çekilmiyor
+
+`app/arac/ekranGoruntusu.mjs` mağaza ölçülerinde (iPhone 6.9", iPad 13")
+görüntüleri üretiyor. Elle çekilen bir görüntü bir daha üretilemez ve
+arayüz değişince sessizce eskir; üretilebilir olan `npm run gorsel` ile
+tazeleniyor. Görsellerde gerçek kullanıcı verisi değil `?tohum` defteri
+var.
+
+**Ve ilk koşuda bir hata buldu:** dar ekranda araç çubuğu sığmıyor,
+**bırak düğmesi ekran dışında kalıyordu.** Bu bir telefon uygulaması ve
+yazılanı kaydeden düğme telefonda ulaşılamıyordu. Uygulamada hiç medya
+sorgusu yoktu. `src/stil/dar.css` eklendi: yalnızca yerleşim değişiyor,
+renk ve hiyerarşi aynı — dar ekran ayrı bir tasarım değil (PROJE.md §4).
+
+Ders yine tanıdık (K-029, K-030, K-033): **ölçmeden bilinmiyor.** Ekran
+görüntüsü çekmek burada bir pazarlama işi değil, bir doğrulama işi oldu.
+
+### Kategori: Yaşam Tarzı, Sağlık değil
+
+Sağlık kategorisi teşhis/ölçüm çağrışımı taşıyor ve PROJE.md §5 "mod/duygu
+skoru" fikrini zaten reddetmişti. Orada listelenmek, olmadığımız şeyi ima
+etmek olurdu. Aynı sebeple Apple'ın "Medical/Treatment Information"
+sorusuna **None** deniyor: kriz kartı tıbbi bilgi değil, acil servis
+numarasına yönlendirme.
+
+### "Data Not Collected" gerçekten doğru
+
+Analitik, çökme raporu, reklam SDK'sı, hesap, sunucu — hiçbiri yok. Bize
+ait tek bir uç nokta bile yok. Uygulamanın çıkabildiği iki adres var
+(jsdelivr'dan model indirmesi, kullanıcının kendi anahtarıyla Anthropic),
+ikisi de varsayılan kapalı ve ikisi de kullanıcının açık eylemiyle.
+
+Bu beyanın kolay olmasının sebebi K-002, K-021, K-029 ve K-031'de daha
+önce ödenen bedeller. **Gizlilik etiketi yayın günü doldurulan bir form
+değil, iki yıl önce alınan mimari kararların faturası.**
+
+### Yaş sınırı 17+
+
+Kullanıcı günlüğüne her şeyi yazabilir ve uygulama onu sansürlemez. Yaş
+sınırını düşük tutup sonra "içerik denetlenmiyor" demek tutarsız olurdu.
+
+---
+
 ## 2026-08-31 · K-033 · Gömü bayatlığı saate değil, sürüme bakıyor
 
 Titrek bir test hatanın kendisiydi. `test/gomuAkis.test.ts`'teki "düzeltilen

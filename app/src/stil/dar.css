@@ -1,0 +1,55 @@
+/* ══════ DAR EKRAN ══════
+   Bu bir telefon uygulaması; masaüstü tarayıcı yalnızca geliştirme
+   ortamı. Ölçü alınana kadar bu dosya yoktu ve mağaza ekran görüntüsü
+   çekilirken ortaya çıktı: araç çubuğu 440 px'e sığmıyor, **bırak
+   düğmesi ekran dışında kalıyordu.** Yazılanı kaydeden düğme.
+
+   Kural: burada yalnızca YERLEŞİM değişiyor. Renk, yazı tipi, ton,
+   hiyerarşi aynı — dar ekran ayrı bir tasarım değil, aynı tasarımın
+   sığdırılmış hâli (PROJE.md §4). */
+
+@media (max-width: 620px) {
+  /* ── defter ─────────────────────────────────────────────
+     Araç çubuğu tek satıra sığmıyor; sarılıyor. `bırak` sağa
+     yaslanmayı bırakıp kendi satırında tam genişlik alıyor: en sık
+     basılan düğme, en kolay ulaşılan yer. */
+  .arac {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    padding-bottom: 12px;
+  }
+  .arac #birak {
+    margin-left: 0;
+    flex: 1 0 100%;
+    order: 9;
+    padding-top: 11px;
+    padding-bottom: 11px;
+  }
+
+  #defter-orta { padding: 12px 12px 0 }
+  .kagit-ic { padding: 24px 22px 8px }
+  /* Cilt kesiti dar ekranda daralıyor ama kalıyor: defterin kaç cilde
+     ulaştığını gösteren tek şey o. */
+  #kesit-sut { width: 46px }
+  .cilt-bas { padding-left: 5px }
+  .syf { padding-right: 5px }
+  /* "83 sayfa · 2 cilt · 352 kayıt" 46 px'te dört satıra kırılıp
+     okunmaz oluyordu; dar ekranda aynı bilgi fihristte duruyor. */
+  #kesit-alt { display: none }
+  /* Klavye kısayolu telefonda anlamsız. */
+  .arac kbd { display: none }
+
+  /* ── arşiv ──────────────────────────────────────────── */
+  #arsiv { padding: 0 16px 90px }
+  .sor input { font-size: 18px }
+
+  /* ── ayar kağıdı ────────────────────────────────────── */
+  .ay-kagit { padding: 22px 18px }
+  .ay-dugmeler { flex-wrap: wrap }
+}
+
+/* Çok dar (küçük telefon): üst çubuk da sığmıyor. */
+@media (max-width: 400px) {
+  .marka { display: none }
+  nav button { padding: 7px 9px; font-size: 12px }
+}

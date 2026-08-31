@@ -136,7 +136,7 @@ Sıra önemli. Her adım bir öncekine yaslanıyor.
 12. ~~İsteğe bağlı: her yazıdan sonra **tek soru.**~~ **Tamam.** Yorum değil, soru; yalnızca o kaydın metni gidiyor. **Otomatik değil:** ilke 2.3 "arka planda sessizce hiçbir şey yüklenmez" dediği için ayrı bir düğme — akış bedeli bilerek ödendi. Kriz günlerinde düğme hiç çıkmıyor (KARARLAR.md · K-032).
 
 ### Faz 4 — Yayın
-13. Gizlilik etiketleri, App Store metinleri, ekran görüntüleri.
+13. ~~Gizlilik etiketleri, App Store metinleri, ekran görüntüleri.~~ **Tamam.** `yayin/` altında: mağaza metinleri (TR + EN), "Data Not Collected" beyanı, yaş sınırı cevapları, App Review notu ve gizlilik politikası. Ekran görüntüleri `npm run gorsel` ile üretiliyor — ilk koşuda dar ekranda **bırak düğmesinin ekran dışında kaldığını** buldu ve düzeltildi (KARARLAR.md · K-034).
 14. İngilizce yerelleştirme.
 
 ---
