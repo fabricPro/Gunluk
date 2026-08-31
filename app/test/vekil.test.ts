@@ -135,6 +135,16 @@ describe('vekil fonksiyonu', () => {
       expect(fonksiyon, `vekil ${onek} hedefini tanımıyor`).toContain(`${onek.slice(1)}:`)
   })
 
+  it('yönlendirmedeki parça adı da elenen alanla aynı', () => {
+    /*
+     * Vercel, yönlendirmedeki adlandırılmış parçayı sorgu dizesine
+     * YANKILIYOR. Parçaya `:yol*` deseydik Neon'a `yol=token` diye bir
+     * alan giderdi ve PostgREST onu sütun süzgeci sayıp 400 dönerdi.
+     * Aynı adı taşıyınca tek kuralla eleniyor.
+     */
+    for (const r of vercel.rewrites) expect(r.source).toContain(':vekilYol*')
+  })
+
   it('yönlendirme fonksiyonun beklediği alanları gönderiyor', () => {
     /*
      * Dinamik yol denendi ve canlıda ÇOKLU segment yakalamadı:
@@ -144,13 +154,26 @@ describe('vekil fonksiyonu', () => {
     for (const r of vercel.rewrites) {
       const alanlar = new URL('https://x' + r.destination).searchParams
       for (const ad of [...alanlar.keys()]) expect(fonksiyon, ad).toContain(`'${ad}'`)
-      expect(alanlar.get('vekilYol')).toBe(':yol*')
+      expect(alanlar.get('vekilYol')).toBe(':vekilYol*')
     }
   })
 
   it('çerezden Domain düşürülüyor — çerez bu kaynağa ait olsun', () => {
     expect(fonksiyon.toLowerCase()).toContain("'domain='")
     expect(fonksiyon).toContain('getSetCookie')
+  })
+
+  it('Vercel\'in kendi alanları Neon\'a taşınmıyor', () => {
+    /* `_vercel_share` gibi alanlar sorgu dizesine ekleniyor; PostgREST
+       tanımadığı alanı sütun süzgeci sayıp 400 dönüyor. */
+    expect(fonksiyon).toContain('_vercel_')
+  })
+
+  it('göreli istek adresi çökertmiyor', () => {
+    /* Çalışma ortamında `istek.url` göreli gelebiliyor; tabansız
+       `new URL(...)` `ERR_INVALID_URL` atıyordu ve fonksiyon 500
+       dönüyordu. */
+    expect(fonksiyon).toMatch(/new URL\(istek\.url,/)
   })
 
   it('kayıt tutmuyor', () => {

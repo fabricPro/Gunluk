@@ -21,6 +21,15 @@
  * fonksiyon sabit yolda duruyor; hedef ile yol `vercel.json`daki
  * yönlendirmeyle sorgu dizesinde geliyor.
  *
+ * ── Neon'a hangi sorgu alanları gidiyor ──────────────────────
+ *
+ * Yalnızca istemcinin gönderdikleri. Vercel sorgu dizesine kendi
+ * alanlarını da ekliyor: yönlendirmedeki adlandırılmış parçanın yankısı
+ * ve `_vercel_` önekli alanlar. PostgREST tanımadığı alanı sütun süzgeci
+ * sayıp 400 döndüğü için bunlar ELENİYOR. Yönlendirmedeki parçaya
+ * bilerek `vekilYol` dendi: yankısı da aynı adı taşısın ve tek kuralla
+ * elensin.
+ *
  * ── Ne yapıyor, ne yapmıyor ──────────────────────────────────
  *
  * GEÇEN: türetilmiş parola, oturum çerezi, JWT, şifreli zarflar.
@@ -68,14 +77,20 @@ const alansiz = (cerez: string): string =>
     .filter((p) => p.trim().slice(0, 7).toLowerCase() !== 'domain=')
     .join(';')
 
+/** Vercel'in kendi eklediği alanlar Neon'a taşınmıyor. */
+const bize = (ad: string): boolean =>
+  ad === HEDEF || ad === YOL || ad.startsWith('_vercel_')
+
 export default async function vekil(istek: Request): Promise<Response> {
-  const gelen = new URL(istek.url)
+  /* `istek.url` burada göreli gelebiliyor; taban yalnızca ayrıştırmak
+     için, hiçbir yere gitmiyor. */
+  const gelen = new URL(istek.url, 'http://vekil.gecersiz')
   const taban = TABAN[gelen.searchParams.get(HEDEF) ?? '']
   if (!taban) return new Response('yok', { status: 404 })
 
   const hedef = new URL(taban + '/' + (gelen.searchParams.get(YOL) ?? ''))
   for (const [ad, deger] of gelen.searchParams)
-    if (ad !== HEDEF && ad !== YOL) hedef.searchParams.append(ad, deger)
+    if (!bize(ad)) hedef.searchParams.append(ad, deger)
 
   const baslik = new Headers()
   for (const ad of GIDEN) {

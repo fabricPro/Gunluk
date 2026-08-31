@@ -6,8 +6,8 @@
   "ignoreCommand": "exit 1",
   "github": { "silent": true },
   "rewrites": [
-    { "source": "/auth/:yol*", "destination": "/api/vekil?vekilHedef=auth&vekilYol=:yol*" },
-    { "source": "/rest/:yol*", "destination": "/api/vekil?vekilHedef=rest&vekilYol=:yol*" }
+    { "source": "/auth/:vekilYol*", "destination": "/api/vekil?vekilHedef=auth&vekilYol=:vekilYol*" },
+    { "source": "/rest/:vekilYol*", "destination": "/api/vekil?vekilHedef=rest&vekilYol=:vekilYol*" }
   ],
   "headers": [
     {
