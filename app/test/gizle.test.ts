@@ -10,7 +10,7 @@ import {
   onaltilikYaz,
   rastgele,
   yavasTuret,
-} from '../src/veri/gizle.js'
+} from '../src/cekirdek/gizle.js'
 
 /**
  * Ortak kripto sarmalayıcısı.

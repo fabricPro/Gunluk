@@ -8,8 +8,9 @@ import { argon2id } from 'hash-wasm'
  * `yedek.ts` bunun iki ayrı kopyasını taşıyordu; senkron üçüncüsü
  * olmasın diye buraya çıkarıldı (KARARLAR.md · K-036).
  *
- * Bu dosya DOM bilmez, depo bilmez, ağ bilmez. Yalnızca bayt üretir ve
- * çözer — `kilit.ts`in başındaki sözün aynısı.
+ * `cekirdek/` altında, çünkü saf: DOM bilmez, depo bilmez, ağ bilmez.
+ * Yalnızca bayt üretir ve çözer. Yanındaki `kurtarma.ts` de aynı türden
+ * bir ilkel (base32 + sağlama) — kripto ilkelleri bu katmanda.
  *
  * **Buraya bir `fetch` eklemeyin.** `test/senkronGizlilik.test.ts` bunu
  * tarıyor: uygulamada ağa çıkabilen dosyaların listesi sabit.

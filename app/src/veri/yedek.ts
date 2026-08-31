@@ -9,7 +9,7 @@ import {
   rastgele,
   yavasTuret,
   type KilitParam,
-} from './gizle.js'
+} from '../cekirdek/gizle.js'
 import type { Dokum } from './dokum.js'
 
 /**

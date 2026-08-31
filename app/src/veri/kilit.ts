@@ -5,8 +5,8 @@ import {
   onaltilikYaz,
   rastgele,
   yavasTuret,
-} from './gizle.js'
-import type { KilitParam } from './gizle.js'
+} from '../cekirdek/gizle.js'
+import type { KilitParam } from '../cekirdek/gizle.js'
 
 /**
  * Defterin kilidi — PIN + biyometri (KARARLAR.md · K-021).
