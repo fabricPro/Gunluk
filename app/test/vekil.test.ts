@@ -18,6 +18,7 @@ const oku = (ad: string): string => readFileSync(new URL(`../${ad}`, import.meta
 
 const vercel = JSON.parse(oku('vercel.json')) as {
   ignoreCommand?: string
+  buildCommand: string
   rewrites: { source: string; destination: string }[]
 }
 
@@ -73,6 +74,15 @@ describe('vercel.json kodun istediği yolları taşıyor', () => {
       expect(a.startsWith('https://')).toBe(true)
       expect(a).toContain('.neon.tech')
     }
+  })
+
+  it('yayına çıkmadan testler koşuyor', () => {
+    /*
+     * Emekliye ayrılan `pages.yml` yayından önce `npm test` koşuyordu.
+     * Vercel yalnızca derleseydi bu güvenlik ağı sessizce kaybolurdu:
+     * düşen bir muhafız testiyle birlikte yayına çıkardık.
+     */
+    expect(vercel.buildCommand).toContain('npm test')
   })
 
   it('ignoreCommand ile derleme engellenmiyor', () => {

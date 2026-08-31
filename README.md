@@ -24,18 +24,24 @@ Bağımlılık tek yönlü: `ekran → veri → cekirdek`.
 
 ## Açılır adres
 
-**https://fabricpro.github.io/Gunluk/**
+**https://defter-umber.vercel.app**
 
-Her itmede otomatik derlenip yayınlanır (`.github/workflows/pages.yml`).
-Pages'in bir kez elle açılması gerekiyor: **Settings → Pages → Build and
-deployment → Source: GitHub Actions**. İş akışının belirteci site
-oluşturamıyor, bu yönetici yetkisi istiyor.
+Üretim dalına her itmede otomatik derlenip yayınlanır (`app/vercel.json`).
 Telefondan da açılır ve HTTPS olduğu için veri kalıcılığı orada da çalışır.
 
-Bu bir **önizleme**: tarayıcı derlemesi olduğu için veritabanı **şifresiz** ve
-**kilidi yok**. Veri kendi tarayıcınızda durur ve senkron açılmadıkça hiçbir
-yere gitmez — ama gerçek günlük tutulacak yer burası değil. Üst şeritte
-`defter · önizleme` yazması bunun için.
+GitHub Pages'ten Vercel'e geçildi: depo private olunca Pages ücretli plan
+istiyor. Vercel Hobby private depoyu destekliyor (KARARLAR.md · K-037).
+
+Senkron burada kendi kaynağımızdaki `/auth` ve `/rest` üzerinden çalışıyor.
+Doğrudan Neon'a konuşulsaydı oturum çerezi çapraz site olurdu ve Safari
+onu düşürürdü; `app/api/vekil/[...yol].ts` isteği doğru `Host` ile yeniden
+kuruyor. Vekilden şifreli zarflar geçiyor — şifreleme anahtarı cihazdan
+hiç çıkmıyor.
+
+Bu şu an bir **önizleme**: tarayıcı derlemesi olduğu için veritabanı
+**şifresiz** ve **kilidi yok**. Veri kendi tarayıcınızda durur ve senkron
+açılmadıkça hiçbir yere gitmez — ama gerçek günlük tutulacak yer henüz
+burası değil. Üst şeritte `defter · önizleme` yazması bunun için.
 
 ## Çalıştırma
 
