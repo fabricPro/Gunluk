@@ -36,7 +36,9 @@ App Store incelemesi bunu soracak. Ondan önce biz çözmüş olacağız.
 Hiçbir yere yazılmaz. Diske değmez, belleğe kalıcı düşmez, **sayaç bile tutulmaz.** "Kaç kez yaktın" bilgisi bile bu sözü bozar. Bu, kullanıcının en kötü şeyi yazmasını sağlayan tek mekanizma; bir kez sızarsa ürünün tamamı güvenilmez olur.
 
 ### 2.3 Ham metin cihazdan çıkmaz
-Yazılanlar cihazda, şifreli. AI çağrısı gerekiyorsa yalnızca gereken parça, kullanıcının açık eylemiyle (soru sorması) gider. Arka planda sessizce hiçbir şey yüklenmez.
+Yazılanlar cihazda, şifreli. AI çağrısı gerekiyorsa yalnızca gereken parça, kullanıcının açık eylemiyle (soru sorması) gider.
+
+**Cihazdan çıkan tek şey şifreli olabilir.** Senkron açıksa defter arka planda eşitlenir — ama giden şey ham metin değil, cihazda şifrelenmiş bir blok; anahtar cihazdan hiç ayrılmaz ve sunucu içeriği okuyamaz. Bu cümle ilk hâlinde *"arka planda sessizce hiçbir şey yüklenmez"* diyordu ve senkron eklenirken bilerek revize edildi (KARARLAR.md · K-036). Şifresiz hiçbir şey, hiçbir koşulda arka planda gitmez.
 
 ### 2.4 Arşiv uydurmaz
 Cevap yalnızca kullanıcının kendi kayıtlarından kurulur ve **kullanılan kayıtlar her zaman gösterilir** (cilt + sayfa numarasıyla). Kayıt yoksa cevap: *"Bununla ilgili bir şey yazmamışsın. Yazmadığın bir şeyi uydurmam."*
@@ -136,8 +138,11 @@ Sıra önemli. Her adım bir öncekine yaslanıyor.
 12. ~~İsteğe bağlı: her yazıdan sonra **tek soru.**~~ **Tamam.** Yorum değil, soru; yalnızca o kaydın metni gidiyor. **Otomatik değil:** ilke 2.3 "arka planda sessizce hiçbir şey yüklenmez" dediği için ayrı bir düğme — akış bedeli bilerek ödendi. Kriz günlerinde düğme hiç çıkmıyor (KARARLAR.md · K-032).
 
 ### Faz 4 — Yayın
-13. ~~Gizlilik etiketleri, App Store metinleri, ekran görüntüleri.~~ **Tamam.** `yayin/` altında: mağaza metinleri (TR + EN), "Data Not Collected" beyanı, yaş sınırı cevapları, App Review notu ve gizlilik politikası. Ekran görüntüleri `npm run gorsel` ile üretiliyor — ilk koşuda dar ekranda **bırak düğmesinin ekran dışında kaldığını** buldu ve düzeltildi (KARARLAR.md · K-034).
+13. ~~Gizlilik etiketleri, App Store metinleri, ekran görüntüleri.~~ **Tamam.** `yayin/` altında: mağaza metinleri (TR + EN), gizlilik etiketleri, yaş sınırı cevapları, App Review notu ve gizlilik politikası. (Beyan o gün "Data Not Collected"tı; Faz 5'te senkron eklenince düştü — K-036.) Ekran görüntüleri `npm run gorsel` ile üretiliyor — ilk koşuda dar ekranda **bırak düğmesinin ekran dışında kaldığını** buldu ve düzeltildi (KARARLAR.md · K-034).
 14. ~~İngilizce yerelleştirme.~~ **Tamam.** Arayüz değil, **dil makineleri de**: tarih, gövdeleme, arşiv cümleleri, defterin soruları ve **kriz sınıflandırıcısı** İngilizce için baştan yazıldı — yoksa ilke 2.1 İngilizce yazan kullanıcı için hiç var olmazdı. Yol boyunca `krizIsareti`'nin varsayılan `dil` argümanı üç çağrı yerinde atlanmış çıktı; varsayılan kaldırıldı, derleyici üçünü de gösterdi. Bilinen sınır: İngilizce kriz kartı bir acil numara söylemiyor (KARARLAR.md · K-035).
+
+### Faz 5 — Sonradan istenen
+15. ~~**Cihazlar arası senkron.**~~ **Tamam.** Uçtan uca şifreli: her satır cihazda AES-256-GCM ile şifrelenip öyle gidiyor, anahtar cihazdan hiç çıkmıyor, sunucu içeriği okuyamıyor. Hesap yok — tek bir Defter Kimliği var. Yerel asıl kalıyor: kapalıyken uygulama tek istek bile yapmıyor. Çakışmada kaybeden metin kenar notuna dönüyor. İlke 2.3'ün ikinci cümlesi bilerek revize edildi ve `Data Not Collected` beyanı düştü (KARARLAR.md · K-036).
 
 ---
 

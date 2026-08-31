@@ -9,6 +9,148 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-31 · K-036 · Cihazlar arası senkron: uçtan uca şifreli, kurtarma kodu kimlikli
+
+Kullanıcı defteri birden çok cihazda kullanmak istedi. Bu istek ürünün en
+temel sözüne dokunuyor, o yüzden önce muhasebesi.
+
+### İlke muhasebesi
+
+| İlke | Durum |
+|---|---|
+| **2.1** kriz anında susar | Etkilenmiyor. Sınıflandırma cihazda, hiçbir yere yazılmıyor; sunucuya giden blob şifreli. |
+| **2.2** yakılan sayfa yanar | Etkilenmiyor. `ekran/yak.ts` senkrona hiç dokunmuyor ve iki ayrı test bunu tarıyor. |
+| **2.3** ham metin cihazdan çıkmaz | **İlk cümlesi ayakta, ikincisi revize edildi.** Ham metin gerçekten çıkmıyor: çıkan şey AES-GCM şifreli blob ve anahtar cihazdan hiç ayrılmıyor. Ama *"arka planda sessizce hiçbir şey yüklenmez"* artık doğru değil — senkron açıksa arka planda yükleme oluyor. Cümle PROJE.md'de değiştirildi, gizlice bırakılmadı. |
+| **2.4** arşiv uydurmaz | Etkilenmiyor. |
+
+### Çürütülen karar: K-034
+
+`KARARLAR.md`nin başındaki kural bir kararı geri almak isteyenin önce
+gerekçesini çürütmesini şart koşuyor. Çürütülmesi gereken tek cümle
+**K-034**'ün taşıyıcı direği:
+
+> Bize ait hiçbir uç nokta yok.
+
+Artık yanlış. Çürütme şu: bu cümlenin koruduğu şey uç noktanın *yokluğu*
+değil, **defterin okunamazlığı**ydı. Uçtan uca şifrelemeyle okunamazlık uç
+nokta olmadan da sağlanıyor — sunucu anlamsız bayt görüyor. K-002 (cihazda
+şifreli SQLite) ve K-031 (anahtar kullanıcının) **korunuyor**: yerel
+veritabanı hâlâ asıl kaynak ve senkron anahtarı da cihazdan çıkmıyor.
+
+Bedeli açık ve ödendi: mağaza beyanı `Data Not Collected` olmaktan çıktı,
+gizlilik politikası baştan yazıldı.
+
+### Sunucunun gördüğü üstveri — dürüst liste
+
+Şifreli olsa bile sıfır sızıntı diye bir şey yok. Neon'da duran:
+
+- opak hesap kimliği (kurtarma kodundan türetilmiş; kişisel veri değil),
+- satır başına: opak satır kimliği, sunucunun attığı sürüm sayacı,
+  şifreli gövde, sunucunun aldığı an.
+
+Yani sunucu **kaç satırınız olduğunu, ne sıklıkta eşitlediğinizi ve kabaca
+ne kadar yazdığınızı** öğreniyor. Öğrenmedikleri: metin, tarih, saat,
+defter adı, başlıklar, temalar, fotoğraflar — ve **hangi satırın
+silindiği** (aşağıya bakın).
+
+Yazma saati de sızmıyor: zarfın içindeki sıralama alanı duvar saati değil,
+**Lamport sayacı**.
+
+### Kimlik: e-posta yok, parola yok, hesap yok
+
+Tek bir **Defter Kimliği** var — 128 bit, Crockford base32, sağlamalı
+(mevcut `cekirdek/kurtarma.ts` makinesi). Kullanıcı ikinci cihazda onu
+yazıyor, başka hiçbir şey sorulmuyor.
+
+Koddan üç bağımsız değer HKDF ile ayrışıyor: sunucunun gördüğü opak
+kimlik, Better Auth parolası ve AES-GCM anahtarı. Biri sızsa diğerleri
+hakkında bilgi vermiyor.
+
+Neon'un Managed Better Auth'unda anonim giriş eklentisi yok, o yüzden
+e-posta+parola akışı **türetilmiş sentetik kimlikle** kullanılıyor:
+`<opak>@defter.invalid`. `.invalid` RFC 2606'da tam bu iş için ayrılmış —
+hiçbir yere posta gitmiyor, kullanıcı bunu ne görüyor ne giriyor.
+Doğrulama kapalı olduğu (`require_email_verification: false`) MCP üzerinden
+ölçüldü; planın tek gerçek bilinmeyeni buydu.
+
+### Yerel asıl
+
+SQLite tek kaynak olmaya devam ediyor. Senkron üstüne takılan bir katman;
+kapalıyken uygulama bugünkü gibi tamamen çevrimdışı çalışıyor ve tek istek
+çıkmıyor (tarayıcıda ölçüldü).
+
+Değişiklik izi **tetikleyicilerle** tutuluyor, `Depo` metodlarıyla değil:
+hangi kod yolundan yazılırsa yazılsın iz düşsün. Elle çağrılan bir kayıt
+fonksiyonu bir yerde unutulur; tetikleyici unutulmaz.
+
+### Yol boyunca bulunan iki hata
+
+**1. Silinen kayıt diriliyordu.** İlk tasarımda mezar taşı sürüm
+taşımıyordu (`govde` null idi). A bir kaydı siliyor, sonra kendi daha önce
+gönderdiği canlı satırı geri çekiyor, yerelde satır olmadığı için "uzak
+kazanır" deniyor ve kayıt geri geliyordu. İki cihazlı test yakaladı.
+
+Düzeltme zarfı sadeleştirdi: `silindi` bayrağı kalktı, silme de şifreli
+gövdenin içinde (`alanlar: null`). İki kazanç birden — silme artık
+karşılaştırılabilir bir sürüm taşıyor, **ve sunucu hangi satırın
+silindiğini bilmiyor**; her satır aynı görünüyor.
+
+**2. Aynı anda yapılan düzeltmeler ıraksıyordu.** İki cihaz birbirini
+görmeden düzeltince Lamport değerleri eşit çıkıyor ve "beraberlikte yerel
+kazanır" kuralı her cihazı kendininkinde bırakıyordu: defter ikiye
+ayrılıyordu. Beraberlik artık **içerikle** bozuluyor — iki taraf da aynı
+iki değeri gördüğü için aynı kazananı seçiyor ve buluşuyorlar.
+
+### Çakışmada metin asla kaybolmuyor
+
+Kaybeden metin **kenar notuna** dönüyor. Kenar notu zaten "bir kayda
+sonradan eklenen şey" için var, arşivde görünüyor ve kaybolmuyor (K-024).
+Yeni makine değil, mevcut olanın kullanımı. Bir günlükte sessiz "son yazan
+kazanır" kabul edilemez.
+
+### Ağ sınırı gevşemedi, sıkılaştı
+
+Keşifte çıkan en önemli bulgu: **mevcut testlerin hiçbiri "yeni bir dış
+adres eklenmesin" demiyordu.** `gomuGizlilik.test.ts` yalnızca
+`gomu-isci.ts`'i, `anlatim.test.ts` yalnızca `anlatim.ts` + `yak.ts`'i
+tarıyordu; yeni bir `veri/sunucu.ts` takımı **kırmadan** eklenebilirdi.
+
+`test/senkronGizlilik.test.ts` bunu kapattı: ağa çıkabilen dosyaların TAM
+listesi sabit (`model.ts`, `gomu-isci.ts`, `senkronDepo.ts`), ve ağ
+katmanının şifreleme anahtarına dokunmadığı da taranıyor. İki muhafız da
+kasten kırılarak denendi — muhafız denenmemişse muhafız değildir.
+
+### SDK yok, düz `fetch`
+
+`@neondatabase/neon-js` cazipti, alınmadı. Data API düz PostgREST, Better
+Auth düz REST; ikisi de birkaç satır. Ağ yüzeyi ne kadar küçük ve okunur
+olursa "metnim nereye gidiyor" sorusu o kadar kolay cevaplanıyor.
+`veri/senkronDepo.ts` baştan sona beş dakikada okunuyor.
+
+### Kabul edilen bedeller
+
+- Sunucu üstveri görüyor (yukarıdaki liste).
+- Defter Kimliği kaybolursa sunucudaki kopya da açılmıyor — biz de
+  açamıyoruz. Kodu bilen defteri okuyabiliyor; parola gibi saklanmalı.
+- Neon ücretsiz planında dal başına 512 MB. Fotoğraflar base64 (K-023) ve
+  şifreleme ~%37 büyütüyor; ayar kağıdı kullanılan alanı gösteriyor.
+- Managed Better Auth beta ve yalnızca AWS bölgelerinde.
+
+### Henüz doğrulanmayanlar
+
+Bu geliştirme ortamının ağ politikası Neon'un auth uç noktasını
+engelliyor. Doğrulananlar: şema, RLS politikası, rol yetkileri
+(`anonymous` rolünün tabloda hiçbir yetkisi yok), e-posta doğrulamasının
+kapalı olduğu, ve iki cihazlı tam turun bellekteki sahte sunucuyla
+çalıştığı.
+
+**Doğrulanmayan ve gerçek ağda denenmesi gerekenler:** sentetik
+`.invalid` e-postayla kayıt, çerezli JWT akışının Capacitor webview'ında
+çalışması, canlı iki-hesap RLS testi. `yayin/MAGAZA.md` kontrol listesinde
+duruyorlar.
+
+---
+
 ## 2026-08-31 · K-035 · İngilizce: arayüz değil, dil makineleri de
 
 Yol haritası 14. "İngilizce yerelleştirme" kolay okunur ama bu üründe

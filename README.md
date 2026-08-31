@@ -33,9 +33,9 @@ oluşturamıyor, bu yönetici yetkisi istiyor.
 Telefondan da açılır ve HTTPS olduğu için veri kalıcılığı orada da çalışır.
 
 Bu bir **önizleme**: tarayıcı derlemesi olduğu için veritabanı **şifresiz** ve
-**kilidi yok**. Veri kimseyle paylaşılmaz, sunucuya gitmez — kendi
-tarayıcınızda durur — ama gerçek günlük tutulacak yer burası değil. Üst
-şeritte `defter · önizleme` yazması bunun için.
+**kilidi yok**. Veri kendi tarayıcınızda durur ve senkron açılmadıkça hiçbir
+yere gitmez — ama gerçek günlük tutulacak yer burası değil. Üst şeritte
+`defter · önizleme` yazması bunun için.
 
 ## Çalıştırma
 
@@ -177,7 +177,7 @@ sayfayı doldurursa akış temiz bir sayfa açar (KARARLAR.md · K-023).
 ## Yedekleme
 
 Ayar kağıdında iki yol var, ikisi de kullanıcının açık eylemiyle çalışır;
-ne ağ çağrısı ne sunucu var (KARARLAR.md · K-003, K-022).
+yedekleme için ne ağ çağrısı ne sunucu var (KARARLAR.md · K-003, K-022).
 
 - **Mühürlü yedek** (`.defter`). Tablolar mantıksal döküme çevrilir,
   sıkıştırılır, `Argon2id(kurtarma kodu)` ile AES-GCM altında mühürlenir.
@@ -237,8 +237,9 @@ Arşivdeki cevap varsayılan olarak **tamamen cihazda** kuruluyor. İstersen
 aynı kayıtlardan bir modelin cümle kurmasını isteyebiliyorsun; bunun için
 **kendi Anthropic API anahtarın** gerekiyor (KARARLAR.md · K-031).
 
-- **Sunucumuz yok.** Çağrı doğrudan cihazdan gidiyor. Metin bizim bir
-  makinemize uğramıyor — "uğradı ama saklamadık" değil, uğramadı.
+- **Model çağrısında sunucumuz yok.** Çağrı doğrudan cihazdan gidiyor.
+  Metin bizim bir makinemize uğramıyor — "uğradı ama saklamadık" değil,
+  uğramadı.
 - **Kullanıcının ayrı eylemi.** Arama bitince ayrı bir düğme çıkıyor;
   basılana kadar tek bayt çıkmıyor. Tarayıcıda ölçüldü: arama sırasında dış
   istek yok, düğmeden sonra bir istek.
@@ -268,8 +269,9 @@ kullanılacak — bedel kabul edildi. **Kriz günlerinde düğme hiç çıkmıyo
 (ilke 2.1: uygulama susar, soru sormak susmanın tersidir).
 
 Kabul edilen bedel: bu özellik pratikte yalnızca API anahtarı olan
-kullanıcılara açık. Alternatif defterin en mahrem metnini bizim sunucumuzdan
-geçirmekti; o bedel daha ağır.
+kullanıcılara açık. Alternatif defterin en mahrem metnini bizim sunucumuzdan ŞİFRESİZ
+geçirmekti; o bedel daha ağır. (Senkron bunu şifreli olarak çözüyor —
+K-036.)
 
 ## Kriz akışı — ilke 2.1
 
@@ -326,6 +328,44 @@ kart 112 diyor; uygulama İngilizce kullanıcının ülkesini bilmiyor ve yanlı
 bir acil numara vermek hiç vermemekten kötü. İngilizce yayın öncesi
 çözülmesi gereken bir açık ve `yayin/MAGAZA.md` kontrol listesinde duruyor.
 
+## Cihazlar arası senkron — ilke 2.3 ve K-036
+
+Varsayılan **kapalı**. Açılırsa defter cihazlar arasında eşitlenir; kapalıyken
+uygulama tek bir ağ isteği bile yapmaz (tarayıcıda ölçüldü).
+
+**Sunucu defteri okuyamaz.** Her satır cihazda AES-256-GCM ile şifrelenip
+öyle gidiyor; anahtar cihazdan hiç ayrılmıyor. `veri/senkronDepo.ts` —
+ağa çıkan tek yeni dosya — şifreleme anahtarına hiç dokunmuyor ve bir test
+bunu tarıyor.
+
+**Hesap yok.** E-posta, parola, ad, telefon istenmiyor. Tek bir **Defter
+Kimliği** var (128 bit, kurtarma kodu makinesi); ikinci cihazda o yazılıyor.
+Kimlik, parola ve şifreleme anahtarı ondan HKDF ile ayrışıyor — biri sızsa
+diğerleri hakkında bilgi vermiyor.
+
+**Sunucunun gördüğü üstveri, dürüst liste:** opak hesap kimliği, satır başına
+opak satır kimliği, sürüm sayacı, şifreli verinin boyutu, geliş anı. Yani kaç
+satırınız olduğu, ne sıklıkta eşitlediğiniz, kabaca ne kadar yazdığınız.
+Görmedikleri: metin, tarih, saat, defter adı, başlıklar, temalar, fotoğraflar,
+**ve hangi satırın silindiği**. Yazma saati de sızmıyor — sıralama duvar saati
+değil Lamport sayacı.
+
+**Çakışmada metin kaybolmuyor.** İki cihaz aynı kaydı düzeltirse kaybeden
+metin kenar notuna dönüyor. Bir günlükte sessiz "son yazan kazanır" kabul
+edilemez.
+
+**Yerel asıl.** SQLite hâlâ tek kaynak; senkron üstüne takılan bir katman.
+Uçak modunda uygulama bugünkü gibi çalışıyor.
+
+Yol boyunca iki hata bulundu ve ikisi de iki cihazlı testin eseri: silinen
+kayıt diriliyordu (mezar taşı sürüm taşımıyordu) ve aynı anda yapılan iki
+düzeltme ıraksıyordu (beraberlikte her cihaz kendininkinde kalıyordu).
+
+**Bilinen sınır:** senkron gerçek ağda uçtan uca denenmedi — bu geliştirme
+ortamının politikası Neon'un auth uç noktasını engelliyor. Şema, RLS
+politikası ve rol yetkileri doğrulandı (`anonymous` rolünün tabloda hiçbir
+yetkisi yok); canlı akış `yayin/MAGAZA.md` kontrol listesinde.
+
 ## Değişmez ilkeler ve kodda karşılıkları
 
 PROJE.md §2'deki dört ilke pazarlığa kapalı. İkisinin kodda doğrudan
@@ -335,11 +375,16 @@ karşılığı var:
   import etmez, sayaç tutmaz. `test/yakma.test.ts` bunu üç yoldan doğrular:
   import listesi taraması, gerçek DOM'da akışın koşturulması, ve akış
   sonrası veritabanı dosyalarının bayt taraması.
-- **Ham metin cihazdan çıkmaz.** Tek dış çağrı `src/veri/model.ts`'te ve
-  yalnızca kullanıcı düğmeye bastığında kuruluyor; ne gideceğini saf bir
-  çekirdek dosyası (`cekirdek/anlatim.ts`) belirliyor.
-  `test/anlatim.test.ts` SDK'nın başka hiçbir dosyada geçmediğini ve
-  çekirdeğin ağa dokunmadığını doğrular.
+- **Ham metin cihazdan çıkmaz.** Ağa çıkabilen dosyaların TAM listesi
+  sabitlenmiş durumda — `veri/model.ts`, `veri/gomu-isci.ts`,
+  `veri/senkronDepo.ts` — ve `test/senkronGizlilik.test.ts` dördüncüsünün
+  eklenmesini engelliyor. Ne gideceğini saf çekirdek dosyaları
+  (`cekirdek/anlatim.ts`, `cekirdek/senkronBicim.ts`) belirliyor; ikisi de
+  ağa dokunmuyor ve testler bunu tarıyor.
+
+  Bu muhafız senkron eklenirken **sıkılaştırıldı**: öncesinde hiçbir test
+  "src/ altına yeni bir dış adres girmesin" demiyordu ve yeni bir ağ
+  dosyası takımı kırmadan eklenebilirdi.
 - **Arşiv uydurmaz.** `soruCoz` cevabı yalnızca bulunan kayıtlardan kurar ve
   kullanılan kayıtları cilt/sayfa numarasıyla döndürür. Kayıt yoksa cevap
   sabittir: *"Yazmadığın bir şeyi uydurmam."* Defterin sorduğu sorular ayrı
@@ -356,6 +401,10 @@ gömü araması (9), kaynaklı model çağrısı (10), kriz sınıflandırıcıs
 yazdıktan sonra tek soru (12). **Faz 4 tamam:** yayın metinleri, gizlilik
 beyanı ve ekran görüntüleri (13), İngilizce yerelleştirme (14).
 
-Yol haritasının tamamı bitti. Kalanlar cihazda doğrulanacak şeyler:
-SQLCipher, biyometri, gömü modelinin indirilmesi ve model çağrısının gerçek
-bir anahtarla çalışması (`yayin/MAGAZA.md` kontrol listesi).
+**Faz 5:** cihazlar arası uçtan uca şifreli senkron (K-036) — yol
+haritasında yoktu, sonradan istendi.
+
+Kalanlar cihazda ve gerçek ağda doğrulanacak şeyler: SQLCipher, biyometri,
+gömü modelinin indirilmesi, model çağrısının gerçek bir anahtarla
+çalışması, ve senkronun uçtan uca akışı (`yayin/MAGAZA.md` kontrol
+listesi).

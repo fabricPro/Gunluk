@@ -19,6 +19,7 @@ zaman yapıldığı yazılıyor.
 | Alt başlık (TR) | Yazdığın yerde kalır |
 | Alt başlık (EN) | A diary that stays on your device |
 | Kategori | Sağlık ve Fitness → yok. **Yaşam Tarzı** (birincil), **Verimlilik** (ikincil) |
+| Sunucu | Neon Postgres, AWS eu-central-1 (Frankfurt) — yalnızca senkron açıkken |
 | Yaş sınırı | 17+ (aşağıya bak) |
 | Fiyat | Ücretsiz, uygulama içi satın alma yok |
 
@@ -50,27 +51,46 @@ demek tutarsız olurdu.
 
 ## 3. Apple gizlilik etiketleri (Privacy Nutrition Labels)
 
-**Beyan: Data Not Collected.** Uygulamanın hiçbir veri türünü toplamadığı
-beyan ediliyor. Bu doğru, çünkü:
+**Beyan artık `Data Not Collected` DEĞİL.** Senkron eklendiğinde bu beyan
+düştü (KARARLAR.md · K-036) ve bilerek düşürüldü: sunucuda kullanıcı
+içeriği duruyor, şifreli olsa bile.
+
+| Veri türü | Toplanıyor mu | Bağlantı | Amaç |
+|---|---|---|---|
+| **Other User Content** | Evet — **yalnızca senkron açıksa** | Kullanıcıya bağlı DEĞİL | App Functionality |
+| **User ID** | Evet — **yalnızca senkron açıksa** | Kullanıcıya bağlı DEĞİL | App Functionality |
+| Diğer bütün türler | Hayır | — | — |
+
+**"Kullanıcıya bağlı değil" neden doğru:** hesap kimliği, kullanıcının
+cihazında üretilen 128 bitlik rastgele bir koddan türeyen opak bir
+dizedir. E-posta, ad, telefon, cihaz kimliği, reklam kimliği ya da başka
+hiçbir kimlik bilgisi istenmiyor ve saklanmıyor; bu kimliği gerçek bir
+insana bağlayacak hiçbir veri elimizde yok.
+
+**"Tracking" beyanı: Hayır.** Üçüncü taraflara veri aktarılmıyor, reklam
+ağı yok, veri simsarı yok, cihazlar arası reklam eşleştirmesi yok.
+
+Beyanın dayandığı gerçekler:
 
 - Analitik yok, çökme raporu servisi yok, reklam SDK'sı yok, izleme yok.
-- Hesap yok, sunucu yok, giriş yok.
 - Günlük metni cihazda ve şifreli (SQLCipher); anahtar Keychain /
   Android Keystore'da.
-- **Bize ait hiçbir uç nokta yok.** Uygulamanın çağırabileceği tek dış
-  adresler:
+- Uygulamanın çağırabileceği dış adresler:
   1. `cdn.jsdelivr.net` — anlam araması AÇILIRSA, bir kerelik model
      indirmesi. Yalnızca indirme; gövde gönderilmiyor.
-  2. `api.anthropic.com` — model cevabı özelliği AÇILIRSA ve kullanıcı
-     düğmeye BASARSA. Giden şey: sorusu + en fazla 4 kaydın metni.
-     Anahtar kullanıcının kendi anahtarı; fatura kullanıcıya.
+  2. `api.anthropic.com` — model cevabı AÇILIRSA ve kullanıcı düğmeye
+     BASARSA. Giden: sorusu + en fazla 4 kaydın metni. Anahtar
+     kullanıcının kendi anahtarı; fatura kullanıcıya.
+  3. `*.aws.neon.tech` — senkron AÇILIRSA. Giden: cihazda AES-256-GCM
+     ile şifrelenmiş satırlar. **Şifre çözme anahtarı cihazdan hiç
+     çıkmıyor; sunucu içeriği okuyamıyor.**
 
-  İkisi de varsayılan kapalı, ikisi de kullanıcının açık eylemiyle.
+  Üçü de varsayılan kapalı.
 
 ### App Review'a not (Review Notes alanına)
 
-> Uygulamanın sunucusu yoktur ve hesap sistemi yoktur; tüm veri cihazda
-> şifreli tutulur (SQLCipher). İki isteğe bağlı, varsayılan olarak kapalı
+> Uygulamanın varsayılan hâli tamamen çevrimdışıdır ve tüm veri cihazda
+> şifreli tutulur (SQLCipher). Üç isteğe bağlı, varsayılan olarak kapalı
 > özellik dış ağa çıkar:
 >
 > 1. **Anlam araması:** açıldığında CDN'den bir dil modeli indirilir ve
@@ -79,8 +99,15 @@ beyan ediliyor. Bu doğru, çünkü:
 >    arşivde "bu kayıtlardan bir cevap yaz" düğmesine basarsa, yalnızca o
 >    aramada bulunan en fazla 4 kaydın metni doğrudan cihazdan
 >    Anthropic'e gider. Bizim aracılık ettiğimiz bir sunucu yoktur.
+> 3. **Cihazlar arası senkron:** açıldığında defter bir Postgres
+>    veritabanında (Neon, AWS Frankfurt) saklanır. **Uçtan uca
+>    şifrelidir:** her satır cihazda AES-256-GCM ile şifrelenir ve
+>    şifre çözme anahtarı cihazdan hiç çıkmaz. Sunucu içeriği okuyamaz.
+>    Hesap için e-posta, ad ya da telefon istenmez; kimlik, kullanıcının
+>    cihazında üretilen bir koddan türetilir. Kullanıcı senkronu
+>    kapattığında sunucudaki şifreli kopya silinir.
 >
-> Her ikisi de kapalıyken uygulama tamamen çevrimdışıdır.
+> Üçü de kapalıyken uygulama hiçbir ağ isteği yapmaz.
 >
 > **Kriz akışı hakkında:** uygulama kendine zarar verme işareti içeren bir
 > kayıt yazıldığında bir *tıbbi değerlendirme yapmaz*. Teşhis koymaz, risk
@@ -112,9 +139,12 @@ toplamıyor, ölçmüyor, değerlendirmiyor.
 > Defter bir günlük. Sana bir şey satmıyor, seni ölçmüyor, ruh hâline not
 > vermiyor.
 >
-> **Yazdığın yerde kalır.** Hesap yok, sunucu yok, bulut yok. Her şey
-> cihazında ve şifreli. Uygulamayı silersen defter de gider — bir
-> kopyası bizde yok, çünkü bize hiç gelmedi.
+> **Yazdığın yerde kalır.** Hesap yok, e-posta yok, parola yok. Her şey
+> cihazında ve şifreli.
+>
+> **İstersen cihazların arasında eşitlenir** — ve o zaman bile defterini
+> biz okuyamayız: her satır cihazında şifrelenip öyle gidiyor, anahtar
+> cihazından hiç çıkmıyor. Sunucudaki kopya bizim için anlamsız bayt.
 >
 > **Sayfa sayfa dolar.** Defter dolduğunda cilt kapanır: ona bir ad
 > verirsin, bir kapak seçersin ve bir sonrakine başlarsın. Kapanan cilde
@@ -133,31 +163,35 @@ toplamıyor, ölçmüyor, değerlendirmiyor.
 > tarihi gelene kadar açılmaz.
 >
 > — Gizlilik hakkında: uygulama varsayılan olarak tamamen çevrimdışıdır.
-> İki isteğe bağlı özellik (cihaz-içi anlam araması ve kendi API
-> anahtarınla model cevabı) ayarlardan açılabilir; her ikisi de ne
-> gönderdiğini açıkça söyler.
+> Üç isteğe bağlı özellik (cihaz-içi anlam araması, kendi API anahtarınla
+> model cevabı, ve uçtan uca şifreli senkron) ayarlardan açılabilir; her
+> biri ne gönderdiğini açıkça söyler.
 >
 > — Defter bir tıbbi araç değildir. Teşhis koymaz, tedavi önermez.
 
 ### Anahtar kelimeler (App Store, 100 karakter)
 
 ```
-günlük,defter,journal,diary,mahrem,şifreli,offline,anı,not,yazma,kapsül
+günlük,defter,journal,diary,mahrem,şifreli,senkron,sync,anı,not,kapsül
 ```
 
 ### Promosyon metni (170 karakter)
 
-> Sunucusuz, hesapsız, şifreli bir günlük. Yazdığın cihazda kalır. Arşiv
-> yalnızca senin yazdıklarından cevap verir; yazmadığın bir şeyi uydurmaz.
+> Hesapsız, uçtan uca şifreli bir günlük. Cihazların arasında eşitlenir
+> ama sunucu okuyamaz. Arşiv yalnızca senin yazdıklarından cevap verir.
 
 ### English — App Store description
 
 > Defter is a diary. It doesn't sell you anything, doesn't measure you,
 > doesn't score your mood.
 >
-> **It stays where you wrote it.** No account, no server, no cloud.
-> Everything lives encrypted on your device. Delete the app and the diary
-> goes with it — we have no copy, because it never reached us.
+> **It stays where you wrote it.** No account, no email, no password.
+> Everything lives encrypted on your device.
+>
+> **It syncs across your devices if you want it to** — and even then we
+> cannot read your diary: every row is encrypted on your device before it
+> leaves, and the key never goes anywhere. The copy on the server is
+> meaningless bytes to us.
 >
 > **It fills page by page.** When the notebook is full, the volume
 > closes: you name it, choose a cover, and start the next one. A closed
@@ -176,10 +210,10 @@ günlük,defter,journal,diary,mahrem,şifreli,offline,anı,not,yazma,kapsül
 > **Capsule.** Write to yourself a year from now. It seals the day you
 > write it and won't open until the date arrives.
 >
-> — On privacy: the app is fully offline by default. Two optional
-> features (on-device semantic search, and model answers using your own
-> API key) can be turned on in settings; each states exactly what it
-> sends.
+> — On privacy: the app is fully offline by default. Three optional
+> features (on-device semantic search, model answers using your own API
+> key, and end-to-end encrypted sync) can be turned on in settings; each
+> states exactly what it sends.
 >
 > — Defter is not a medical device. It does not diagnose or treat.
 
@@ -222,6 +256,15 @@ metinleriyle olmak zorunda. İngilizce görsellerde defter içeriği de
 - [ ] Cihazda gömü modeli indirmesi doğrulandı (K-029)
 - [ ] Kriz kartının cihazda göründüğü ve kaydırıldığı doğrulandı (K-030)
 - [ ] Model cevabı gerçek bir anahtarla cihazda denendi (K-031)
+- [ ] **Senkron gerçek ağda uçtan uca denendi (K-036).** Bu geliştirme
+      ortamının ağ politikası Neon'un auth uç noktasını engelledi;
+      şu üçü doğrulanmadı:
+      · sentetik `@defter.invalid` e-postayla kayıt gerçekten açılıyor mu
+      · çerezli JWT akışı Capacitor webview'ında çalışıyor mu
+      · iki AYRI hesapla RLS canlı olarak sızdırmıyor mu
+      (Şema, politika ve rol yetkileri doğrulandı: `anonymous` rolünün
+      tabloda hiçbir yetkisi yok.)
+- [ ] Senkron açıkken mühürlü yedek ve geri yükleme denendi
 - [ ] **İngilizce kriz kartındaki acil numara açığı kapatıldı (K-035).**
       Türkçe kart 112 diyor; İngilizce kart bir numara söylemiyor, çünkü
       uygulama kullanıcının ülkesini bilmiyor ve yanlış numara vermek hiç

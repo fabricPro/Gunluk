@@ -1,16 +1,22 @@
 # Gizlilik politikası — Defter
 
-Son güncelleme: 31 Ağustos 2026
+Son güncelleme: 31 Ağustos 2026 · senkron eklendiğinde güncellendi
 
 *(English version below.)*
 
 ## Kısa cevap
 
-**Defter hiçbir veri toplamaz.** Sunucumuz yok, hesap sistemi yok,
-analitik yok, reklam yok, izleme yok. Yazdıklarınız cihazınızda, şifreli
-olarak durur ve oradan çıkmaz.
+**Defter varsayılan ayarlarıyla hiçbir veri toplamaz.** Analitik yok,
+reklam yok, izleme yok, hesap yok. Yazdıklarınız cihazınızda, şifreli
+olarak durur.
 
-Bir kopyanızı isteseniz veremeyiz — bizde yok, çünkü bize hiç gelmedi.
+**Cihazlar arası senkronu açarsanız** defteriniz bir sunucuda (Neon,
+Frankfurt) yedeklenir — ama **şifreli olarak, ve biz onu okuyamayız.**
+Her satır cihazınızda şifrelenir; şifre çözme anahtarı cihazınızdan hiç
+çıkmaz. Sunucuda duran şey bizim için anlamsız bayt dizisidir.
+
+Defterinizin bir kopyasını isteseniz size okunabilir hâlde veremeyiz —
+elimizdeki şifreli bloğu açamayız, anahtarı yok.
 
 ## Ne saklanıyor, nerede
 
@@ -29,7 +35,7 @@ sayılmaz.
 
 ## Cihazdan ne zaman bir şey çıkar
 
-Uygulama varsayılan ayarlarıyla **tamamen çevrimdışıdır**. İki isteğe
+Uygulama varsayılan ayarlarıyla **tamamen çevrimdışıdır**. Üç isteğe
 bağlı özellik açılırsa ağa çıkılır:
 
 **1. Anlam araması (varsayılan kapalı).** Açtığınızda bir kerelik dil
@@ -51,12 +57,46 @@ Anthropic'e giden veri, Anthropic'in kendi koşullarına tabidir.
 kullanır ve yalnızca siz düğmeye bastığınızda, yalnızca o tek kaydın
 metnini gönderir.
 
-Bu özelliklerin ikisi de kapalıyken uygulama hiçbir ağ isteği yapmaz.
+**3. Cihazlar arası senkron (varsayılan kapalı).** Açtığınızda defteriniz
+`*.aws.neon.tech` üzerindeki bir Postgres veritabanında saklanır (AWS
+Frankfurt, eu-central-1).
+
+*Ne saklanır:* her kayıt, kenar notu, defter, başlık, ek ve kapsül için
+bir satır — **hepsi cihazınızda AES-256-GCM ile şifrelenmiş hâlde.**
+Şifre çözme anahtarı, ekranda size gösterilen **Defter Kimliği**'nden
+cihazınızda türetilir ve hiçbir zaman gönderilmez.
+
+*Sunucunun gördüğü üstveri (dürüst liste):* size ait opak bir hesap
+kimliği, satır başına opak bir satır kimliği, bir sürüm sayacı, şifreli
+verinin boyutu ve sunucuya ulaştığı an. Yani **kaç satırınız olduğu, ne
+sıklıkta eşitlediğiniz ve kabaca ne kadar yazdığınız.**
+
+*Sunucunun görmedikleri:* metninizin kendisi, kayıtların tarih ve
+saatleri, defter adları, sayfa başlıkları, temalar, fotoğraflar, hangi
+satırın silindiği. Yazma saatiniz de sızmaz: sıralama için duvar saati
+değil mantıksal bir sayaç kullanılır.
+
+*Hesap:* e-posta, ad, telefon ya da başka bir kimlik bilgisi istenmez.
+Kimlik doğrulaması, Defter Kimliği'nden türetilen ve hiçbir yere
+ulaşmayan sentetik bir adresle yapılır.
+
+*Silme:* ayarlardan senkronu kapattığınızda sunucudaki şifreli kopya
+silinir. Bizden talep etmenize gerek yoktur.
+
+*Defter Kimliği'ni kaybederseniz* sunucudaki kopya da açılamaz — biz de
+açamayız. Bu kodu bilen kişi defterinizi okuyabilir; parolanız gibi
+saklayın.
+
+Bu üç özelliğin hepsi kapalıyken uygulama hiçbir ağ isteği yapmaz.
 
 ## Üçüncü taraflar
 
 Reklam ağı, analitik sağlayıcı, çökme raporu servisi veya sosyal medya
 SDK'sı kullanmıyoruz. Uygulamada üçüncü taraf izleyici yoktur.
+
+Senkronu açarsanız şifreli veriniz **Neon** (Neon Inc.) tarafından
+işletilen bir Postgres veritabanında, AWS Frankfurt bölgesinde saklanır.
+Neon şifreli bloğu açamaz; anahtar bizde de onlarda da yoktur.
 
 ## Çocuklar
 
@@ -65,10 +105,13 @@ e-posta veya başka bir kimlik bilgisi istemez.
 
 ## Haklarınız
 
-Verileriniz zaten yalnızca sizde olduğu için erişim, düzeltme ve silme
-tamamen sizin elinizde: kayıt, kenar notu, defter ve uygulamanın tamamı
-uygulama içinden silinebilir. Bizden talep etmenize gerek yoktur; zaten
-bizde bir şey yoktur.
+Erişim, düzeltme ve silme tamamen sizin elinizde: kayıt, kenar notu,
+defter ve uygulamanın tamamı uygulama içinden silinebilir. Senkron
+açıksa, kapatmak sunucudaki şifreli kopyayı da siler.
+
+Bize bir erişim talebi göndermeniz durumunda size verebileceğimiz tek
+şey, hesabınıza ait şifreli blokların ham hâlidir — biz onları
+okuyamayız.
 
 ## Değişiklikler
 
@@ -83,16 +126,21 @@ uygulamanın sürüm notlarında belirtilir.
 
 # Privacy Policy — Defter
 
-Last updated: 31 August 2026
+Last updated: 31 August 2026 · updated when sync was added
 
 ## Short answer
 
-**Defter collects no data.** We have no server, no accounts, no
-analytics, no advertising, no tracking. What you write stays encrypted on
+**With default settings, Defter collects no data.** No analytics, no
+advertising, no tracking, no accounts. What you write stays encrypted on
 your device.
 
-If you asked us for a copy of your diary, we could not provide one — we
-do not have it, because it never reached us.
+**If you turn on sync across devices,** your notebook is stored on a
+server (Neon, Frankfurt) — but **encrypted, and we cannot read it.**
+Every row is encrypted on your device; the decryption key never leaves
+it. What sits on the server is meaningless bytes to us.
+
+If you asked us for a readable copy of your diary, we could not provide
+one — we cannot open the encrypted blocks we hold.
 
 ## What is stored, and where
 
@@ -111,8 +159,8 @@ file. Not even a usage counter is kept.
 
 ## When anything leaves the device
 
-With default settings the app is **fully offline**. Two optional features
-reach the network if you enable them:
+With default settings the app is **fully offline**. Three optional
+features reach the network if you enable them:
 
 **1. Semantic search (off by default).** Enabling it performs a one-time
 language-model download from `cdn.jsdelivr.net`. This is a *download
@@ -130,12 +178,46 @@ Data sent to Anthropic is subject to Anthropic's own terms.
 **"One question after writing" (off by default)** uses the same key and
 sends only that single entry's text, and only when you press the button.
 
-With both features off, the app makes no network requests at all.
+**3. Sync across devices (off by default).** When enabled, your notebook
+is stored in a Postgres database on `*.aws.neon.tech` (AWS Frankfurt,
+eu-central-1).
+
+*What is stored:* one row for each entry, margin note, notebook, title,
+attachment and capsule — **all encrypted on your device with
+AES-256-GCM.** The decryption key is derived on your device from the
+**Notebook Key** shown to you on screen, and is never transmitted.
+
+*Metadata the server can see (the honest list):* an opaque account
+identifier, an opaque row identifier per row, a version counter, the size
+of the encrypted data, and when it arrived. That is: **how many rows you
+have, how often you sync, and roughly how much you write.**
+
+*What the server cannot see:* your text, the dates and times of entries,
+notebook names, page titles, themes, photos, or which rows were deleted.
+Your writing times do not leak either: ordering uses a logical counter,
+not a wall clock.
+
+*Account:* no email address, name, phone number or other identifying
+information is requested. Authentication uses a synthetic address derived
+from your Notebook Key that reaches nowhere.
+
+*Deletion:* turning sync off in settings deletes the encrypted copy from
+the server. There is nothing to request from us.
+
+*If you lose your Notebook Key,* the copy on the server cannot be opened
+— not by us either. Anyone who has this code can read your diary; keep it
+like a password.
+
+With all three features off, the app makes no network requests at all.
 
 ## Third parties
 
 We use no advertising network, analytics provider, crash-reporting
 service or social SDK. There are no third-party trackers in the app.
+
+If you enable sync, your encrypted data is stored in a Postgres database
+operated by **Neon** (Neon Inc.) in the AWS Frankfurt region. Neon cannot
+open the encrypted blocks; neither we nor they hold the key.
 
 ## Children
 
@@ -144,10 +226,13 @@ age, name, email address or any other identifying information.
 
 ## Your rights
 
-Because your data exists only on your device, access, correction and
-deletion are entirely in your hands: entries, margin notes, notebooks and
-the whole app can be deleted from within the app. There is nothing to
-request from us, because we hold nothing.
+Access, correction and deletion are entirely in your hands: entries,
+margin notes, notebooks and the whole app can be deleted from within the
+app. If sync is on, turning it off also deletes the encrypted copy on the
+server.
+
+If you send us an access request, the only thing we could give you is the
+raw encrypted blocks belonging to your account — we cannot read them.
 
 ## Changes
 
