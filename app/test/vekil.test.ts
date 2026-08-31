@@ -24,6 +24,11 @@ const vercel = JSON.parse(oku('vercel.json')) as {
 
 const fonksiyon = oku('api/vekil.ts')
 
+/* Yorumları at: aşağıdaki bazı kontroller KODA bakıyor, kodu anlatan
+   cümlelere değil. Vekilin yorumları denenip elenmiş yolları da
+   anlatıyor ve o cümleler taramaya takılırdı. */
+const kod = fonksiyon.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1')
+
 const ortam = Object.fromEntries(
   oku('.env')
     .split('\n')
@@ -132,7 +137,7 @@ describe('vekil fonksiyonu', () => {
 
   it('kodun istediği iki hedefi tanıyor', () => {
     for (const onek of Object.values(sunucuAyari()))
-      expect(fonksiyon, `vekil ${onek} hedefini tanımıyor`).toContain(`${onek.slice(1)}:`)
+      expect(kod, `vekil ${onek} hedefini tanımıyor`).toContain(`${onek.slice(1)}:`)
   })
 
   it('yönlendirmedeki parça adı da elenen alanla aynı', () => {
@@ -153,43 +158,54 @@ describe('vekil fonksiyonu', () => {
      */
     for (const r of vercel.rewrites) {
       const alanlar = new URL('https://x' + r.destination).searchParams
-      for (const ad of [...alanlar.keys()]) expect(fonksiyon, ad).toContain(`'${ad}'`)
+      for (const ad of [...alanlar.keys()]) expect(kod, ad).toContain(`'${ad}'`)
       expect(alanlar.get('vekilYol')).toBe(':vekilYol*')
     }
   })
 
   it('çerezden Domain düşürülüyor — çerez bu kaynağa ait olsun', () => {
-    expect(fonksiyon.toLowerCase()).toContain("'domain='")
-    expect(fonksiyon).toContain('getSetCookie')
+    expect(kod.toLowerCase()).toContain("'domain='")
+    expect(kod).toContain('getSetCookie')
   })
 
   it('Vercel\'in kendi alanları Neon\'a taşınmıyor', () => {
     /* `_vercel_share` gibi alanlar sorgu dizesine ekleniyor; PostgREST
        tanımadığı alanı sütun süzgeci sayıp 400 dönüyor. */
-    expect(fonksiyon).toContain('_vercel_')
+    expect(kod).toContain('_vercel_')
   })
 
   it('göreli istek adresi çökertmiyor', () => {
-    /* Çalışma ortamında `istek.url` göreli gelebiliyor; tabansız
+    /* Çalışma ortamında `istek.url` göreli geliyor; tabansız
        `new URL(...)` `ERR_INVALID_URL` atıyordu ve fonksiyon 500
        dönüyordu. */
-    expect(fonksiyon).toMatch(/new URL\(istek\.url,/)
+    expect(kod).toMatch(/new URL\(istek\.url[^,]*,/)
+  })
+
+  it('çalışma ortamının GERÇEK imzasıyla yazılmış', () => {
+    /*
+     * Web imzası (`Request` → `Response`) denendi; `runtime: 'edge'`
+     * onurlandırılmadı ve fonksiyona `IncomingMessage` geldi —
+     * `istek.headers.get is not a function`. Burada duran, o dersin
+     * kendisi: imza tahmin edilmiyor, gözlemlenen imza yazılıyor.
+     */
+    expect(kod).toContain('IncomingMessage')
+    expect(kod).not.toContain("runtime: 'edge'")
   })
 
   it('kayıt tutmuyor', () => {
     /* Ne gövde, ne başlık, ne adres. Vekilin tek savunması okunabilir
        olmasıydı; bir `console` satırı o savunmayı bitirir. */
-    expect(fonksiyon).not.toMatch(/\bconsole\s*\./)
+    expect(kod).not.toMatch(/\bconsole\s*\./)
   })
 
   it('şifreleme ya da çözme yapmıyor', () => {
     /* Zarf cihazda kapanıyor, cihazda açılıyor. Vekil taşıyıcı. */
     for (const yasak of ['crypto.subtle', 'atob(', 'btoa(', 'TextDecoder'])
-      expect(fonksiyon, `vekil içinde ${yasak}`).not.toContain(yasak)
+      expect(kod, `vekil içinde ${yasak}`).not.toContain(yasak)
   })
 
   it('yalnızca tanıdığı iki hedefe gidiyor', () => {
     /* Açık vekil olmasın: hedef listede yoksa 404. */
-    expect(fonksiyon).toContain('404')
+    expect(kod).toContain('404')
   })
 })
