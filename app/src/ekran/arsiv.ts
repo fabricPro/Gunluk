@@ -1,10 +1,13 @@
 import { sayfaBul } from '../cekirdek/sayfa.js'
+import { anlatimKur } from '../cekirdek/anlatim.js'
+import type { Anlatim } from '../cekirdek/anlatim.js'
 import { soruCoz, type Bulgu } from '../cekirdek/sorgu.js'
 import { enYakinlar, paketiAc, paketle } from '../cekirdek/gomu.js'
 import { MODEL_KIMLIK } from '../cekirdek/gomuModel.js'
 import { gunAdi, iso, romen, tamTarih } from '../cekirdek/tr.js'
 import type { Durum } from '../durum.js'
 import type { Depo } from '../veri/depo.js'
+import type { ModelAkis } from '../modelAkis.js'
 import { $, $$, ekranAc, kacir } from './ortak.js'
 
 /**
@@ -16,8 +19,9 @@ export function arsiviBagla(
   durum: Durum,
   depo: Depo,
   sayfayaGit: (i: number, anim?: boolean) => void,
+  model?: ModelAkis,
 ): { gecenYilCiz: () => void } {
-  const kaynakHtml = (b: Bulgu): string => {
+  const kaynakHtml = (b: Bulgu, no?: number): string => {
     const s = sayfaBul(durum.sayfalar, b.kayit.id)
     /*
      * Eşleşen kenar notu kaynakla birlikte gösteriliyor. Kayıt yalnızca
@@ -40,7 +44,7 @@ export function arsiviBagla(
         ? '<div class="kaynak-yakin">aradığın sözcükler bu kayıtta geçmiyor — anlamca yakın</div>'
         : ''
     return `<div class="kaynak" data-id="${b.kayit.id}">
-      <time>${b.gunAd} · ${tamTarih(b.kayit.tarih)} · ${b.kayit.saat}${
+      <time>${no ? `<i class="kaynak-no">[${no}]</i> ` : ''}${b.gunAd} · ${tamTarih(b.kayit.tarih)} · ${b.kayit.saat}${
         s ? ` · <b>cilt ${romen(s.cilt)}, sayfa ${s.ciltSayfa}</b>` : ''
       }</time>
       ${kacir(b.kayit.metin)}${yakinEt}${notlar}</div>`
@@ -89,6 +93,50 @@ export function arsiviBagla(
     }
   }
 
+  /**
+   * Model çağrısının kağıttaki yüzü.
+   *
+   * Düğme SORGU ÇÖZÜLDÜKTEN SONRA çıkıyor ve ayrı bir dokunuş istiyor:
+   * arama tamamen cihazda bitti, dışarı çıkmak kullanıcının ayrı ve açık
+   * eylemi (ilke 2.3). Ne gideceği düğmenin altında sayıyla yazılı.
+   */
+  const modelBolumu = (anlatim: Anlatim | null): string => {
+    if (!model?.acik || !anlatim) return ''
+    const n = anlatim.kayitlar.length
+    return `<div class="model-alan">
+      <button id="modelYaz" class="model-dugme">bu ${n} kayıttan bir cevap yaz</button>
+      <div class="model-uyari">Yalnızca yukarıdaki ${n} kaydın metni Anthropic'e gider —
+        defterin geri kalanı, adı, başlıkları, fotoğrafları gitmez. Anahtar senin.</div>
+      <div id="modelCevap"></div>
+    </div>`
+  }
+
+  const modelBagla = (anlatim: Anlatim | null): void => {
+    const dugme = document.querySelector<HTMLButtonElement>('#modelYaz')
+    if (!dugme || !anlatim || !model) return
+    dugme.onclick = async () => {
+      dugme.disabled = true
+      dugme.textContent = 'yazıyor…'
+      const kutu = $('#modelCevap')
+      kutu.innerHTML = `<div class="model-et">model yazdı · kaynaklar yukarıda</div><p></p>`
+      const p = kutu.querySelector('p')!
+      let metin = ''
+      try {
+        await model.sor(anlatim, (par) => {
+          metin += par
+          p.textContent = metin
+        })
+        dugme.remove()
+      } catch (e) {
+        kutu.innerHTML = `<div class="model-hata">${kacir(
+          e instanceof Error ? e.message : 'Cevap alınamadı.',
+        )}</div>`
+        dugme.disabled = false
+        dugme.textContent = 'yeniden dene'
+      }
+    }
+  }
+
   const cevapCiz = async (soru: string): Promise<void> => {
     const kutu = $('#cevapAlan')
     if (!soru.trim()) {
@@ -101,12 +149,21 @@ export function arsiviBagla(
         <p>Bununla ilgili bir şey yazmamışsın. Yazmadığın bir şeyi uydurmam.</p></div>`
       return
     }
+    /*
+     * Modele gidecek kayıtlar ile kullanıcıya gösterilen kaynaklar AYNI
+     * liste ve aynı numarayı taşıyor: cevaptaki [2], karttaki [2]. İlke
+     * 2.4'ün somut hâli bu numara (K-031).
+     */
+    const anlatim = model?.acik ? anlatimKur(soru, c.kullanilan) : null
+    const numara = new Map(anlatim?.kayitlar.map((k) => [k.kayitId, k.no]) ?? [])
     kutu.innerHTML = `<div class="cevap"><div class="et">yalnızca senin yazdıklarından</div>
       ${c.paragraflar.map((x) => `<p>${x}</p>`).join('')}
       <div class="k-et">kullandığım kayıtlar</div>
-      ${c.kullanilan.map(kaynakHtml).join('')}
-      <p class="cevap-not">Kaydın üstüne dokun, defterde o sayfaya gider.</p></div>`
+      ${c.kullanilan.map((b) => kaynakHtml(b, numara.get(b.kayit.id))).join('')}
+      <p class="cevap-not">Kaydın üstüne dokun, defterde o sayfaya gider.</p>
+      ${modelBolumu(anlatim)}</div>`
     kaynakBagla(kutu, c.terim, c.govdeler)
+    modelBagla(anlatim)
   }
 
   const gecenYilCiz = (): void => {

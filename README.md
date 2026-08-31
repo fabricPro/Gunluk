@@ -231,6 +231,35 @@ sözcükler kayıtta hiç geçmese de sonuç veriyor.
 Modelin kendisi bu geliştirme ortamında doğrulanamadı (huggingface.co ve
 jsdelivr kapalı); SQLCipher ve biyometri gibi cihazda doğrulanacak.
 
+## Model cevabı — ilke 2.3 ve 2.4
+
+Arşivdeki cevap varsayılan olarak **tamamen cihazda** kuruluyor. İstersen
+aynı kayıtlardan bir modelin cümle kurmasını isteyebiliyorsun; bunun için
+**kendi Anthropic API anahtarın** gerekiyor (KARARLAR.md · K-031).
+
+- **Sunucumuz yok.** Çağrı doğrudan cihazdan gidiyor. Metin bizim bir
+  makinemize uğramıyor — "uğradı ama saklamadık" değil, uğramadı.
+- **Kullanıcının ayrı eylemi.** Arama bitince ayrı bir düğme çıkıyor;
+  basılana kadar tek bayt çıkmıyor. Tarayıcıda ölçüldü: arama sırasında dış
+  istek yok, düğmeden sonra bir istek.
+- **Giden şey: soru + en fazla 4 kayıt.** Defterin tamamı hiçbir koşulda
+  gitmiyor. Kayıt kimlikleri, tema kimlikleri, defter adı, başlıklar,
+  fotoğraflar gitmiyor. `cekirdek/anlatim.ts` bu sorunun tek cevabı.
+- **Dört sayısı, kullanıcıya gösterilen kaynak sayısıyla aynı.** Modele
+  gösterilip kullanıcıya gösterilmeyen kayıt yok (ilke 2.4).
+- **Cevaptaki `[2]`, karttaki `[2]`.** Atıf zorunlu; kaynak listesi değil,
+  cümle cümle izlenebilen bir bağ.
+- **Kriz kaydı iki kez eleniyor** — `soruCoz` ve `anlatimKur`. Retrieval
+  değişse bile ilke 2.1 tek bir kod yoluna bağlı kalmasın diye.
+- **Anahtar Keychain / Keystore'da**, veritabanında değil: yedeğini paylaşan
+  kullanıcı faturalı bir anahtarı da paylaşmasın.
+- **Taban uygulama etkilenmiyor.** SDK ayrı parçada; anahtar girilmemişse
+  hiç inmiyor.
+
+Kabul edilen bedel: bu özellik pratikte yalnızca API anahtarı olan
+kullanıcılara açık. Alternatif defterin en mahrem metnini bizim sunucumuzdan
+geçirmekti; o bedel daha ağır.
+
 ## Kriz akışı — ilke 2.1
 
 **Bu bir tıbbi araç değil.** Teşhis koymuyor, risk puanı vermiyor, kimseye
@@ -267,6 +296,11 @@ karşılığı var:
   import etmez, sayaç tutmaz. `test/yakma.test.ts` bunu üç yoldan doğrular:
   import listesi taraması, gerçek DOM'da akışın koşturulması, ve akış
   sonrası veritabanı dosyalarının bayt taraması.
+- **Ham metin cihazdan çıkmaz.** Tek dış çağrı `src/veri/model.ts`'te ve
+  yalnızca kullanıcı düğmeye bastığında kuruluyor; ne gideceğini saf bir
+  çekirdek dosyası (`cekirdek/anlatim.ts`) belirliyor.
+  `test/anlatim.test.ts` SDK'nın başka hiçbir dosyada geçmediğini ve
+  çekirdeğin ağa dokunmadığını doğrular.
 - **Arşiv uydurmaz.** `soruCoz` cevabı yalnızca bulunan kayıtlardan kurar ve
   kullanılan kayıtları cilt/sayfa numarasıyla döndürür. Kayıt yoksa cevap
   sabittir: *"Yazmadığın bir şeyi uydurmam."* Defterin sorduğu sorular ayrı
@@ -278,5 +312,7 @@ karşılığı var:
 **Faz 1 tamam.** Kalıcılık, boş defter / onboarding, kitaplık ve cilt kapanma
 töreni çalışıyor; yazı tipleri gömülü. (El yazısı kapsam dışı — K-007.)
 **Faz 2 tamam:** fotoğraf ve ek (2.5), kenar notu (2.6), PIN + biyometri
-(2.7), mühürlü yedek (2.8). Sırada Faz 3 — embedding tabanlı arama,
-kaynaklı model çağrısı, kriz sınıflandırıcısı.
+(2.7), mühürlü yedek (2.8). **Faz 3 tamam:** Türkçe gövdeleme ve cihaz-içi
+gömü araması (9), kaynaklı model çağrısı (10), kriz sınıflandırıcısı (11).
+Sırada: yazdıktan sonra tek soru (12), ardından Faz 4 — yayın metinleri ve
+İngilizce yerelleştirme.

@@ -1,5 +1,6 @@
 import { Durum } from './durum.js'
 import { GomuAkis } from './gomuAkis.js'
+import { ModelAkis } from './modelAkis.js'
 import { belgeOneki, sorguOneki } from './cekirdek/gomuModel.js'
 import { Kilit } from './kilitAkis.js'
 import { arsiviBagla } from './ekran/arsiv.js'
@@ -16,6 +17,7 @@ import { yakmayiBagla } from './ekran/yak.js'
 import { defteriAc } from './veri/db.js'
 import { Depo } from './veri/depo.js'
 import { anahtariDayat } from './veri/kripto.js'
+import { cihazAnahtarDepo, tarayiciAnahtarDepo } from './veri/anahtarDepo.js'
 import { cihazDepo, tarayiciDepo } from './veri/kilitDepo.js'
 import { surucuSec } from './veri/surucu.js'
 import type { SqlSurucu } from './veri/db.js'
@@ -122,7 +124,13 @@ async function baslat(): Promise<void> {
 
     let toren: { ac: () => void } | null = null
     const defter = defteriBagla(durum, depo, () => toren?.ac())
-    const arsiv = arsiviBagla(durum, depo, defter.sayfayaGit)
+    /*
+     * Model cevabı — anahtar yoksa arşivde düğme bile çıkmıyor. Çağrı
+     * kodu ayrı parçada: anahtar girilmemişse SDK inmiyor (K-031).
+     */
+    const model = new ModelAkis(nativeMi ? await cihazAnahtarDepo() : tarayiciAnahtarDepo())
+    await model.yukle()
+    const arsiv = arsiviBagla(durum, depo, defter.sayfayaGit, model)
     const kapsul = kapsuleBagla(depo)
     const kitaplik = kitapligiBagla(durum, depo, () => {
       defter.ciz()
@@ -193,6 +201,12 @@ async function baslat(): Promise<void> {
         dinle: (f) => {
           gomuDinleyici = f
         },
+      },
+      model: {
+        anahtarVar: () => model.acik,
+        kuyruk: () => model.kuyruk,
+        yaz: (a) => model.anahtarYaz(a),
+        sil: () => model.anahtarSil(),
       },
     })
 

@@ -9,6 +9,90 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-08-31 · K-031 · Model cevabı: kullanıcının anahtarı, kullanıcının eylemi, dört kayıt
+
+Yol haritasının 10. maddesi: soru-cevap için model çağrısı. İki değişmez
+ilke burada aynı anda geriliyor — ilke 2.3 (*ham metin cihazdan çıkmaz*)
+ve ilke 2.4 (*arşiv uydurmaz, kaynaklar her zaman gösterilir*).
+
+### Sunucu yok; anahtar kullanıcının
+
+Bir sunucu koymak ilke 2.3'ü ölçülemez hale getirirdi: metin bizim bir
+makinemize uğrardı ve "uğradı ama saklamadık" bir söz olarak kalırdı, kanıt
+olarak değil. Kullanıcı kendi Anthropic anahtarını giriyor, çağrı doğrudan
+cihazdan gidiyor, arada biz yokuz.
+
+**Kabul edilen bedel açık:** bu özellik pratikte yalnızca API anahtarı olan
+kullanıcılara açık — App Store'daki sıradan bir kullanıcı için kapalı. Bunu
+bilerek kabul ettik. Alternatif, defterin en mahrem metnini bizim
+sunucumuzdan geçirmekti; o bedel daha ağır.
+
+Anahtar Keychain / Android Keystore'da (`veri/anahtarDepo.ts`),
+**veritabanında değil**. Veritabanında dursa şifreli yedeğe girerdi ve
+yedeğini paylaşan kullanıcı farkında olmadan faturalı bir anahtarı da
+paylaşmış olurdu.
+
+### Çağrı kullanıcının ayrı eylemi
+
+Arama tamamen cihazda bitiyor: `soruCoz` kayıtları buluyor, cevap
+kuruluyor, kaynaklar çiziliyor. **Sonra** ayrı bir düğme çıkıyor: *"bu 4
+kayıttan bir cevap yaz"*. Düğmeye basılana kadar tek bayt çıkmıyor —
+tarayıcıda ölçüldü: arama sırasında dış istek sayısı sıfır, düğmeden sonra
+bir.
+
+Anahtar girilmemişse düğme hiç görünmüyor. Açma/kapama ayrı bir anahtar
+değil, anahtarın kendisi.
+
+### Dışarı çıkan şey: en fazla dört kayıt
+
+`cekirdek/anlatim.ts` "cihazdan ne çıkıyor" sorusunun tek cevabı: saf,
+ağsız, veri katmanına dokunmayan bir dosya. Defterin tamamı hiçbir koşulda
+çıkmıyor. Giden şey soru + en fazla dört kayıt (tarih, saat, metin,
+eşleşen kenar notları). Kayıt kimlikleri, tema kimlikleri, defter adı,
+başlıklar, fotoğraflar gitmiyor.
+
+**Dört sayısı keyfi değil:** arşivin kullanıcıya gösterdiği kaynak sayısıyla
+aynı. Modele gösterilip kullanıcıya gösterilmeyen bir kayıt ilke 2.4'ü
+bozardı.
+
+### Kriz kaydı iki kez eleniyor
+
+`soruCoz` zaten eliyor (K-030). `anlatimKur` bir kez daha eliyor. Tekrar
+bilerek: ileride biri retrieval'ı değiştirirse ilke 2.1 tek bir kod yoluna
+bağlı kalmasın. Elenince geriye kayıt kalmıyorsa istek hiç kurulmuyor.
+
+### Kaynak numarası — ilke 2.4'ün somut hâli
+
+Sistem yönergesi her cümlenin dayandığı kaydı `[1]`, `[2]` diye
+göstermesini istiyor ve kaynak kartları **aynı numarayı** taşıyor. Cevaptaki
+`[2]`, karttaki `[2]`. "Kaynaklar gösterilir" sözü böylece bir liste değil,
+cümle cümle izlenebilen bir bağ oluyor.
+
+Yönerge ayrıca yasaklıyor: teşhis koymak, ruh hâli ölçmek, örüntü adı
+takmak, öğüt vermek, teselli etmek, övmek, soru sormak, sayı/tarih/telefon
+uydurmak. PROJE.md §5'in "mod/duygu skoru" reddi ve §2.1'in susma kuralı
+burada da geçerli.
+
+### Model ve tavan
+
+`claude-opus-5`, `max_tokens: 700`, `effort: low`, uyarlanır düşünme. Tavan
+dar: bu bir sohbet değil, bir arama sonucunun cümleye dökülmüş hâli. Geniş
+tavan hem kullanıcının parasını harcar hem modeli konuşmaya davet eder — ve
+bu üründe konuşmak yorum yapmaya, yorum teşhise kayar.
+
+### Taban uygulama etkilenmiyor
+
+SDK dinamik import'la ayrı bir parçada (48 KB gzip). Giriş paketinde tek
+bayt yok; anahtar girilmemişse hiç inmiyor. K-029'da gömü için alınan
+tavrın aynısı.
+
+`test/anlatim.test.ts` bunları sabitliyor: dört kayıt tavanı, kriz elemesi,
+`@anthropic-ai/sdk`'nın **yalnızca** `veri/model.ts` içinde geçmesi,
+`anlatim.ts`'in ağa ve veri katmanına hiç dokunmaması, ve `ekran/yak.ts`'in
+bu işten tamamen uzak kalması (ilke 2.2).
+
+---
+
 ## 2026-08-31 · K-030 · Kriz: uygulama susar, hiçbir şey saklamaz
 
 İlke 2.1 dört değişmezin ilki ve bugüne kadar kancası boştu: `gununSorusu`

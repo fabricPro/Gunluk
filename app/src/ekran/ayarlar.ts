@@ -1,4 +1,5 @@
 import { kurtarmaUret } from '../cekirdek/kurtarma.js'
+import { anahtarBicimi } from '../veri/anahtarDepo.js'
 import type { Kilit } from '../kilitAkis.js'
 import type { Depo } from '../veri/depo.js'
 import { dokumAl, dokumuYukle } from '../veri/dokum.js'
@@ -9,8 +10,10 @@ import { markdownIndir } from './disaAktarma.js'
 import { $, $$, kacir } from './ortak.js'
 
 /**
- * Ayar kağıdı. Şimdilik tek bölüm: kilit.
- * Yedekleme (Faz 2.8) buraya eklenecek.
+ * Ayar kağıdı: kilit, yedek, anlam araması, model cevabı.
+ *
+ * İki isteğe bağlı bölüm (gömü ve model) denetimleri verilmezse hiç
+ * çizilmiyor — testte ve önizlemede bölüm yok, kod yolu da yok.
  */
 export interface AyarBaglam {
   kilit: Kilit
@@ -21,6 +24,8 @@ export interface AyarBaglam {
   degisti: () => void
   /** Gömü araması denetimi; yoksa bölüm hiç çizilmiyor. */
   gomu?: GomuDenetim
+  /** Model cevabı denetimi; yoksa bölüm hiç çizilmiyor. */
+  model?: ModelDenetim
   /** Geri yükleme sonrası uygulamayı baştan kurmak için. */
   yenidenYukle: () => void
 }
@@ -39,8 +44,22 @@ export interface GomuDenetim {
   dinle: (f: () => void) => void
 }
 
+/**
+ * Model cevabının ayar kağıdındaki yüzü.
+ *
+ * İki durum: anahtar yok (özellik hiç yok) ya da anahtar var. Ara durum
+ * yok, çünkü açma/kapama ayrı bir düğme değil — anahtarın kendisi
+ * (KARARLAR.md · K-031).
+ */
+export interface ModelDenetim {
+  anahtarVar: () => boolean
+  kuyruk: () => string
+  yaz: (anahtar: string) => Promise<void>
+  sil: () => Promise<void>
+}
+
 export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
-  const { kilit, sifreli, mevcutAnahtar, db, depo, degisti, yenidenYukle, gomu } = b
+  const { kilit, sifreli, mevcutAnahtar, db, depo, degisti, yenidenYukle, gomu, model } = b
   const kapat = () => $('#ayarlar').classList.remove('acik')
 
   /** PIN sorar; iptal edilirse null. */
@@ -60,6 +79,7 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
     const biyoVar = await kilit.biyometriVarMi()
 
     gomuCiz()
+    modelCiz()
 
     $('#ayKilitDurum').textContent = kurulu
       ? kilit.biyometriAcik
@@ -92,6 +112,11 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       notlar.push(
         'Biyometri hızlıdır ama anahtarın açılabilir bir kopyasını cihazda ' +
           'bırakır. Yalnızca PIN istiyorsan biyometriyi kapalı bırak.',
+      )
+    if (!sifreli && model?.anahtarVar())
+      notlar.push(
+        'Tarayıcı derlemesinde model anahtarı da <b>korumasız</b> duruyor ' +
+          '(localStorage). Gerçek anahtarını yalnızca cihaz derlemesine gir.',
       )
     if (kilit.durum !== 'kurulusuz')
       notlar.push(
@@ -143,6 +168,17 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       if (!confirm('Anlam araması kapatılsın mı? İndekslenmiş vektörler silinir.')) return
       await gomu?.kapat()
       return
+    } else if (ad === 'modelAnahtar') {
+      const girilen = prompt('Anthropic API anahtarın (sk-ant-… ile başlar):')
+      if (girilen === null) return
+      if (!anahtarBicimi(girilen)) {
+        alert('Bu bir Anthropic anahtarına benzemiyor. sk-ant- ile başlaması gerekiyor.')
+        return
+      }
+      await model?.yaz(girilen)
+    } else if (ad === 'modelSil') {
+      if (!confirm('Anahtar silinsin mi? Model cevabı bir daha çağrılamaz.')) return
+      await model?.sil()
     }
     await ciz()
     degisti()
@@ -178,6 +214,36 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       ? '<button data-eylem="gomuKapat">kapat ve vektörleri sil</button>'
       : '<button data-eylem="gomuAc">indir ve aç</button>'
     for (const dg of $$<HTMLButtonElement>('#ayGomuDugmeler button'))
+      dg.onclick = () => void eylem(dg.dataset.eylem!)
+  }
+
+  /* ── model cevabı ──────────────────────────────────────── */
+
+  function modelCiz(): void {
+    const bolum = $('#ayModelDurum').parentElement!
+    if (!model) {
+      bolum.style.display = 'none'
+      return
+    }
+    bolum.style.display = ''
+    const var_ = model.anahtarVar()
+
+    $('#ayModelDurum').innerHTML = !var_
+      ? 'Kapalı. Arşivdeki cevap şu an <b>senin kayıtlarından derlenmiş bir özet</b>; ' +
+        'istersen aynı kayıtlardan bir modelin cümle kurmasını isteyebilirsin.<br>' +
+        'Bunun için <b>kendi Anthropic API anahtarın</b> gerekiyor — sunucumuz yok, ' +
+        'çağrı doğrudan bu cihazdan gider ve faturası sana yazılır.<br>' +
+        'Arşivde ayrı bir düğme çıkar; ona basmadıkça <b>hiçbir şey cihazdan çıkmaz</b>. ' +
+        'Bastığında da yalnızca ekranda gördüğün <b>en fazla 4 kayıt</b> gider.'
+      : `Açık. Anahtar cihazda saklı (…${kacir(model.kuyruk())}). ` +
+        'Arşivde arama yaptıktan sonra “bu kayıtlardan bir cevap yaz” düğmesi çıkar. ' +
+        'Düğmeye basmadıkça çağrı olmaz.'
+
+    $('#ayModelDugmeler').innerHTML = var_
+      ? '<button data-eylem="modelAnahtar">anahtarı değiştir</button>' +
+        '<button data-eylem="modelSil">anahtarı sil</button>'
+      : '<button data-eylem="modelAnahtar">anahtarımı gir</button>'
+    for (const dg of $$<HTMLButtonElement>('#ayModelDugmeler button'))
       dg.onclick = () => void eylem(dg.dataset.eylem!)
   }
 

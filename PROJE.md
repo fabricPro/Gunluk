@@ -119,7 +119,7 @@ soru "güzel mi" değil, **"kullanıcı bunu ikinci kez neden açsın"**.
 Sıra önemli. Her adım bir öncekine yaslanıyor.
 
 ### Faz 1 — Temel (önce bunlar)
-1. **Kalıcılık.** SQLite + SQLCipher, cihazda şifreli (KARARLAR.md · K-002). Şu an sayfa yenilenince her şey gidiyor.
+1. ~~**Kalıcılık.**~~ **Tamam.** SQLite + SQLCipher, cihazda şifreli; göçler `PRAGMA user_version` ile numaralı (KARARLAR.md · K-002, K-008).
 2. ~~**Boş defter / onboarding.**~~ **Tamam.** Karşılama ekranı yok: defter boş sayfayla açılıyor, yazma alanının üstünde günün sorusu duruyor. Yedi soru, sabit liste, yazılan güne göre ilerliyor. Sonrasında sorular susuyor, istenirse çağrılıyor (KARARLAR.md · K-019, K-020).
 3. ~~**Cilt kapanma töreni.**~~ **Tamam.** Defter dolunca ad ver, kapak seç, uzat ya da kapat; kapanınca cildin özeti ve bir sonraki cilt. Sayfa sayısı artık her defterin kendi ölçüsü (KARARLAR.md · K-017, K-018).
 
@@ -131,7 +131,7 @@ Sıra önemli. Her adım bir öncekine yaslanıyor.
 
 ### Faz 3 — Arşiv ve AI
 9. ~~**Arama.**~~ **Tamam.** Türkçe gövdeleme (K-027) ve cihaz-içi gömü araması (K-029). "hissettiğim" artık "hissetmedim"i buluyor; anlam araması açılırsa "kötü hissettiğim günler" gibi sorular o sözcükler hiç geçmese de sonuç veriyor. Model cihazda çalışıyor — ~145 MB'lık isteğe bağlı indirme, varsayılan kapalı. Metin cihazdan çıkmıyor.
-10. Soru-cevap için model çağrısı — **kaynak kayıtlar her zaman gösterilecek.**
+10. ~~Soru-cevap için model çağrısı — **kaynak kayıtlar her zaman gösterilecek.**~~ **Tamam.** Arama cihazda bitiyor; sonra ayrı bir düğme, en fazla 4 kaydı kullanıcının kendi Anthropic anahtarıyla doğrudan cihazdan gönderiyor — sunucu yok, düğmeye basılmadıkça tek bayt çıkmıyor. Cevaptaki `[2]` ile kaynak kartındaki `[2]` aynı kayıt. Kriz kaydı iki kez eleniyor (KARARLAR.md · K-031).
 11. ~~Kriz sınıflandırıcısı ve akışı (2.1).~~ **Tamam.** Kural tabanlı, dar eşikli, cihazda; hiçbir yere yazılmıyor. Kriz kaydı arşiv cevabına ve tema sayımına girmiyor, o gün soru sorulmuyor, kağıdın üstünde sessiz bir kart 112'yi gösteriyor. Yakılan sayfada çalışmıyor (KARARLAR.md · K-030).
 12. İsteğe bağlı: her yazıdan sonra **tek soru.** Yorum değil, soru. ~200 token. Yorum açıklamaya çalışır, soru yazdırır.
 
