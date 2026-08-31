@@ -17,7 +17,7 @@ import { sunucuAyari } from '../src/veri/senkronDepo.js'
 const oku = (ad: string): string => readFileSync(new URL(`../${ad}`, import.meta.url), 'utf8')
 
 const vercel = JSON.parse(oku('vercel.json')) as {
-  ignoreCommand: string
+  ignoreCommand?: string
   rewrites: { source: string; destination: string }[]
 }
 
@@ -75,15 +75,20 @@ describe('vercel.json kodun istediği yolları taşıyor', () => {
     }
   })
 
-  it('yalnızca üretim dalı yayınlanıyor', () => {
+  it('ignoreCommand ile derleme engellenmiyor', () => {
     /*
-     * Hobby planında önizleme dağıtımları HERKESE AÇIK ve her biri ayrı
-     * bir kaynak: ne OPFS verisi ne çerez taşınır, Neon güvenilir alan
-     * listesi de tutmaz. Yeni bir dal açılınca sessizce açık bir defter
-     * yayınlanmasın.
+     * Önizleme dağıtımları herkese açık olmasın diye önce
+     * `"ignoreCommand": "[ \"$VERCEL_ENV\" != production ]"` konmuştu.
+     * Canlıda ÜRETİM dağıtımını da atladı: `VERCEL_ENV` o adımda boş
+     * geliyor, koşul her zaman "atla" diyor ve derleme hiç çalışmıyor —
+     * kayıt bile düşmüyor, dağıtım sessizce CANCELED oluyor.
+     *
+     * Doğru mekanizma Vercel'in kendi Deployment Protection'ı: önizleme
+     * dağıtımları Vercel Authentication arkasında, üretim açık. O bir
+     * proje ayarı, bu dosyada duramıyor — burada duran, geri konmasın
+     * diye dersin kendisi (KARARLAR.md · K-037).
      */
-    expect(vercel.ignoreCommand).toContain('VERCEL_ENV')
-    expect(vercel.ignoreCommand).toContain('production')
+    expect(vercel.ignoreCommand).toBeUndefined()
   })
 })
 

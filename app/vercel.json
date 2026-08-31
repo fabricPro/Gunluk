@@ -3,7 +3,6 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "ignoreCommand": "[ \"$VERCEL_ENV\" != production ]",
   "github": { "silent": true },
   "rewrites": [
     { "source": "/auth/:yol*", "destination": "/api/vekil/auth/:yol*" },
