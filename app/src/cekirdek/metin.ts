@@ -291,6 +291,12 @@ const TR: Metinler = {
   'kil.hesapBtn': 'hesap aç',
   'kil.yerelBtn': 'bu cihazda kal',
   'kil.geri': 'geri',
+  'kil.hesabimBtn': 'hesabımla gir',
+  'kil.temizleOnay':
+    'Bu cihazdaki defter SİLİNECEK.\n\nParolasını bilmiyorsan zaten ' +
+    'açılamıyor; silinen şey erişilemez bir şey. Ama hesabın yoksa ' +
+    'içeriği de gitmiş olacak — sunucuda kopyası yok.\n\nHesabın varsa ' +
+    'defterin giriş yapınca sunucudan gelecek.\n\nDevam edilsin mi?',
   'kil.karsilama':
     'Hesabın varsa gir; defterin her cihazda seninle. Hesapsız da ' +
     'kullanabilirsin — o zaman defter yalnızca bu cihazda kalır ve tek ' +
@@ -754,6 +760,13 @@ const EN: Metinler = {
   'kil.hesapBtn': 'create an account',
   'kil.yerelBtn': 'keep it on this device',
   'kil.geri': 'back',
+  'kil.hesabimBtn': 'use my account',
+  'kil.temizleOnay':
+    'The notebook ON THIS DEVICE will be DELETED.\n\nIf you do not know its ' +
+    'passphrase it cannot be opened anyway, so what goes is something you ' +
+    'cannot reach. But if you have no account its contents are gone too — ' +
+    'there is no copy on the server.\n\nIf you do have an account, your ' +
+    'notebook comes back when you sign in.\n\nContinue?',
   'kil.karsilama':
     'Sign in if you have an account and your notebook follows you to every ' +
     'device. You can also use it without one — then the notebook stays on ' +

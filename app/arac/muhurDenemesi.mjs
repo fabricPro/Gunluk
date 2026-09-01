@@ -115,7 +115,7 @@ const PROFIL = process.env.DEFTER_PROFIL ?? '/tmp/defter-muhur-profil'
 const baglamAc = async () => {
   const secenek = { executablePath: process.env.CHROMIUM }
   /* Taşıma denemesinde OPFS iki koşu arasında yaşamak zorunda. */
-  if (ASAMA === 'hepsi' || ASAMA === 'kasa') {
+  if (ASAMA === 'hepsi' || ASAMA === 'kasa' || ASAMA === 'cikmaz') {
     const t = await chromium.launch(secenek)
     return { baglam: await t.newContext(), kapat: () => t.close() }
   }
@@ -227,6 +227,117 @@ const herSeyiSil = (sayfa) =>
  * yalnızca kullanıcı adı ve şifreyle giriliyor. Ne kod yazılıyor ne
  * senkron açılıyor (KARARLAR.md · K-039).
  */
+/**
+ * Aşama `cikmaz` — açma ekranından çıkış yolu.
+ *
+ * K-039 bir çıkmaz açmıştı: yerel defteri olan kullanıcı açma ekranına
+ * düşüyor ve oradan hesap ekranına HİÇ geçemiyordu. Parolayı
+ * hatırlamıyorsa tarayıcıda tamamen kilitli kalıyordu.
+ */
+const asamaCikmaz = async () => {
+  const { baglam, kapat } = await baglamAc()
+  const sayfa = await sayfaAc(baglam)
+  const ad = `kullanici${Date.now().toString(36)}`
+  kutulariCevapla(sayfa, [])
+
+  console.log('\n1. Yerel defter kuruluyor')
+  await sayfa.goto(ADRES)
+  await sayfa.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
+  await kilitKur(sayfa, PAROLA)
+  await defterAcildi(sayfa)
+  await sayfa.click('nav button[data-ekran="defter"]')
+  await bekle(sayfa, 400)
+  await sayfa.fill('#kalem', ISARET)
+  await sayfa.click('#birak')
+
+  /*
+   * Mührün GERÇEKTEN yazılmasını bekle.
+   *
+   * Bu bekleme olmadan deneme boşa geçiyordu: defter kurulup hemen
+   * yenilenince yuva hiç oluşmuyor, "OPFS boş" kendiliğinden doğru
+   * oluyor ve 4. adımdaki asıl muhafız hiçbir şey ölçmüyordu. Bu
+   * projede dördüncü kez aynı sınıf hata (K-039).
+   */
+  let muhurVar = false
+  for (let i = 0; i < 20 && !muhurVar; i++) {
+    await bekle(sayfa, 500)
+    muhurVar = (await diskiOku(sayfa)).some((d) => d.ad.startsWith('defter.muhur'))
+  }
+  de(muhurVar, 'yerel defter açıldı ve MÜHÜRLENDİ')
+  if (!muhurVar) {
+    await kapat()
+    console.log(`\nDÜŞEN: ${hata}\n`)
+    process.exit(1)
+  }
+
+  console.log('\n2. Yenilenince AÇMA ekranı geliyor')
+  await sayfa.reload()
+  await sayfa.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
+  de(!(await sayfa.isVisible('#kilYollar')), 'karşılama değil, açma ekranı')
+  de(await sayfa.isVisible('#kilHesabim'), 'çıkış yolu görünüyor')
+  /* Tarayıcıda PIN yok: ekran parola kipinde açılmalı. */
+  de(
+    (await sayfa.innerHTML('#kilNoktalar')).trim() === '',
+    'parola kipinde açılıyor — altı nokta yok',
+  )
+
+  console.log('\n3. "hesabımla gir" cihazı temizliyor')
+  await sayfa.click('#kilHesabim')
+  await sayfa.waitForSelector('#kilYollar:not([hidden])', { timeout: 20000 })
+  de(true, 'karşılama ekranına dönüldü')
+  const dosyalar = await diskiOku(sayfa)
+  const yerel = await sayfa.evaluate(() => JSON.stringify(localStorage))
+  de(
+    dosyalar.length === 0,
+    `OPFS boş (kalan: ${dosyalar.map((d) => d.ad).join(", ") || "yok"})`,
+  )
+  de(!yerel.includes('defter.kilit'), 'kilit kaydı silinmiş')
+
+  console.log('\n4. Temizlikten SONRA hesap açılabiliyor')
+  await sayfa.click('#kilHesap')
+  await bekle(sayfa, 300)
+  await sayfa.fill('#kilAd', ad)
+  await sayfa.fill('#kilPin', PAROLA)
+  await sayfa.press('#kilPin', 'Enter')
+  await bekle(sayfa, 400)
+  await sayfa.fill('#kilPin', PAROLA)
+  await sayfa.press('#kilPin', 'Enter')
+  /*
+   * Ölçülen şey "kilit ekranı kapandı" DEĞİL.
+   *
+   * İki kırma denemesi de buradan sızmıştı. `defteriKodla` kilit
+   * ekranını `uygulamayiKur`dan önce gizliyordu, kabuk (nav, düğmeler)
+   * index.html'de STATİK duruyor — yani veritabanı hiç açılmamışken
+   * bile "ekran geldi" doğru görünüyordu. Ekranda görünen tek şey
+   * yanlış bir "bağlantını kontrol et" uyarısıydı.
+   *
+   * O yüzden kanıt yazmaktan geçiyor: yeni bir kayıt bırakıp geri
+   * okunuyor. Bu ancak defter GERÇEKTEN açıldıysa olur.
+   */
+  const acildi = await defterAcildi(sayfa, 60000).then(() => true).catch(() => false)
+  let yazildi = false
+  if (acildi) {
+    const yeniIsaret = `${ISARET}-SONRASI`
+    await sayfa.click('nav button[data-ekran="defter"]').catch(() => {})
+    await bekle(sayfa, 400)
+    await sayfa.fill('#kalem', yeniIsaret).catch(() => {})
+    await sayfa.click('#birak').catch(() => {})
+    for (let i = 0; i < 10 && !yazildi; i++) {
+      await bekle(sayfa, 400)
+      yazildi = (await sayfa.textContent('body')).includes(yeniIsaret)
+    }
+  }
+  de(yazildi, 'temizlikten sonra hesap açıldı ve deftere YAZILABİLDİ')
+  if (!yazildi)
+    console.log(
+      `    ekranda: ${((await sayfa.textContent('#kilUyari').catch(() => '')) ?? '').slice(0, 120)}`,
+    )
+
+  await kapat()
+  console.log(hata ? `\nDÜŞEN: ${hata}\n` : '\nÇıkmaz denemesi geçti.\n')
+  process.exit(hata ? 1 : 0)
+}
+
 const asamaHesap = async () => {
   const tarayici = await chromium.launch({ executablePath: process.env.CHROMIUM })
   const ad = `kullanici${Date.now().toString(36)}`
@@ -380,6 +491,7 @@ const calis = async () => {
   if (ASAMA === 'tasi') return asamaTasi()
   if (ASAMA === 'kasa') return asamaKasa()
   if (ASAMA === 'hesap') return asamaHesap()
+  if (ASAMA === 'cikmaz') return asamaCikmaz()
   const { baglam, kapat } = await baglamAc()
   const sayfa = await sayfaAc(baglam)
 
@@ -431,7 +543,13 @@ const calis = async () => {
   await sayfa.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
   de(!(await kurulumKipi(sayfa)), 'bu sefer AÇMA ekranı — PIN/parola geçişi var')
 
-  await sayfa.click('#kilParola')
+  /*
+   * "parola kullan"a BASILMIYOR: tarayıcıda açma ekranı artık parola
+   * kipinde açılıyor (K-039). Basmak kipi PIN'e geri çevirir, alan da
+   * harfleri süzer — parola hiç yazılamaz. Yanlış parola yine
+   * reddedilirdi ama YANLIŞ sebeple: bu, denemeyi sessizce boşa
+   * çıkaran türden bir geçiş.
+   */
   await sayfa.fill('#kilPin', 'yanlis-parola-tamamen')
   await sayfa.press('#kilPin', 'Enter')
   await bekle(sayfa, 2500)
@@ -457,13 +575,21 @@ const calis = async () => {
   })
   await sayfa.reload()
   await sayfa.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
-  await sayfa.click('#kilParola')
+  /* Parola kipi zaten açık; basmak PIN'e geri çevirirdi (yukarıya bak). */
   await sayfa.fill('#kilPin', PAROLA)
   await sayfa.press('#kilPin', 'Enter')
   await bekle(sayfa, 6000)
   de(await sayfa.isVisible('#kilitEkrani.acik'), 'kilit ekranı geri geldi (boş ekran yok)')
+  /*
+   * Uzunluğa bakmak yetmiyordu: yanlış parola mesajı ("That didn't
+   * work.") da uzun bir metin ve ölçüm onu kabul ediyordu. Aranan
+   * ŞEY belli — mühür açılamadı mesajı; onu arıyoruz.
+   */
   const soylenen = await sayfa.textContent('#kilUyari')
-  de(soylenen.length > 30, `ne olduğu yazıyor: "${soylenen.slice(0, 60)}…"`)
+  de(
+    /sealed file|mühürlü dosya/.test(soylenen),
+    `ne olduğu yazıyor: "${soylenen.slice(0, 60)}…"`,
+  )
 
   await kapat()
   console.log(hata ? `\nDÜŞEN: ${hata}\n` : '\nHepsi geçti.\n')

@@ -26,6 +26,16 @@ import { $, $$, S } from './ortak.js'
  * şifre defteri bir daha açılmamak üzere kapatır.
  */
 
+/**
+ * "Hesap tamam ama yerel defter açılamadı" işareti.
+ *
+ * Bu durumda uyarıyı `ana.ts` zaten koymuş oluyor (mühür açılmadı) ve
+ * ekran da açma kipine dönmüş oluyor. Buradaki genel "bağlantını
+ * kontrol et" mesajı üstüne yazarsa kullanıcıyı yanlış yere bakmaya
+ * gönderir: hesap açılmıştır, sorun ağda değildir (KARARLAR.md · K-039).
+ */
+export const ACILMADI = 'DefterAcilmadi'
+
 export type KilitKipi = 'ac' | 'karsilama'
 type Yol = 'secim' | 'giris' | 'hesap' | 'yerel'
 
@@ -33,6 +43,13 @@ type Yol = 'secim' | 'giris' | 'hesap' | 'yerel'
 export interface HesapYollari {
   giris: (ad: string, sifre: string) => Promise<boolean>
   ac: (ad: string, sifre: string) => Promise<boolean>
+  /**
+   * Bu cihazı temizleyip karşılamaya döner.
+   *
+   * Açma ekranındaki çıkış yolu. Parolası hatırlanmayan bir defter zaten
+   * açılamıyor; buradan silinen şey erişilemez bir şey (K-039).
+   */
+  temizle: () => Promise<void>
 }
 
 export function kilitEkraniBagla(
@@ -115,12 +132,21 @@ export function kilitEkraniBagla(
       await cozuldu(await kilit.kur(sifre))
     })
 
+  /** Hesap yolunu koşturur; başarısızlıkta DOĞRU uyarıyı bırakır. */
+  const hesapYolu = async (calis: () => Promise<boolean>, mesaj: string): Promise<void> => {
+    try {
+      if (!(await calis())) uyari(mesaj)
+    } catch (h) {
+      if (!(h instanceof Error && h.name === ACILMADI)) uyari(mesaj)
+    }
+  }
+
   const hesapAc = (yazilan: string): Promise<void> =>
     ikiKez(yazilan, async (sifre) => {
       const ad = adAlani().value
       if (ad.trim().length < EN_AZ_AD) return uyari(S('kil.adKisa', { n: EN_AZ_AD }))
       uyari(S('kil.hesapBekle'))
-      if (!(await hesap!.ac(ad, sifre).catch(() => false))) uyari(S('kil.hesapOlmadi'))
+      await hesapYolu(() => hesap!.ac(ad, sifre), S('kil.hesapOlmadi'))
     })
 
   const girisDene = async (yazilan: string): Promise<void> => {
@@ -128,7 +154,7 @@ export function kilitEkraniBagla(
     if (ad.trim().length < EN_AZ_AD) return uyari(S('kil.adKisa', { n: EN_AZ_AD }))
     alan().value = ''
     uyari(S('kil.girisBekle'))
-    if (!(await hesap!.giris(ad, yazilan).catch(() => false))) uyari(S('kil.girisOlmadi'))
+    await hesapYolu(() => hesap!.giris(ad, yazilan), S('kil.girisOlmadi'))
   }
 
   /* ── giriş olayları ────────────────────────────────────── */
@@ -228,6 +254,19 @@ export function kilitEkraniBagla(
     setTimeout(() => (hesapYolu ? adAlani() : alan()).focus(), 60)
   }
 
+  /*
+   * Açma ekranının tek çıkış yolu.
+   *
+   * Bu düğme olmadan, parolasını hatırlamayan bir kullanıcı tarayıcıda TAM
+   * ÇIKMAZDA kalıyordu: hesap ekranına geçiş yok, `?sifirla=1` de
+   * kurtarmıyor (o bayrak defter açıldıktan sonra işliyor). K-039'un
+   * getirdiği bir gerilemeydi.
+   */
+  $('#kilHesabim').onclick = () => {
+    if (!confirm(S('kil.temizleOnay'))) return
+    void hesap!.temizle()
+  }
+
   $('#kilGiris').onclick = () => yolaGec('giris')
   $('#kilHesap').onclick = () => yolaGec('hesap')
   $('#kilYerel').onclick = () => yolaGec('yerel')
@@ -255,23 +294,31 @@ export function kilitEkraniBagla(
     if (kip === 'karsilama') {
       $('#kilBiyo').hidden = true
       $('#kilParola').hidden = true
+      $('#kilHesabim').hidden = true
       /* Hesap yolları yoksa (cihaz) doğrudan yerel kuruluma gidiliyor. */
       yolaGec(hesap ? 'secim' : 'yerel')
       if (!hesap) $('#kilGeri').hidden = true
       return
     }
 
-    parolaKipi = false
-    $('#kilitEkrani').classList.remove('parola')
-    alan().type = 'text'
-    alan().setAttribute('inputmode', 'numeric')
+    /*
+     * Tarayıcıda PIN diye bir şey yok: kilit parolası en az on iki
+     * karakter. Buna rağmen ekran PIN kipinde (altı nokta) açılıyordu ve
+     * kullanıcı parolasını yazmadan önce bir düğmeye basmak zorundaydı.
+     * Cihazda PIN gerçek bir şey, orada değişmiyor (K-039).
+     */
+    parolaKipi = !!hesap
+    $('#kilitEkrani').classList.toggle('parola', parolaKipi)
+    alan().type = parolaKipi ? 'password' : 'text'
+    alan().setAttribute('inputmode', parolaKipi ? 'text' : 'numeric')
     alan().hidden = false
     adAlani().hidden = true
     $('#kilYollar').hidden = true
     $('#kilGeri').hidden = true
     $('#kilAlt').textContent = S('kilit.alt')
     $('#kilParola').hidden = false
-    $('#kilParola').textContent = S('kilit.parola')
+    $('#kilParola').textContent = S(parolaKipi ? 'kilit.pin' : 'kilit.parola')
+    $('#kilHesabim').hidden = !hesap
     $('#kilBiyo').hidden = !kilit.biyometriAcik
     uyari('')
     noktalariCiz()

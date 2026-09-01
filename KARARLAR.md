@@ -9,6 +9,102 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-09-01 · K-040 · Açma ekranından çıkış yolu — ve dört muhafızın boş çıkması
+
+K-039 yayına çıktıktan sonra kullanıcının ilk cümlesi şuydu:
+
+> "ben şifre koymadım fakat şuan şifre var gibi görünüyor."
+
+Şifreyi kendisi koymuştu (K-037 tarayıcıda kilidi zorunlu kılmıştı), ama
+haklıydı: gördüğü ekran hesap ekranı değildi ve oradan hesap ekranına giden
+**hiçbir yol yoktu.**
+
+### Açılış sırası bir çıkmaz yaratmıştı
+
+```
+kilit.durum === 'kilitli'   → açma ekranı
+kilit.durum === 'kurulusuz' → karşılama (giriş / hesap aç / bu cihazda kal)
+```
+
+`localStorage`ta bir kilit kaydı olan herkes birinci satıra düşüyor ve karşılama
+ekranını **bir daha hiç görmüyordu**. `?sifirla=1` de kurtarmıyordu: o bayrak
+`uygulamayiKur` içinde işliyor, kilitliyken oraya hiç varılmıyor.
+
+Yani K-039 mevcut kullanıcı için bir gerileme getirmişti: eskiden kurulum
+ekranında "parolamla kurtar" vardı, ama yalnızca `kurulusuz` iken.
+
+Çözüm dar tutuldu: açma ekranına (yalnızca tarayıcıda) tek bir ikincil eylem —
+**"hesabımla gir"**. Onay kutusu ne olacağını açıkça söylüyor, sonra cihaz
+temizlenip karşılamaya dönülüyor. Temizlik üç şey: kilit kaydı, güvenli
+depodaki anahtarlar ve **OPFS mühür yuvaları**. Üçüncüsü olmadan yuvalar yetim
+kalır ve yeni anahtar onları açamaz (K-039'daki `cikis` tuzağının aynısı; orada
+worker'ın `unut`u kullanılıyordu ama o defter AÇIKKEN çalışıyor, kilitliyken
+veritabanı hiç açılmıyor).
+
+Ayrıca açma ekranı artık **parola kipinde** açılıyor: tarayıcıda PIN diye bir
+şey yok, kilit parolası en az 12 karakter. Altı noktayla karşılayıp kullanıcıyı
+"parola kullan"a basmaya zorlamak, kullanıcının bildirdiği kafa karışıklığının
+yarısıydı.
+
+### Asıl ders: bir muhafızı kırmadan ona güvenme
+
+Bu değişikliğin denemesi (`npm run muhur cikmaz`) **dört kez** yazıldı ve ilk
+üçü hiçbir şey ölçmüyordu. Sırasıyla:
+
+1. **Mühür hiç oluşmuyordu.** Defter kurulup hemen yenileniyordu; "OPFS boş"
+   kendiliğinden doğruydu. Düzeltme: kayıt bırakılıp yuva belirene kadar
+   yoklanıyor, ve bu ayrı bir iddia olarak yazılıyor.
+2. **`defterAcildi` yanlış şeyi ölçüyordu.** Yalnızca kilit ekranının `acik`
+   sınıfını kaybetmesine bakıyordu. `defteriKodla` ekranı `uygulamayiKur`dan
+   ÖNCE gizlediği için, açılış düşecek olsa bile arada ekranın kapalı olduğu bir
+   an vardı ve yoklama tam oraya denk geliyordu.
+3. **Kabuk statikti.** "Defter ekranı geldi mi" diye `nav` düğmesine bakmak da
+   boştu: o düğme `index.html`de duruyor, veritabanı hiç açılmamışken bile
+   orada.
+4. Ancak dördüncüsü gerçekten ölçüyor: **temizlikten sonra deftere yeni bir
+   kayıt yazılıp geri okunuyor.** Bu ancak veritabanı gerçekten açıldıysa olur.
+
+Her seferinde `yuvalariSil()` kaldırılıp deneme yeniden koşuldu; geçmeye devam
+ettiği sürece muhafız yoktu. Dördüncüsünde düştü — ve yuva geri konunca geçti.
+
+Bu, K-038 ve K-039'da da olan hatanın **beşinci ve altıncı** örneği. Kural artık
+şu: *bir muhafız, kırıldığında düştüğü görülene kadar yoktur.*
+
+### Kırma denemesinin bulduğu gerçek hata
+
+Muhafız düzelirken altından bir ürün hatası çıktı. `defteriKodla` kilit ekranını
+`uygulamayiKur`dan **önce** gizliyordu. Açılış düşerse kullanıcı ölü bir kabukla
+kalıyordu: kilit ekranı kapalı, veritabanı yok, sıfır girdi — ve ekrandaki tek
+yazı **"hesap açılamadı, bağlantını kontrol et"**. Oysa hesap açılmıştı; sorun
+ağda değil, yerel mühürdeydi. Kullanıcıyı tamamen yanlış yere bakmaya
+gönderiyordu.
+
+Artık ekran **başarıdan sonra** gizleniyor; düşerse açma ekranı geri geliyor ve
+"parola doğru ama defter açılamadı" diyor. Genel "bağlantını kontrol et"
+mesajının üstüne yazmaması için hata `ACILMADI` adıyla işaretleniyor.
+
+`hepsi` denemesinin 4. ve 5. adımları da bu yüzden düzeltildi: ikisi de "parola
+kullan"a basıyordu, ekran zaten parola kipinde açıldığı için bu artık kipi
+PIN'e geri çeviriyor ve parolanın harfleri süzülüyordu. 4. adım bundan
+**düşerek** haber verdi; 5. adım ise geçiyordu, çünkü iddiası "mesaj 30
+karakterden uzun mu" idi — yanlış parola mesajı da uzun. Artık aranan mesajın
+kendisi aranıyor.
+
+### Doğrulama
+
+`npm run muhur cikmaz` — gerçek Chromium: yerel defter kur, kayıt bırak, mühür
+yazılana kadar bekle, yenile (açma ekranı, parola kipinde, çıkış yolu görünür),
+"hesabımla gir" (karşılamaya dönülüyor, OPFS boş, kilit kaydı yok), sonra hesap
+açılıyor ve **deftere yazılıp geri okunuyor**. `hesap` ve `hepsi` de geçiyor;
+635 test ve üretim derlemesi temiz.
+
+Kalan sınır: `kasa` aşaması artık koşmuyor — var olmayan bir `senkronAc`
+düğmesini bekliyor. Bu K-039'dan kalma, bu değişiklikten önce de böyleydi;
+sessizce geçmiyor, gürültüyle düşüyor. Kapsadığı şeyin çoğu `hesap` aşamasına
+geçti; kalanı ayrıca ele alınacak.
+
+---
+
 ## 2026-09-01 · K-039 · Hesap: kullanıcı adı + şifre, senkron ayrı bir düğme değil
 
 Çevrimiçi kullanmak üç kavram istiyordu: **senkronu aç**, **Defter Kimliği**'ni

@@ -13,7 +13,7 @@ import { ayarlariBagla } from './ekran/ayarlar.js'
 import { defteriBagla } from './ekran/defter.js'
 import { fihristiBagla } from './ekran/fihrist.js'
 import { kilidiBagla } from './ekran/kilit.js'
-import { kilitEkraniBagla } from './ekran/kilitEkrani.js'
+import { ACILMADI, kilitEkraniBagla } from './ekran/kilitEkrani.js'
 import { kitapligiBagla } from './ekran/kitaplik.js'
 import { kapsuleBagla } from './ekran/kapsul.js'
 import { sayfaOlc } from './ekran/olcum.js'
@@ -86,8 +86,28 @@ async function baslat(): Promise<void> {
     const av = await kilit.kur(sifre)
     anahtariDayat(av)
     await (await anahtarDeposu(nativeMi, SENKRON_KODU)).yaz(kod)
+    /*
+     * Ekran açılış BAŞARILI olunca gizleniyor, önce değil.
+     *
+     * Önce gizlenirken `uygulamayiKur` düşerse kullanıcı ölü bir
+     * kabukla kalıyordu: kilit ekranı kapalı, veritabanı yok, sıfır
+     * girdi — ve ekrandaki tek yazı "bağlantını kontrol et" diyerek
+     * yanlış yeri gösteriyordu; oysa hesap açılmıştı, açılamayan
+     * yerel defterdi (KARARLAR.md · K-039).
+     */
+    try {
+      await uygulamayiKur()
+    } catch (e) {
+      console.error('[defter] hesap kuruldu ama defter acilamadi', e)
+      anahtariDayat(null)
+      kilit.kilitle()
+      await kilitEkrani.goster('ac')
+      kilitEkrani.uyar(S('kil.acilmadi'))
+      const isaret = new Error('defter-acilmadi')
+      isaret.name = ACILMADI
+      throw isaret
+    }
     kilitEkrani.gizle()
-    await uygulamayiKur()
   }
 
   /**
@@ -116,6 +136,26 @@ async function baslat(): Promise<void> {
       /* Kod bir kez gösteriliyor: şifre unutulursa tek yol bu. */
       yeniHesapKodu = kod
       return true
+    },
+    /**
+     * Açma ekranından çıkış: bu cihazı temizleyip karşılamaya döner.
+     *
+     * Üç şey birden siliniyor ve üçü de gerekli. Mühür yuvaları
+     * kalırsa yeni kurulumdaki yeni anahtar onları açamaz ve açılış
+     * "yuva var ama hiçbiri açılmadı" diye durur — uygulama bir daha
+     * açılmazdı (KARARLAR.md · K-039).
+     *
+     * Yuvalar buradan siliniyor çünkü kilitliyken veritabanı hiç
+     * açılmıyor; worker'ın `unut`u defter açıkken çalışıyor.
+     */
+    temizle: async (): Promise<void> => {
+      const { yuvalariSil } = await import('./veri/muhurYuva.js')
+      for (const ad of [SENKRON_KODU, MODEL_ANAHTARI])
+        await (await anahtarDeposu(nativeMi, ad)).sil().catch(() => {})
+      await yuvalariSil()
+      await kilit.kaldir()
+      anahtariDayat(null)
+      location.reload()
     },
   }
 

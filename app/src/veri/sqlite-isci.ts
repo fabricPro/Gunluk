@@ -26,6 +26,7 @@
 import sqlite3InitModule, { type Database, type Sqlite3Static } from '@sqlite.org/sqlite-wasm'
 import { aesAnahtar, onaltilikOku } from '../cekirdek/gizle.js'
 import { muhruAc, muhurle } from '../cekirdek/muhur.js'
+import { YUVALAR } from './muhurYuva.js'
 
 export type IstekTip = 'ac' | 'calistir' | 'betik' | 'hepsi' | 'kapat' | 'muhurle' | 'unut'
 
@@ -50,9 +51,6 @@ export interface Yanit {
   /** Açılışta şifresiz eski defter bulunup taşındı mı. */
   tasindi?: boolean
 }
-
-/** OPFS kökündeki iki mühür yuvası. */
-const YUVALAR = ['defter.muhur.1', 'defter.muhur.2'] as const
 
 /**
  * `createSyncAccessHandle` yalnızca worker'da var; TypeScript'in DOM
