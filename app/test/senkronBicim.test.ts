@@ -122,7 +122,16 @@ describe('zarf · yanlış anahtar', () => {
 
   it('oynanmış gövde çözülmüyor', async () => {
     const z = await zarfla(kayit('gizli'), await kimlik())
-    const bozuk = { ...z, govde: 'A' + z.govde.slice(1) }
+    /*
+     * İlk karakter KESİNLİKLE değişsin. Önce koşulsuz `'A' + ...`
+     * yazıyordu: gövde zaten `A` ile başlıyorsa hiçbir şey bozulmuyor,
+     * çözme başarılı oluyor ve test düşüyordu — base64'te ~1/64
+     * ihtimalle. Bir kez canlıda düştü ve yayını durdurdu
+     * (KARARLAR.md · K-037). Titrek bir test, testin olmamasından beter.
+     */
+    const ilk = z.govde[0] === 'A' ? 'B' : 'A'
+    const bozuk = { ...z, govde: ilk + z.govde.slice(1) }
+    expect(bozuk.govde).not.toBe(z.govde)
     expect(await zarfiAc(bozuk, await kimlik())).toBeNull()
   })
 })
