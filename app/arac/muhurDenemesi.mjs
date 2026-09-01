@@ -44,14 +44,14 @@ let hata = 0
 const bekle = (p, ms) => p.waitForTimeout(ms)
 
 /**
- * Kilit ekranı KURULUM kipinde mi.
+ * Kilit ekranı KARŞILAMA kipinde mi (yani bu cihazda defter yok).
  *
- * Önce "`#kilParola` görünür mü" diye bakılıyordu. Kasa gelince o düğme
- * kurulumda da göründü ("parolamla kurtar") ve kontrol sessizce boşa
- * geçmeye başladı. Ayrım artık düğmenin YAZISINDA.
+ * Bu kontrol iki kez kaydı: önce "`#kilParola` görünür mü" diye
+ * bakıyordu, sonra o düğmenin yazısına. Hesap gelince ekran yeniden
+ * değişti. Ayrım artık şu: karşılamada PIN/parola geçişi HİÇ yok,
+ * açmada var.
  */
-const kurulumKipi = async (sayfa) =>
-  /kurtar|recover/i.test(await sayfa.textContent('#kilParola'))
+const kurulumKipi = async (sayfa) => !(await sayfa.isVisible('#kilParola'))
 
 /** Kilit ekranı kapandı mı — `.acik` sınıfı düşünce defter açık. */
 const defterAcildi = (sayfa, ms = 30000) =>
@@ -97,6 +97,11 @@ const diskiOku = (sayfa) =>
 
 const kilitKur = async (sayfa, parola) => {
   await sayfa.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
+  /* Karşılamada üç yol var; hesapsız defter için "bu cihazda kal". */
+  if (await sayfa.isVisible('#kilYollar')) {
+    await sayfa.click('#kilYerel')
+    await sayfa.waitForTimeout(300)
+  }
   await sayfa.fill('#kilPin', parola)
   await sayfa.press('#kilPin', 'Enter')
   await bekle(sayfa, 300)
@@ -214,6 +219,83 @@ const herSeyiSil = (sayfa) =>
   })
 
 /** Aşama `kasa`: yaz → senkron+kasa aç → her şeyi sil → parolayla kurtar. */
+/**
+ * Aşama `hesap` — "her cihazdan ulaşırım" sözünün asıl sınavı.
+ *
+ * A bağlamında hesap açılıp kayıt bırakılıyor, sonra AYRI bir tarayıcı
+ * bağlamında (gerçek ikinci cihaz: kendi deposu, kendi çerezleri)
+ * yalnızca kullanıcı adı ve şifreyle giriliyor. Ne kod yazılıyor ne
+ * senkron açılıyor (KARARLAR.md · K-039).
+ */
+const asamaHesap = async () => {
+  const tarayici = await chromium.launch({ executablePath: process.env.CHROMIUM })
+  const ad = `kullanici${Date.now().toString(36)}`
+
+  console.log('\n1. Birinci cihaz: hesap açılıyor')
+  const bir = await tarayici.newContext()
+  const s1 = await sayfaAc(bir)
+  await s1.goto(ADRES)
+  await s1.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
+  de(await s1.isVisible('#kilYollar'), 'karşılamada üç yol var')
+  await s1.click('#kilHesap')
+  await bekle(s1, 300)
+  await s1.fill('#kilAd', ad)
+  await s1.fill('#kilPin', PAROLA)
+  await s1.press('#kilPin', 'Enter')
+  await bekle(s1, 400)
+  await s1.fill('#kilPin', PAROLA)
+  await s1.press('#kilPin', 'Enter')
+  const acildi1 = await defterAcildi(s1, 60000).then(() => true).catch(() => false)
+  de(acildi1, 'hesap açıldı ve defter kuruldu')
+  if (!acildi1) {
+    console.log(`    ekranda: ${(await s1.textContent('#kilUyari')).slice(0, 100)}`)
+    await tarayici.close()
+    process.exit(1)
+  }
+
+  await s1.click('nav button[data-ekran="defter"]')
+  await bekle(s1, 400)
+  await s1.fill('#kalem', ISARET)
+  await s1.click('#birak')
+  await bekle(s1, 5000)
+  de(true, 'kayıt bırakıldı ve eşitlendi')
+
+  console.log('\n2. İKİNCİ CİHAZ: yalnızca kullanıcı adı ve şifre')
+  const iki = await tarayici.newContext()
+  const s2 = await sayfaAc(iki)
+  await s2.goto(ADRES)
+  await s2.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
+  de(!(await s2.textContent('body')).includes(ISARET), 'ikinci cihaz gerçekten boş')
+
+  console.log('\n3. Yanlış şifre reddediliyor')
+  await s2.click('#kilGiris')
+  await bekle(s2, 300)
+  await s2.fill('#kilAd', ad)
+  await s2.fill('#kilPin', PAROLA + '-yanlis')
+  await s2.press('#kilPin', 'Enter')
+  await bekle(s2, 12000)
+  de(await s2.isVisible('#kilitEkrani.acik'), 'yanlış şifre defter AÇMIYOR')
+
+  console.log('\n4. Doğru şifreyle giriş')
+  await s2.fill('#kilAd', ad)
+  await s2.fill('#kilPin', PAROLA)
+  await s2.press('#kilPin', 'Enter')
+  const acildi2 = await defterAcildi(s2, 60000).then(() => true).catch(() => false)
+  de(acildi2, 'ikinci cihazda defter açıldı')
+  if (!acildi2) console.log(`    ekranda: ${(await s2.textContent('#kilUyari')).slice(0, 100)}`)
+
+  let geldi = false
+  for (let i = 0; i < 30 && !geldi; i++) {
+    await bekle(s2, 1000)
+    geldi = (await s2.textContent('body')).includes(ISARET)
+  }
+  de(geldi, 'BİRİNCİ CİHAZDA YAZILAN KAYIT İKİNCİ CİHAZDA — kod yazılmadı, senkron açılmadı')
+
+  await tarayici.close()
+  console.log(hata ? `\nDÜŞEN: ${hata}\n` : '\nHesap denemesi geçti.\n')
+  process.exit(hata ? 1 : 0)
+}
+
 const asamaKasa = async () => {
   const { baglam, kapat } = await baglamAc()
   const sayfa = await sayfaAc(baglam)
@@ -297,6 +379,7 @@ const calis = async () => {
   if (ASAMA === 'yaz') return asamaYaz()
   if (ASAMA === 'tasi') return asamaTasi()
   if (ASAMA === 'kasa') return asamaKasa()
+  if (ASAMA === 'hesap') return asamaHesap()
   const { baglam, kapat } = await baglamAc()
   const sayfa = await sayfaAc(baglam)
 
@@ -308,7 +391,7 @@ const calis = async () => {
     (await sayfa.textContent('#kilUyari')).length > 20,
     'parolanın ne işe yaradığı yazıyor',
   )
-  de(await kurulumKipi(sayfa), 'düğme kurtarma yolunu gösteriyor')
+  de(await sayfa.isVisible('#kilYollar'), 'karşılamada üç yol var')
 
   console.log('\n2. Parola kurulunca defter açılıyor')
   await kilitKur(sayfa, PAROLA)
@@ -346,7 +429,7 @@ const calis = async () => {
   console.log('\n4. Kapatıp açınca defter geri geliyor')
   await sayfa.reload()
   await sayfa.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
-  de(!(await kurulumKipi(sayfa)), 'bu sefer AÇMA ekranı — düğme PIN/parola geçişi')
+  de(!(await kurulumKipi(sayfa)), 'bu sefer AÇMA ekranı — PIN/parola geçişi var')
 
   await sayfa.click('#kilParola')
   await sayfa.fill('#kilPin', 'yanlis-parola-tamamen')

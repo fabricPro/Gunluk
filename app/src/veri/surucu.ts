@@ -20,6 +20,8 @@ export interface AcilisSonuc {
   kaliciIzin: boolean
   /** Sekme arka plana geçerken çağrılır; düz yolda hiçbir şey yapmaz. */
   muhurleSimdi(): Promise<void>
+  /** Çıkışta mühürlü kopyayı siler; cihazda iz kalmasın. */
+  unut(): Promise<void>
 }
 
 export async function surucuSec(): Promise<AcilisSonuc> {
@@ -31,6 +33,7 @@ export async function surucuSec(): Promise<AcilisSonuc> {
       tasindi: false,
       kaliciIzin: true,
       muhurleSimdi: async () => {},
+      unut: async () => {},
     }
   }
 
@@ -53,5 +56,6 @@ export async function surucuSec(): Promise<AcilisSonuc> {
     tasindi: surucu.tasindi,
     kaliciIzin: surucu.kaliciIzin,
     muhurleSimdi: () => surucu.muhurleSimdi(),
+    unut: () => surucu.unut(),
   }
 }

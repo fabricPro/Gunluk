@@ -1,38 +1,44 @@
-import { EN_AZ_PAROLA } from '../cekirdek/kasaKimlik.js'
+import { EN_AZ_AD, EN_AZ_SIFRE } from '../cekirdek/hesapKimlik.js'
 import type { Kilit } from '../kilitAkis.js'
 import { $, $$, S } from './ortak.js'
 
 /**
- * Kilit ekranı — iki kip.
+ * Kilit ekranı — iki kip, karşılamada üç yol.
  *
- * **`ac`**: defter kilitli. Ana anahtar bellekte olmadığı için arkada
- * uygulama yok, veritabanı bile açılmamış durumda (KARARLAR.md · K-021).
+ * **`ac`**: bu cihazda defter var ve kilitli. Ana anahtar bellekte
+ * olmadığı için arkada uygulama yok, veritabanı bile açılmamış
+ * (KARARLAR.md · K-021).
  *
- * **`kur`**: kilit hiç kurulmamış. Tarayıcıda bu ekran atlanamıyor:
- * anahtar olmadan defter diske MÜHÜRLÜ yazılamaz, yani parola belirlemek
- * "istersen" değil, şifrelemenin kendisi (KARARLAR.md · K-037). Cihazda
- * durum değişmedi — orada SQLCipher zaten devrede ve kilit isteğe bağlı.
+ * **`karsilama`**: bu cihazda defter yok. Üç yol var:
  *
- * Kurulumda parola İKİ KEZ soruluyor. Yanlış yazılan bir parola, defteri
- * bir daha açılmamak üzere kapatır; tek yazımla geçmek kabul edilemez.
+ *   giriş yap      — kullanıcı adı + şifre; defter sunucudan iner
+ *   hesap aç       — yeni defter, her cihazdan ulaşılır
+ *   bu cihazda kal — hesapsız, çevrimdışı; tek bayt ışık yok
+ *
+ * Üçüncüsü ilke 2.3'ün ayakta kalma biçimi: sunucuya gitmek bir SEÇİM
+ * (KARARLAR.md · K-039).
+ *
+ * Tarayıcıda bu ekran atlanamıyor: anahtar olmadan defter diske mühürlü
+ * yazılamaz, yani şifre belirlemek "istersen" değil, şifrelemenin
+ * kendisi (K-037).
+ *
+ * Yeni şifre belirlenen her yerde İKİ KEZ soruluyor. Yanlış yazılan bir
+ * şifre defteri bir daha açılmamak üzere kapatır.
  */
-/*
- * Alt sınır kasadan geliyor. Kilit parolası tarayıcıda kurtarma
- * parolasıyla AYNI şey: yalnızca yerel diski değil, sunucudaki kasayı da
- * o açıyor. 8 yeterli değil (KARARLAR.md · K-038).
- */
-const EN_AZ = EN_AZ_PAROLA
 
-export type KilitKipi = 'ac' | 'kur'
+export type KilitKipi = 'ac' | 'karsilama'
+type Yol = 'secim' | 'giris' | 'hesap' | 'yerel'
+
+/** Karşılamadaki hesap yolları; verilmezse yalnızca yerel defter. */
+export interface HesapYollari {
+  giris: (ad: string, sifre: string) => Promise<boolean>
+  ac: (ad: string, sifre: string) => Promise<boolean>
+}
 
 export function kilitEkraniBagla(
   kilit: Kilit,
   cozuldu: (anaAnahtar: string) => Promise<void>,
-  /**
-   * Yalnızca parolayla kurtarma. Verilmezse o yol hiç görünmüyor —
-   * cihazda kasa ayrı bir kavram ve kurulum ekranı zaten çıkmıyor.
-   */
-  kasadanAc?: (parola: string) => Promise<boolean>,
+  hesap?: HesapYollari,
 ): {
   goster: (kip?: KilitKipi) => Promise<void>
   gizle: () => void
@@ -41,12 +47,13 @@ export function kilitEkraniBagla(
   let parolaKipi = false
   let girilen = ''
   let kip: KilitKipi = 'ac'
-  /** Kurulum ekranında "parolamla kurtar" seçildi mi. */
-  let kurtarmaKipi = false
-  /** Kurulumda ilk yazılan parola; ikincisiyle karşılaştırılıyor. */
-  let ilkParola: string | null = null
+  let yol: Yol = 'secim'
+  /** Yeni şifre belirlenirken ilk yazılan; ikincisiyle karşılaştırılıyor. */
+  let ilkSifre: string | null = null
 
   const alan = () => $<HTMLInputElement>('#kilPin')
+  const adAlani = () => $<HTMLInputElement>('#kilAd')
+  const uyari = (metin: string): void => void ($('#kilUyari').textContent = metin)
 
   const noktalariCiz = (): void => {
     if (parolaKipi) {
@@ -58,53 +65,15 @@ export function kilitEkraniBagla(
     ).join('')
   }
 
-  const uyari = (metin: string): void => {
-    $('#kilUyari').textContent = metin
-  }
-
   const beklemeYaz = (kalan: number): void => {
     const sn = Math.ceil(kalan / 1000)
-    uyari(
-      sn > 90
-        ? S('kil.beklemeDk', { n: Math.ceil(sn / 60) })
-        : S('kil.beklemeSn', { n: sn }),
-    )
+    uyari(sn > 90 ? S('kil.beklemeDk', { n: Math.ceil(sn / 60) }) : S('kil.beklemeSn', { n: sn }))
   }
 
-  /**
-   * Kurtarma: kasadan Defter Kimliği'ni alır ve defteri indirir.
-   *
-   * Parola İKİ KEZ sorulmuyor — burada yeni bir parola belirlenmiyor,
-   * var olan biri sınanıyor. Yanlışsa kasa açılmıyor ve öyle deniyor.
-   */
-  const kurtar = async (yazilan: string): Promise<void> => {
-    alan().value = ''
-    uyari(S('kil.kurtarBekle'))
-    const oldu = await kasadanAc!(yazilan).catch(() => false)
-    if (!oldu) uyari(S('kil.kurtarOlmadi'))
-  }
+  /* ── açma ──────────────────────────────────────────────── */
 
-  /** Kurulum: parolayı iki kez alır, sonra kilidi kurar. */
-  const kur = async (yazilan: string): Promise<void> => {
-    alan().value = ''
-    if (ilkParola === null) {
-      if (yazilan.length < EN_AZ) return uyari(S('kil.kurKisa', { n: EN_AZ }))
-      ilkParola = yazilan
-      return uyari(S('kil.kurTekrar'))
-    }
-    if (yazilan !== ilkParola) {
-      ilkParola = null
-      return uyari(S('kil.kurUymadi'))
-    }
-    uyari(S('kil.kurBekle'))
-    const av = await kilit.kur(ilkParola)
-    ilkParola = null
-    uyari('')
-    await cozuldu(av)
-  }
-
-  const dene = async (pin: string): Promise<void> => {
-    const s = await kilit.pinIle(pin)
+  const dene = async (sifre: string): Promise<void> => {
+    const s = await kilit.pinIle(sifre)
     girilen = ''
     noktalariCiz()
     alan().value = ''
@@ -118,44 +87,83 @@ export function kilitEkraniBagla(
     uyari(S('kil.yanlis'))
   }
 
+  /* ── karşılama ─────────────────────────────────────────── */
+
+  /** Yeni şifreyi iki kez alır; ikisi tutunca `kur`u çağırır. */
+  const ikiKez = async (
+    yazilan: string,
+    kur: (sifre: string) => Promise<void>,
+  ): Promise<void> => {
+    alan().value = ''
+    if (ilkSifre === null) {
+      if (yazilan.length < EN_AZ_SIFRE) return uyari(S('kil.kurKisa', { n: EN_AZ_SIFRE }))
+      ilkSifre = yazilan
+      return uyari(S('kil.kurTekrar'))
+    }
+    if (yazilan !== ilkSifre) {
+      ilkSifre = null
+      return uyari(S('kil.kurUymadi'))
+    }
+    const sifre = ilkSifre
+    ilkSifre = null
+    await kur(sifre)
+  }
+
+  const yerelKur = (yazilan: string): Promise<void> =>
+    ikiKez(yazilan, async (sifre) => {
+      uyari(S('kil.kurBekle'))
+      await cozuldu(await kilit.kur(sifre))
+    })
+
+  const hesapAc = (yazilan: string): Promise<void> =>
+    ikiKez(yazilan, async (sifre) => {
+      const ad = adAlani().value
+      if (ad.trim().length < EN_AZ_AD) return uyari(S('kil.adKisa', { n: EN_AZ_AD }))
+      uyari(S('kil.hesapBekle'))
+      if (!(await hesap!.ac(ad, sifre).catch(() => false))) uyari(S('kil.hesapOlmadi'))
+    })
+
+  const girisDene = async (yazilan: string): Promise<void> => {
+    const ad = adAlani().value
+    if (ad.trim().length < EN_AZ_AD) return uyari(S('kil.adKisa', { n: EN_AZ_AD }))
+    alan().value = ''
+    uyari(S('kil.girisBekle'))
+    if (!(await hesap!.giris(ad, yazilan).catch(() => false))) uyari(S('kil.girisOlmadi'))
+  }
+
+  /* ── giriş olayları ────────────────────────────────────── */
+
   alan().addEventListener('input', () => {
     girilen = alan().value
-    if (!parolaKipi) {
-      girilen = girilen.replace(/\D/g, '').slice(0, 6)
-      alan().value = girilen
-      noktalariCiz()
-      /* Altı hane dolunca kendiliğinden dener — ayrıca düğmeye gerek yok. */
-      if (girilen.length === 6) void dene(girilen)
-    }
+    if (parolaKipi) return
+    girilen = girilen.replace(/\D/g, '').slice(0, 6)
+    alan().value = girilen
+    noktalariCiz()
+    /* Altı hane dolunca kendiliğinden dener — ayrıca düğmeye gerek yok. */
+    if (girilen.length === 6) void dene(girilen)
   })
 
-  alan().addEventListener('keydown', (e) => {
-    if ((e as KeyboardEvent).key !== 'Enter' || !alan().value) return
+  const gonder = (): void => {
     const yazilan = alan().value
-    if (kip !== 'kur') return void dene(yazilan)
-    void (kurtarmaKipi ? kurtar(yazilan) : kur(yazilan))
-  })
+    if (!yazilan) return
+    if (kip === 'ac') return void dene(yazilan)
+    if (yol === 'giris') return void girisDene(yazilan)
+    if (yol === 'hesap') return void hesapAc(yazilan)
+    if (yol === 'yerel') return void yerelKur(yazilan)
+  }
+
+  for (const e of [alan(), adAlani()])
+    e.addEventListener('keydown', (k) => {
+      if ((k as KeyboardEvent).key !== 'Enter') return
+      if (e === adAlani()) return alan().focus()
+      gonder()
+    })
 
   /* PIN kipinde alan görünmez; noktalara dokunmak klavyeyi geri getirsin. */
   $('#kilNoktalar').onclick = () => alan().focus()
-  $('.kil-kapak').onclick = () => alan().focus()
+  $('.kil-kapak').onclick = () => (kip === 'ac' ? alan() : adAlani()).focus()
 
-  /*
-   * Tek düğme, iki iş — yeni bir öge sokmamak için (K-013'ün tasarım
-   * refleksi). Açma ekranında PIN/parola arasında geçiyor; kurulum
-   * ekranında "parolamla kurtar" oluyor.
-   */
   $('#kilParola').onclick = () => {
-    if (kip === 'kur') {
-      kurtarmaKipi = !kurtarmaKipi
-      ilkParola = null
-      alan().value = ''
-      $('#kilAlt').textContent = S(kurtarmaKipi ? 'kilit.kurtarAlt' : 'kilit.kurAlt')
-      $('#kilParola').textContent = S(kurtarmaKipi ? 'kil.kurtarVazgec' : 'kil.kurtarBtn')
-      uyari(kurtarmaKipi ? S('kil.kurtarSor') : S('kil.kurSor', { n: EN_AZ }))
-      alan().focus()
-      return
-    }
     parolaKipi = !parolaKipi
     $('#kilitEkrani').classList.toggle('parola', parolaKipi)
     alan().value = ''
@@ -176,6 +184,55 @@ export function kilitEkraniBagla(
   }
   $('#kilBiyo').onclick = () => void biyometriDene()
 
+  /* ── çizim ─────────────────────────────────────────────── */
+
+  const yolaGec = (istenen: Yol): void => {
+    yol = istenen
+    ilkSifre = null
+    alan().value = ''
+    adAlani().value = ''
+    const hesapYolu = yol === 'giris' || yol === 'hesap'
+
+    $('#kilYollar').hidden = yol !== 'secim'
+    adAlani().hidden = !hesapYolu
+    $('#kilGeri').hidden = yol === 'secim'
+    /*
+     * Karşılamada her yol METİN girişi; PIN noktaları yalnızca açmada.
+     * `parolaKipi` burada da kurulmak zorunda: yalnızca sınıf eklenip
+     * bayrak unutulunca giriş alanı PIN gibi davranıyor ve şifredeki
+     * harfleri siliyordu (KARARLAR.md · K-039).
+     */
+    parolaKipi = true
+    $('#kilitEkrani').classList.add('parola')
+    alan().hidden = yol === 'secim'
+    alan().type = 'password'
+
+    $('#kilAlt').textContent = S(
+      yol === 'secim'
+        ? 'kilit.karsilamaAlt'
+        : yol === 'giris'
+          ? 'kilit.girisAlt'
+          : yol === 'hesap'
+            ? 'kilit.hesapAlt'
+            : 'kilit.kurAlt',
+    )
+    uyari(
+      yol === 'secim'
+        ? S('kil.karsilama')
+        : yol === 'giris'
+          ? S('kil.girisSor')
+          : yol === 'hesap'
+            ? S('kil.hesapSor', { n: EN_AZ_SIFRE })
+            : S('kil.kurSor', { n: EN_AZ_SIFRE }),
+    )
+    setTimeout(() => (hesapYolu ? adAlani() : alan()).focus(), 60)
+  }
+
+  $('#kilGiris').onclick = () => yolaGec('giris')
+  $('#kilHesap').onclick = () => yolaGec('hesap')
+  $('#kilYerel').onclick = () => yolaGec('yerel')
+  $('#kilGeri').onclick = () => yolaGec('secim')
+
   const goster = async (istenen: KilitKipi = 'ac'): Promise<void> => {
     kip = istenen
     /*
@@ -185,44 +242,44 @@ export function kilitEkraniBagla(
      */
     for (const s of ['#kagit-kap', '#kesit', '#kesit-alt', '#cevapAlan', '#gecenYil', '#mektuplar'])
       $$(s).forEach((e) => (e.innerHTML = ''))
-    $('#ciltAd').textContent = ''
-    $('#sayfaNo').textContent = ''
-    $('#kalanYazi').textContent = ''
+    for (const s of ['#ciltAd', '#sayfaNo', '#kalanYazi']) $(s).textContent = ''
 
     girilen = ''
     alan().value = ''
-    ilkParola = null
-
-    /* Kurulumda ekran parola kipinde açılıyor; PIN'e geçiş ve biyometri
-       burada anlamsız, ikisi de gizli. */
-    parolaKipi = kip === 'kur'
-    $('#kilitEkrani').classList.toggle('parola', parolaKipi)
-    alan().type = parolaKipi ? 'password' : 'text'
-    alan().setAttribute('inputmode', parolaKipi ? 'text' : 'numeric')
-    $('#kilAlt').textContent = S(kip === 'kur' ? 'kilit.kurAlt' : 'kilit.alt')
-    uyari(kip === 'kur' ? S('kil.kurSor', { n: EN_AZ }) : '')
-    noktalariCiz()
-
-    kurtarmaKipi = false
-    $('#kilBiyo').style.display =
-      kip === 'ac' && kilit.biyometriAcik ? '' : 'none'
-    /*
-     * Kurulumda bu düğme "parolamla kurtar"; kasa yolu yoksa (cihaz)
-     * hiç görünmüyor.
-     */
-    $('#kilParola').style.display = kip === 'ac' || kasadanAc ? '' : 'none'
-    $('#kilParola').textContent = S(kip === 'kur' ? 'kil.kurtarBtn' : 'kilit.parola')
+    ilkSifre = null
     $('#kilitEkrani').classList.add('acik')
     /* Diğer katmanlar kapalı kalsın: kilitliyken hiçbiri anlamlı değil. */
     for (const k of ['#toren', '#kitaplik', '#yeniDefter', '#fihrist', '#yak', '#ayarlar'])
       $$(k).forEach((e) => e.classList.remove('acik'))
+
+    if (kip === 'karsilama') {
+      $('#kilBiyo').hidden = true
+      $('#kilParola').hidden = true
+      /* Hesap yolları yoksa (cihaz) doğrudan yerel kuruluma gidiliyor. */
+      yolaGec(hesap ? 'secim' : 'yerel')
+      if (!hesap) $('#kilGeri').hidden = true
+      return
+    }
+
+    parolaKipi = false
+    $('#kilitEkrani').classList.remove('parola')
+    alan().type = 'text'
+    alan().setAttribute('inputmode', 'numeric')
+    alan().hidden = false
+    adAlani().hidden = true
+    $('#kilYollar').hidden = true
+    $('#kilGeri').hidden = true
+    $('#kilAlt').textContent = S('kilit.alt')
+    $('#kilParola').hidden = false
+    $('#kilParola').textContent = S('kilit.parola')
+    $('#kilBiyo').hidden = !kilit.biyometriAcik
+    uyari('')
+    noktalariCiz()
     setTimeout(() => alan().focus(), 80)
-    if (kip === 'ac' && kilit.biyometriAcik) void biyometriDene()
+    if (kilit.biyometriAcik) void biyometriDene()
   }
 
-  const gizle = (): void => {
-    $('#kilitEkrani').classList.remove('acik')
-  }
+  const gizle = (): void => void $('#kilitEkrani').classList.remove('acik')
 
   return { goster, gizle, uyar: uyari }
 }

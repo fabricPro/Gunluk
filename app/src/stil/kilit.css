@@ -27,6 +27,13 @@
   outline:none;color:var(--ust);font-family:var(--ui);font-size:17px;letter-spacing:.3em;
   text-align:center;padding:8px 0;caret-color:var(--altin)}
 #kilPin.parola{letter-spacing:normal;text-align:left;font-size:15px}
+/* Kullanıcı adı: aynı çizgi, ama hiçbir zaman noktalara dönmüyor. */
+#kilAd{width:100%;background:none;border:none;border-bottom:1px solid var(--hat);
+  outline:none;color:var(--ust);font-family:var(--ui);font-size:15px;text-align:left;
+  padding:8px 0;caret-color:var(--altin)}
+#kilAd:focus{border-bottom-color:var(--hat2)}
+#kilAd::placeholder{color:var(--ust2);opacity:.6}
+.kil-giris [hidden]{display:none}
 #kilPin:focus{border-bottom-color:var(--hat2)}
 /* PIN kipinde rakamlar noktalarla gösterildiği için alan görünmez durur. */
 #kilitEkrani:not(.parola) #kilPin{position:absolute;opacity:0;pointer-events:none;width:1px}

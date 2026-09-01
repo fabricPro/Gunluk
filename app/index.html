@@ -114,12 +114,20 @@
     <div class="kil-kapak"><b data-m="kilit.marka">defter</b><small id="kilAlt" data-m="kilit.alt">kilitli</small></div>
     <div class="kil-giris">
       <div class="kil-noktalar" id="kilNoktalar"></div>
+      <input id="kilAd" type="text" autocomplete="username" spellcheck="false"
+        data-m-y="kilit.adYer" placeholder="kullanıcı adı" maxlength="64" hidden>
       <input id="kilPin" inputmode="numeric" autocomplete="off" spellcheck="false"
         aria-label="PIN" maxlength="64">
       <div class="kil-uyari" id="kilUyari"></div>
+      <div class="kil-dugmeler" id="kilYollar">
+        <button id="kilGiris" data-m="kil.girisBtn">giriş yap</button>
+        <button id="kilHesap" data-m="kil.hesapBtn">hesap aç</button>
+        <button id="kilYerel" data-m="kil.yerelBtn">bu cihazda kal</button>
+      </div>
       <div class="kil-dugmeler">
         <button id="kilBiyo" data-m="kilit.biyo">biyometriyle aç</button>
         <button id="kilParola" data-m="kilit.parola">parola kullan</button>
+        <button id="kilGeri" data-m="kil.geri" hidden>geri</button>
       </div>
     </div>
   </div>

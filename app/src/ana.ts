@@ -5,10 +5,7 @@ import { GomuAkis } from './gomuAkis.js'
 import { ModelAkis } from './modelAkis.js'
 import type { SenkronAkis as SenkronAkisTip } from './senkronAkis.js'
 import type { Sunucu as SunucuTip } from './veri/senkronDepo.js'
-import type { KasaYapici as KasaYapiciTip } from './kasaAkis.js'
-
-/** Kasanın kurulu olduğunu söyleyen yerel işaret. */
-const KASA_AYARI = 'kasa.acik'
+import type { KasaYapici as KasaYapiciTip } from './hesapAkis.js'
 import { belgeOneki, sorguOneki } from './cekirdek/gomuModel.js'
 import { Kilit } from './kilitAkis.js'
 import { arsiviBagla } from './ekran/arsiv.js'
@@ -78,25 +75,48 @@ async function baslat(): Promise<void> {
   }
 
   /**
-   * Yalnızca parolayla kurtarır: kasadan Defter Kimliği'ni alır, kilidi
-   * o parolayla kurar, kodu güvenli depoya yazar ve defteri açar.
+   * Defteri hesapla açar — hem giriş hem yeni hesap bunu kullanıyor.
    *
    * Sıra bağlayıcı: kod güvenli depoya ancak ana anahtar bellekteyken
    * yazılabiliyor (tarayıcıda sarmalanıyor), yani kilit kurulduktan
    * SONRA. `uygulamayiKur` da kodu oradan okuyup senkronu kuruyor ve
-   * defterin tamamı iniyor.
+   * su seviyesi sıfırdan başladığı için defterin tamamı iniyor.
    */
-  const kasadanAc = async (parola: string): Promise<boolean> => {
-    const { kasadanKurtar } = await import('./kasaAkis.js')
-    const kod = await kasadanKurtar(parola, await kasaYapici())
-    if (!kod) return false
-
-    const av = await kilit.kur(parola)
+  const defteriKodla = async (kod: string, sifre: string): Promise<void> => {
+    const av = await kilit.kur(sifre)
     anahtariDayat(av)
     await (await anahtarDeposu(nativeMi, SENKRON_KODU)).yaz(kod)
     kilitEkrani.gizle()
     await uygulamayiKur()
-    return true
+  }
+
+  /**
+   * Karşılama ekranındaki iki hesap yolu.
+   *
+   * `giris` hesap YARATMIYOR: şifresini yanlış yazan kullanıcıya sessizce
+   * boş bir defter açmak, defterini kaybettiğini anlamadan üstüne
+   * yazdırmak olurdu (KARARLAR.md · K-039).
+   */
+  /** Hesap açıldıysa gösterilecek Defter Kimliği; bir kez okunuyor. */
+  let yeniHesapKodu: string | null = null
+
+  const hesapYollari = {
+    giris: async (ad: string, sifre: string): Promise<boolean> => {
+      const { girisYap } = await import('./hesapAkis.js')
+      const kod = await girisYap(ad, sifre, await kasaYapici())
+      if (!kod) return false
+      await defteriKodla(kod, sifre)
+      return true
+    },
+    ac: async (ad: string, sifre: string): Promise<boolean> => {
+      const { hesapAc } = await import('./hesapAkis.js')
+      const kod = await hesapAc(ad, sifre, await kasaYapici())
+      if (!kod) return false
+      await defteriKodla(kod, sifre)
+      /* Kod bir kez gösteriliyor: şifre unutulursa tek yol bu. */
+      yeniHesapKodu = kod
+      return true
+    },
   }
 
   const kilitEkrani = kilitEkraniBagla(kilit, async (anaAnahtar) => {
@@ -116,7 +136,7 @@ async function baslat(): Promise<void> {
       await kilitEkrani.goster('ac')
       kilitEkrani.uyar(S('kil.acilmadi'))
     }
-  }, kasadanAc)
+  }, nativeMi ? undefined : hesapYollari)
 
   /*
    * Arka plana geçince kilitlen. Dinleyici erken dönüşten ÖNCE bağlanıyor:
@@ -153,7 +173,7 @@ async function baslat(): Promise<void> {
    * bulup taşıyor ve düz kopyayı siliyor.
    */
   if (!nativeMi && kilit.durum === 'kurulusuz') {
-    await kilitEkrani.goster('kur')
+    await kilitEkrani.goster('karsilama')
     return
   }
   await uygulamayiKur()
@@ -276,12 +296,6 @@ async function baslat(): Promise<void> {
     } catch {
       senkronKod = null
     }
-    /*
-     * "Bu defterin kasası var mı" yalnızca yerel bir işaret: doğru cevap
-     * sunucuda ve her açılışta ağ isteği atmaya değmiyor. Yanlış olursa
-     * en kötü ihtimalle düğmenin yazısı yanlış olur.
-     */
-    let kasaVar = (await depo.ayarOku(KASA_AYARI)) === '1'
     let senkronAkis: SenkronAkisTip | null = null
     let senkronKullanim: { satir: number; bayt: number } | null = null
     let senkronDinleyici: () => void = () => {}
@@ -374,52 +388,51 @@ async function baslat(): Promise<void> {
             calisiyor: false, bekleyen: 0, asama: '', hata: null, sonSenkron: null,
           },
         kullanim: () => senkronKullanim,
-        kasaVar: () => kasaVar,
-        /*
-         * Kasa yalnızca senkron açıkken anlamlı: kurtarma kodu getiriyor
-         * ama getirilen kodla inecek bir defter yoksa boşa çalışır.
+        /* Hesaplı defterde senkron ayrı bir düğme değil (K-039). */
+        hesapli: () => !!senkronKod,
+        /** Hesap yeni açıldıysa gösterilecek kod; bir kez okunuyor. */
+        yeniKod: () => {
+          const k = yeniHesapKodu
+          yeniHesapKodu = null
+          return k
+        },
+        /**
+         * Yerel defteri hesaba taşır.
+         *
+         * Mevcut kayıtlar kaybolmuyor: `senkronHepsiniIsaretle` defterin
+         * tamamını gönderilecek diye işaretliyor ve ilk turda yükleniyor.
          */
-        kasaYaz: async (parola, eskiParola) => {
-          if (!senkronKod) return false
-          const { kasaTasi, kasayaYaz } = await import('./kasaAkis.js')
-          const yap = await kasaYapici()
-          const oldu = eskiParola
-            ? await kasaTasi(eskiParola, parola, senkronKod, yap)
-            : await kasayaYaz(parola, senkronKod, yap)
-          if (oldu) {
-            kasaVar = true
-            await depo.ayarYaz(KASA_AYARI, '1')
-          }
-          return oldu
-        },
-        kasaSil: async (parola) => {
-          const { kasaKimligiTuret } = await import('./cekirdek/kasaKimlik.js')
-          const kimlik = await kasaKimligiTuret(parola)
-          if (kimlik) await (await kasaYapici())(kimlik).sil().catch(() => {})
-          kasaVar = false
-          await depo.ayarYaz(KASA_AYARI, '0')
-        },
-        ac: async (kod) => {
+        hesabaTasi: async (ad, sifre) => {
+          const { hesapAc } = await import('./hesapAkis.js')
+          const kod = await hesapAc(ad, sifre, await kasaYapici())
+          if (!kod) return null
           await kodDepo.yaz(kod)
           senkronKod = kod
-          await senkronuKur(kod)
-          senkronDinleyici()
-        },
-        kapat: async () => {
-          senkronAkis?.dur()
-          /* Sunucudaki şifreli kopya siliniyor — "bizden talep etmenize
-             gerek yok" sözünün karşılığı. */
-          await senkronSunucu?.hepsiniSil().catch(() => {})
-          await kodDepo.sil().catch(() => {})
-          kasaVar = false
-          await depo.ayarYaz(KASA_AYARI, '0')
           await depo.ayarYaz('senkron.sonGorulen', '0')
           await depo.senkronHepsiniIsaretle()
-          senkronAkis = null
-          senkronSunucu = null
-          senkronKod = null
-          senkronKullanim = null
+          await senkronuKur(kod)
+          void senkronTur()
           senkronDinleyici()
+          return kod
+        },
+        /**
+         * Çıkış — cihazda iz bırakmıyor, sunucudaki kopya DURUYOR.
+         *
+         * Mühür yuvaları da siliniyor. Yalnızca kilit kaydı silinseydi
+         * yuvalar yetim kalır ve yeni kurulumdaki yeni anahtar onları
+         * açamayacağı için uygulama bir daha açılmazdı (K-039).
+         */
+        cikis: async () => {
+          senkronAkis?.dur()
+          indekslemeyiDurdur()
+          await kodDepo.sil().catch(() => {})
+          await (await anahtarDeposu(nativeMi, MODEL_ANAHTARI)).sil().catch(() => {})
+          const { defteriSifirla } = await import('./veri/sifirla.js')
+          await defteriSifirla(surucu!)
+          await acilis.unut()
+          await kilit.kaldir()
+          anahtariDayat(null)
+          location.reload()
         },
         simdi: senkronTur,
         dinle: (f) => {
@@ -454,9 +467,29 @@ async function baslat(): Promise<void> {
      */
     if (!durum.aktifDefter) void kitaplik.ac()
 
+    /*
+     * Yazdıktan sonra eşitleme — borçlandırmalı.
+     *
+     * Hesaplı defterde senkron ayrı bir düğme değil, işleyişin kendisi
+     * (KARARLAR.md · K-039). Eskiden kullanıcı ayarlardan "şimdi eşitle"
+     * diyordu; artık demiyor, o yüzden değişiklikten sonra kendiliğinden
+     * dönmesi gerekiyor. Her tuşta değil: yazı bırakıldıktan bir süre
+     * sonra bir kez.
+     */
+    let senkronZaman: ReturnType<typeof setTimeout> | null = null
+    const senkronuBorclan = (): void => {
+      if (!senkronAkis) return
+      if (senkronZaman) clearTimeout(senkronZaman)
+      senkronZaman = setTimeout(() => {
+        senkronZaman = null
+        void senkronTur()
+      }, 4000)
+    }
+
     durum.dinle(() => {
       defter.ciz()
       arsiv.gecenYilCiz()
+      senkronuBorclan()
     })
 
     /* Öne gelince eşitle — arka planda sessizce değil, uygulama açıkken. */

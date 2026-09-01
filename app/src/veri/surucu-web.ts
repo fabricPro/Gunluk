@@ -34,6 +34,8 @@ export interface WebSurucu extends SqlSurucu {
   tasindi: boolean
   /** Bekleyen değişiklikleri hemen mühürler. */
   muhurleSimdi(): Promise<void>
+  /** Mühür yuvalarını siler — çıkışta cihazda iz kalmasın. */
+  unut(): Promise<void>
   /** Son mühürleme hatası — sessizce yutulmuyor. */
   sonHata: string | null
 }
@@ -152,6 +154,12 @@ export async function webSurucusu(dosya = 'defter.db', anahtar?: string): Promis
     tek: async <T>(sql: string, param: unknown[] = []) =>
       (((await cagir('hepsi', sql, param)) as T[])[0] ?? null),
     islem: yenidenGirilebilirIslem(async (sql) => yaz('calistir', sql)),
+    async unut() {
+      if (zamanlayici) clearTimeout(zamanlayici)
+      zamanlayici = null
+      if (suren) await suren
+      await cagir('unut')
+    },
     async muhurleSimdi() {
       if (zamanlayici) {
         clearTimeout(zamanlayici)

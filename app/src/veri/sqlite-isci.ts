@@ -27,7 +27,7 @@ import sqlite3InitModule, { type Database, type Sqlite3Static } from '@sqlite.or
 import { aesAnahtar, onaltilikOku } from '../cekirdek/gizle.js'
 import { muhruAc, muhurle } from '../cekirdek/muhur.js'
 
-export type IstekTip = 'ac' | 'calistir' | 'betik' | 'hepsi' | 'kapat' | 'muhurle'
+export type IstekTip = 'ac' | 'calistir' | 'betik' | 'hepsi' | 'kapat' | 'muhurle' | 'unut'
 
 export interface Istek {
   id: number
@@ -212,6 +212,20 @@ async function acMuhurlu(dosya: string, anahtarHex: string): Promise<void> {
   }
 }
 
+/**
+ * Mühür yuvalarını siler.
+ *
+ * Çıkışta şart. Yalnızca kilit kaydı silinseydi yuvalar YETİM kalırdı:
+ * yeni kurulumda yeni bir ana anahtar üretiliyor, o anahtar eski
+ * yuvaları açamıyor ve açılış "yuva var ama hiçbiri açılmadı" diye
+ * duruyordu — uygulama bir daha açılmazdı (KARARLAR.md · K-039).
+ */
+async function yuvalariSil(): Promise<void> {
+  const kok = await navigator.storage.getDirectory()
+  for (const ad of YUVALAR) await kok.removeEntry(ad).catch(() => {})
+  siradakiYuva = 0
+}
+
 async function muhuruYaz(): Promise<void> {
   await yuvaYaz(YUVALAR[siradakiYuva]!, await muhurle(disaAktar(), anahtar!))
   siradakiYuva = (siradakiYuva + 1) % YUVALAR.length
@@ -241,6 +255,7 @@ self.onmessage = async (e: MessageEvent<Istek>) => {
   try {
     let sonuc: unknown
     if (tip === 'ac') await ac(dosya, a)
+    else if (tip === 'unut') await yuvalariSil()
     else if (tip === 'muhurle') {
       if (muhurlu) await muhuruYaz()
     } else if (tip === 'kapat') {

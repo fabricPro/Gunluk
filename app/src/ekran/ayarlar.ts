@@ -1,5 +1,5 @@
-import { kurtarmaCoz, kurtarmaUret } from '../cekirdek/kurtarma.js'
-import { EN_AZ_PAROLA } from '../cekirdek/kasaKimlik.js'
+import { EN_AZ_AD, EN_AZ_SIFRE } from '../cekirdek/hesapKimlik.js'
+import { kurtarmaUret } from '../cekirdek/kurtarma.js'
 import { DILLER, type Dil } from '../cekirdek/dil.js'
 import { anahtarBicimi } from '../veri/anahtarDepo.js'
 import { anahtariDayat } from '../veri/kripto.js'
@@ -102,14 +102,14 @@ export interface SenkronDenetim {
   kod: () => string | null
   durum: () => { calisiyor: boolean; bekleyen: number; asama: string; hata: string | null; sonSenkron: number | null }
   kullanim: () => { satir: number; bayt: number } | null
-  /** Bu defterin kasası kurulu mu — yerel işaret. */
-  kasaVar: () => boolean
-  /** Kasayı yazar; `eskiParola` verilirse taşır. */
-  kasaYaz: (parola: string, eskiParola?: string) => Promise<boolean>
-  kasaSil: (parola: string) => Promise<void>
-  /** Yeni kimlik üretip senkronu başlatır. */
-  ac: (kod: string) => Promise<void>
-  kapat: () => Promise<void>
+  /** Defter bir hesaba bağlı mı — senkron ayrı bir düğme değil. */
+  hesapli: () => boolean
+  /** Hesap yeni açıldıysa gösterilecek kod; bir kez okunuyor. */
+  yeniKod: () => string | null
+  /** Yerel defteri hesaba taşır; dönen kod bir kez gösteriliyor. */
+  hesabaTasi: (ad: string, sifre: string) => Promise<string | null>
+  /** Çıkış: cihazda iz kalmıyor, sunucudaki kopya duruyor. */
+  cikis: () => Promise<void>
   simdi: () => Promise<void>
   dinle: (f: () => void) => void
 }
@@ -258,53 +258,31 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
     } else if (ad === 'modelSil') {
       if (!confirm(S('ay.modelAnahtarSilOnay'))) return
       await model?.sil()
-    } else if (ad === 'senkronAc') {
-      if (!senkron) return
-      const kod = kurtarmaUret()
-      if (!(await kimlikKarti(kod, true))) return
-      await senkron.ac(kod)
-      void senkron.simdi()
-    } else if (ad === 'senkronBagla') {
-      if (!senkron) return
-      const girilen = prompt(S('ay.senkronKodSor'))
-      if (girilen === null) return
-      if (!kurtarmaCoz(girilen)) {
-        alert(S('ay.senkronKodGecersiz'))
-        return
-      }
-      await senkron.ac(girilen)
-      void senkron.simdi()
     } else if (ad === 'senkronKimlik') {
       const kod = senkron?.kod()
       if (kod) await kimlikKarti(kod, false)
       return
-    } else if (ad === 'kasaKur' || ad === 'kasaDegistir') {
+    } else if (ad === 'hesapAc') {
       if (!senkron) return
-      const eski =
-        ad === 'kasaDegistir' ? prompt(S('ay.kasaEskiSor')) : undefined
-      if (eski === null) return
-      const yeni = prompt(S('ay.kasaSor', { n: EN_AZ_PAROLA }))
-      if (!yeni) return
-      if (yeni.length < EN_AZ_PAROLA) return void alert(S('ay.kasaKisa', { n: EN_AZ_PAROLA }))
-      if (prompt(S('ay.pinTekrar')) !== yeni) return void alert(S('ay.pinFarkli'))
+      const ad2 = prompt(S('ay.hesapAdSor', { n: EN_AZ_AD }))
+      if (!ad2) return
+      const sifre = prompt(S('ay.hesapSifreSor', { n: EN_AZ_SIFRE }))
+      if (!sifre) return
+      if (sifre.length < EN_AZ_SIFRE) return void alert(S('kil.kurKisa', { n: EN_AZ_SIFRE }))
+      if (prompt(S('ay.pinTekrar')) !== sifre) return void alert(S('ay.pinFarkli'))
       /* Argon2id ağır: kullanıcı bir şeyin sürdüğünü bilsin. */
-      $('#aySenkronDurum').innerHTML = S('ay.kasaYaziliyor')
-      const oldu = await senkron
-        .kasaYaz(yeni, eski ?? undefined)
-        .catch(() => false)
-      alert(oldu ? S('ay.kasaOldu') : S('ay.kasaOlmadi'))
-    } else if (ad === 'kasaSil') {
+      $('#aySenkronDurum').innerHTML = S('ay.hesapAciliyor')
+      const kod = await senkron.hesabaTasi(ad2, sifre).catch(() => null)
+      if (!kod) return void alert(S('ay.hesapOlmadi'))
+      await kimlikKarti(kod, false)
+    } else if (ad === 'cikis') {
       if (!senkron) return
-      if (!confirm(S('ay.kasaSilOnay'))) return
-      const parola = prompt(S('ay.kasaEskiSor'))
-      if (!parola) return
-      await senkron.kasaSil(parola)
+      if (!confirm(S('ay.cikisOnay'))) return
+      await senkron.cikis()
+      return
     } else if (ad === 'senkronSimdi') {
       await senkron?.simdi()
       return
-    } else if (ad === 'senkronKapat') {
-      if (!confirm(S('ay.senkronKapatOnay'))) return
-      await senkron?.kapat()
     } else if (ad === 'modelSoru') {
       await model?.soruDegistir(!model.soruAcik())
     }
@@ -381,40 +359,31 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       return
     }
     bolum.style.display = ''
-    const acik = senkron.acikMi()
 
-    if (!acik) {
-      $('#aySenkronDurum').innerHTML = S('ay.senkronKapali')
+    /*
+     * Hesaplı defterde senkron ayrı bir düğme DEĞİL: giriş yapmak zaten
+     * senkron demek. Bu bölüm artık bir anahtar değil, bir durum
+     * (KARARLAR.md · K-039).
+     */
+    if (!senkron.hesapli()) {
+      $('#aySenkronDurum').innerHTML = S('ay.hesapYok')
       $('#aySenkronDugmeler').innerHTML =
-        `<button class="birincil" data-eylem="senkronAc">${S('ay.senkronAc')}</button>` +
-        `<button data-eylem="senkronBagla">${S('ay.senkronBagla')}</button>`
+        `<button class="birincil" data-eylem="hesapAc">${S('ay.hesapAcBtn')}</button>`
     } else {
       const d = senkron.durum()
       const k = senkron.kullanim()
-      let m = S('ay.senkronAcik', {
-        n: k?.satir ?? 0,
-        boyut: boyutYaz(k?.bayt ?? 0),
-      })
+      let m = S('ay.senkronAcik', { n: k?.satir ?? 0, boyut: boyutYaz(k?.bayt ?? 0) })
       if (d.calisiyor) m += S('ay.senkronCalisiyor', { asama: kacir(d.asama) })
       else if (d.bekleyen) m += S('ay.senkronBekleyen', { n: d.bekleyen })
       if (d.hata) m += S('ay.senkronHata', { hata: kacir(d.hata) })
       m += d.sonSenkron
         ? S('ay.senkronSonSenkron', { zaman: new Date(d.sonSenkron).toLocaleTimeString() })
         : S('ay.senkronHicSenkron')
-      /*
-       * Kasa satırı burada: kasa yalnızca senkron açıkken anlamlı, çünkü
-       * getirdiği kodun indireceği bir defter olmalı (K-038).
-       */
-      m += senkron.kasaVar() ? S('ay.kasaAcik') : S('ay.kasaKapali')
       $('#aySenkronDurum').innerHTML = m
       $('#aySenkronDugmeler').innerHTML =
         `<button data-eylem="senkronSimdi"${d.calisiyor ? ' disabled' : ''}>${S('ay.senkronSimdi')}</button>` +
         `<button data-eylem="senkronKimlik">${S('ay.senkronKimlikGoster')}</button>` +
-        (senkron.kasaVar()
-          ? `<button data-eylem="kasaDegistir">${S('ay.kasaDegistir')}</button>` +
-            `<button data-eylem="kasaSil">${S('ay.kasaSil')}</button>`
-          : `<button class="birincil" data-eylem="kasaKur">${S('ay.kasaKur')}</button>`) +
-        `<button data-eylem="senkronKapat">${S('ay.senkronKapat')}</button>`
+        `<button data-eylem="cikis">${S('ay.cikis')}</button>`
     }
     for (const dg of $$<HTMLButtonElement>('#aySenkronDugmeler button'))
       dg.onclick = () => void eylem(dg.dataset.eylem!)
