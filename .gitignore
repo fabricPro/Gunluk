@@ -6,3 +6,7 @@ dist/
 # Capacitor'ın ürettiği native kabuklar — kaynak değil, çıktı.
 app/ios/
 app/android/
+
+# Yerel ortam dosyaları — sahte sunucuya bağlanan denemeler bunu üretiyor.
+.env.local
+.env.*.local

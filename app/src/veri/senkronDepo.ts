@@ -254,7 +254,7 @@ export class SenkronDepo extends Oturum implements Sunucu {
 
   /** Senkron her zaman hesabı yaratabilir; `null` dönmüyor. */
   private async istek(yol: string, secenek: RequestInit = {}): Promise<Response> {
-    return (await this.istek(yol, secenek))!
+    return (await this.apiIstek(yol, secenek))!
   }
 
   /**

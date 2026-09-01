@@ -21,15 +21,37 @@
  *
  *   1) şifresiz derleme:  node arac/muhurDenemesi.mjs yaz
  *   2) mühürlü derleme:   node arac/muhurDenemesi.mjs tasi
+ *
+ * ── Kasa denemesi ────────────────────────────────────────────
+ *
+ * Kurtarmanın asıl sınavı: taraycıdaki HER ŞEY silindikten sonra, elde
+ * yalnızca parola varken defter geri geliyor mu. Gerçek bir sunucu
+ * istiyor; `arac/sahteNeon.mjs` Neon'un dokunulan kadarını taklit
+ * ediyor (KARARLAR.md · K-038):
+ *
+ *   node arac/sahteNeon.mjs 8787 &
+ *   .env.local  ->  VITE_DEFTER_AUTH/API = http://localhost:8787/...
+ *   npx vite preview --port 4180
+ *   DEFTER_ADRES=http://localhost:4180 node arac/muhurDenemesi.mjs kasa
  */
 import { chromium } from 'playwright'
 
 const ADRES = process.env.DEFTER_ADRES ?? 'http://localhost:4173'
-const PAROLA = 'cok-gizli-parola-8f2c'
+const PAROLA = 'cok-gizli-kurtarma-parolasi-8f2c'
 const ISARET = 'KIMSEYE-SOYLEMEDIGIM-SEY-8f2c1d4b-BU-DISARI-CIKMAMALI'
 
 let hata = 0
 const bekle = (p, ms) => p.waitForTimeout(ms)
+
+/**
+ * Kilit ekranı KURULUM kipinde mi.
+ *
+ * Önce "`#kilParola` görünür mü" diye bakılıyordu. Kasa gelince o düğme
+ * kurulumda da göründü ("parolamla kurtar") ve kontrol sessizce boşa
+ * geçmeye başladı. Ayrım artık düğmenin YAZISINDA.
+ */
+const kurulumKipi = async (sayfa) =>
+  /kurtar|recover/i.test(await sayfa.textContent('#kilParola'))
 
 /** Kilit ekranı kapandı mı — `.acik` sınıfı düşünce defter açık. */
 const defterAcildi = (sayfa, ms = 30000) =>
@@ -88,7 +110,7 @@ const PROFIL = process.env.DEFTER_PROFIL ?? '/tmp/defter-muhur-profil'
 const baglamAc = async () => {
   const secenek = { executablePath: process.env.CHROMIUM }
   /* Taşıma denemesinde OPFS iki koşu arasında yaşamak zorunda. */
-  if (ASAMA === 'hepsi') {
+  if (ASAMA === 'hepsi' || ASAMA === 'kasa') {
     const t = await chromium.launch(secenek)
     return { baglam: await t.newContext(), kapat: () => t.close() }
   }
@@ -99,7 +121,8 @@ const baglamAc = async () => {
 const sayfaAc = async (baglam) => {
   const sayfa = baglam.pages()[0] ?? (await baglam.newPage())
   sayfa.on('console', (m) => {
-    if (m.type() === 'error') console.log('    [konsol]', m.text())
+    if (m.type() === 'error' || m.type() === 'warning')
+      console.log('    [konsol]', m.text().slice(0, 200))
   })
   return sayfa
 }
@@ -145,7 +168,7 @@ const asamaTasi = async () => {
   await sayfa.goto(ADRES)
   await sayfa.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
   /* Kilitsiz eski defterde bu ilk KURULUM; kilitliyse tek yazımlık açma. */
-  const kurulum = !(await sayfa.isVisible('#kilParola'))
+  const kurulum = await kurulumKipi(sayfa)
   console.log(`    (${kurulum ? 'kurulum ekranı — kilitsiz eski defter' : 'açma ekranı'})`)
   if (kurulum) await kilitKur(sayfa, PAROLA)
   else {
@@ -174,9 +197,106 @@ const asamaTasi = async () => {
   process.exit(hata ? 1 : 0)
 }
 
+/** Kutuları sırayla cevaplar — ayarlar `prompt`/`confirm` kullanıyor. */
+const kutulariCevapla = (sayfa, cevaplar) => {
+  const sira = [...cevaplar]
+  sayfa.on('dialog', (d) => void d.accept(sira.length ? sira.shift() : ''))
+}
+
+/** Site verilerini temizlemenin taklidi: OPFS + localStorage. */
+const herSeyiSil = (sayfa) =>
+  sayfa.evaluate(async () => {
+    localStorage.clear()
+    sessionStorage.clear()
+    const kok = await navigator.storage.getDirectory()
+    for await (const [ad] of kok.entries())
+      await kok.removeEntry(ad, { recursive: true }).catch(() => {})
+  })
+
+/** Aşama `kasa`: yaz → senkron+kasa aç → her şeyi sil → parolayla kurtar. */
+const asamaKasa = async () => {
+  const { baglam, kapat } = await baglamAc()
+  const sayfa = await sayfaAc(baglam)
+  kutulariCevapla(sayfa, [PAROLA, PAROLA])
+
+  console.log('\n1. Defter kuruluyor ve bir kayıt bırakılıyor')
+  await sayfa.goto(ADRES)
+  await sayfa.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
+  await kilitKur(sayfa, PAROLA)
+  await defterAcildi(sayfa)
+  await sayfa.click('nav button[data-ekran="defter"]')
+  await bekle(sayfa, 400)
+  await sayfa.fill('#kalem', ISARET)
+  await sayfa.click('#birak')
+  await bekle(sayfa, 1500)
+  de(true, 'kayıt bırakıldı')
+
+  console.log('\n2. Senkron açılıyor')
+  await sayfa.click('#ayarlarBtn')
+  await bekle(sayfa, 500)
+  await sayfa.click('[data-eylem="senkronAc"]')
+  await sayfa.waitForSelector('#senkronKimlikKarti.acik', { timeout: 10000 })
+  const kod = (await sayfa.textContent('#skKod')).trim()
+  de(kod.length > 20, `Defter Kimliği üretildi (${kod.slice(0, 9)}…)`)
+  await sayfa.check('#skOnay')
+  await sayfa.click('#skDevam')
+  await bekle(sayfa, 4000)
+  const durumMetni = await sayfa.textContent('#aySenkronDurum')
+  de(!/başarısız|failed/i.test(durumMetni), `senkron durumu: ${durumMetni}`)
+
+  console.log('\n3. Kurtarma parolası kuruluyor')
+  await sayfa.click('[data-eylem="kasaKur"]')
+  await bekle(sayfa, 6000)
+  de(
+    /kurulu|is <b>set<\/b>|set\b/i.test(await sayfa.textContent('#aySenkronDurum')),
+    'ayar kağıdı kasayı kurulu gösteriyor',
+  )
+
+  console.log('\n4. Tarayıcıdaki HER ŞEY siliniyor')
+  await herSeyiSil(sayfa)
+  const kalan = await diskiOku(sayfa)
+  const yerelKalan = await sayfa.evaluate(() => JSON.stringify(localStorage))
+  de(kalan.length === 0, 'OPFS boş')
+  de(yerelKalan === '{}', 'localStorage boş')
+
+  console.log('\n5. Yalnızca parolayla kurtarılıyor')
+  await sayfa.reload()
+  await sayfa.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
+  de(!(await sayfa.isVisible('#kagit-kap .kagit')), 'defter gerçekten yok')
+  await sayfa.click('#kilParola')
+  await sayfa.fill('#kilPin', PAROLA)
+  await sayfa.press('#kilPin', 'Enter')
+
+  /* Kasa açılmazsa kilit ekranı kapanmıyor; çıplak zaman aşımı yerine
+     okunur bir satır düşsün. */
+  const acildi = await defterAcildi(sayfa, 45000)
+    .then(() => true)
+    .catch(() => false)
+  de(acildi, 'kasa açıldı ve defter kuruldu')
+  if (!acildi) {
+    console.log(`    ekranda: ${(await sayfa.textContent('#kilUyari')).slice(0, 90)}`)
+    await kapat()
+    console.log(`\nDÜŞEN: ${hata}\n`)
+    process.exit(1)
+  }
+
+  /* Çekme ağ üzerinden ve borçlandırmalı; kayıt görünene kadar bekleniyor. */
+  let geldi = false
+  for (let i = 0; i < 30 && !geldi; i++) {
+    await bekle(sayfa, 1000)
+    geldi = (await sayfa.textContent('body')).includes(ISARET)
+  }
+  de(geldi, 'silinen defter YALNIZCA PAROLAYLA geri geldi')
+
+  await kapat()
+  console.log(hata ? `\nDÜŞEN: ${hata}\n` : '\nKasa denemesi geçti.\n')
+  process.exit(hata ? 1 : 0)
+}
+
 const calis = async () => {
   if (ASAMA === 'yaz') return asamaYaz()
   if (ASAMA === 'tasi') return asamaTasi()
+  if (ASAMA === 'kasa') return asamaKasa()
   const { baglam, kapat } = await baglamAc()
   const sayfa = await sayfaAc(baglam)
 
@@ -188,7 +308,7 @@ const calis = async () => {
     (await sayfa.textContent('#kilUyari')).length > 20,
     'parolanın ne işe yaradığı yazıyor',
   )
-  de(!(await sayfa.isVisible('#kilParola')), 'kurulumda PIN geçişi gizli')
+  de(await kurulumKipi(sayfa), 'düğme kurtarma yolunu gösteriyor')
 
   console.log('\n2. Parola kurulunca defter açılıyor')
   await kilitKur(sayfa, PAROLA)
@@ -226,7 +346,7 @@ const calis = async () => {
   console.log('\n4. Kapatıp açınca defter geri geliyor')
   await sayfa.reload()
   await sayfa.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
-  de(await sayfa.isVisible('#kilParola'), 'bu sefer AÇMA ekranı (PIN geçişi görünür)')
+  de(!(await kurulumKipi(sayfa)), 'bu sefer AÇMA ekranı — düğme PIN/parola geçişi')
 
   await sayfa.click('#kilParola')
   await sayfa.fill('#kilPin', 'yanlis-parola-tamamen')
