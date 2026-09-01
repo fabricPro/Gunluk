@@ -93,3 +93,65 @@ grant select, insert, update, delete on defter_blob to authenticated;
 -- şemaya getiriyor (KARARLAR.md · K-036).
 
 alter table defter_blob drop column if exists silindi;
+
+
+-- ════════════════════════════════════════════════════════════
+--  KASA — Defter Kimliği'nin paroladan açılan kopyası
+-- ════════════════════════════════════════════════════════════
+--
+--  Tarayıcı site verilerini temizleyince defter kaybolmuyor: senkron
+--  açıksa her satır zaten burada. Kaybolan şey KODUN KENDİSİ, çünkü
+--  yalnızca localStorage'ta duruyordu. Kasa o kodu kullanıcının
+--  parolasıyla şifreleyip tutuyor (KARARLAR.md · K-038).
+--
+--  BURADA DURAN ŞEY 16 BAYTLIK BİR GİZLİ VE ŞİFRELİDİR.
+--  Şifreyi açan anahtar kullanıcının parolasından CİHAZDA türüyor
+--  (Argon2id t=4, m=128 MiB) ve parola sunucuya hiç gelmiyor.
+--
+--  Kasanın hesabı senkronunkinden AYRI: senkron kimliği koddan türüyor,
+--  ama kurtarmada elde kod yok — onu almaya geliniyor. Kasa kimliği
+--  yalnızca paroladan türüyor; döngüyü kıran şey bu.
+--
+--  Dürüst olmak gerekirse bu bir bedel: senkronda sunucudaki defteri
+--  açmanın tek yolu 128 bit rastgele bir kodu kırmaktı. Artık burada
+--  insan parolasıyla şifrelenmiş ikinci bir hedef var ve tek engel
+--  Argon2id. Uçtan uca şifreleme bozulmuyor — sunucu ne defteri ne
+--  anahtarı açabiliyor — ama en zayıf halka artık parolanın gücü.
+
+create table if not exists defter_kasa (
+  -- auth.user_id(): kasa hesabının JWT `sub` iddiası. İstemci başkasının
+  -- kasasına yazamıyor; trigger her yazmada yeniden atıyor.
+  kullanici text        not null default (auth.user_id()) primary key,
+  iv        text        not null,
+  -- base64 AES-GCM(paroladan türeyen anahtar, 16 baytlık gizli).
+  govde     text        not null,
+  alindi    timestamptz not null default now()
+);
+
+comment on table defter_kasa is
+  'Defter Kimliğinin parolayla şifrelenmiş kopyası. Sunucu AÇAMAZ.';
+
+create or replace function defter_kasa_sahip() returns trigger
+language plpgsql as $$
+begin
+  new.kullanici := auth.user_id();
+  new.alindi    := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists defter_kasa_sahiplik on defter_kasa;
+create trigger defter_kasa_sahiplik before insert or update on defter_kasa
+  for each row execute function defter_kasa_sahip();
+
+-- Aynı `defter_blob` deseni: `force` da açık, `anonymous` rolüne hiçbir
+-- yetki yok — JWT'siz kimse dokunamıyor.
+
+alter table defter_kasa enable row level security;
+alter table defter_kasa force  row level security;
+
+create policy kendi_kasasi on defter_kasa for all to authenticated
+  using       (auth.user_id() = kullanici)
+  with check  (auth.user_id() = kullanici);
+
+grant select, insert, update, delete on defter_kasa to authenticated;
