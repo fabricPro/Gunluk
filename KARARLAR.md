@@ -9,6 +9,91 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-09-01 · K-038 · Kasa: anahtar Neon'da, parolayla kilitli
+
+Tarayıcı "site verilerini" temizleyince üç şey aynı anda gidiyordu: mühürlü
+veritabanı, kilit kaydı ve **Defter Kimliği**.
+
+Üçüncüsü asıl sorundu. Defter zaten Neon'da ve eksiksiz — temiz bir tarayıcıda
+kod girilse su seviyesi sıfırdan başlıyor ve her satır geri iniyor. Yani
+kaybolan şey defter değil, **onu açan anahtar**. "Uygulamayı daha fazla Neon'a
+bağlamak" bunu çözmüyordu: veri zaten oradaydı. Soru anahtarın kimde durduğuydu.
+
+### Geri alınan cümle: K-036
+
+> Anahtar cihazdan hiç çıkmıyor.
+
+Artık çıkıyor — ama **açık değil**. Kasada duran şey Defter Kimliği'nin
+arkasındaki 16 baytlık gizli ve kullanıcının parolasıyla AES-GCM ile şifreli.
+Parola sunucuya hiçbir zaman gitmiyor; şifreyi açan anahtar ondan cihazda
+türüyor.
+
+Çürütme şu: K-036'nın koruduğu şey anahtarın *hareketsizliği* değil, **sunucunun
+defteri okuyamaması**ydı. O hâlâ doğru. Sunucu ne defteri açabiliyor ne kasayı.
+
+### Kazanılan
+
+Temiz bir tarayıcıda yalnızca parolayı yazmak yetiyor. Kodu kaybetsen parola,
+parolayı unutsan kod kurtarıyor — **ikisini birden** kaybetmen gerekiyor.
+
+### Kaybedilen — dürüst muhasebe
+
+Önce sunucudaki şifreli defteri açmanın tek yolu **128 bit rastgele** bir kodu
+kırmaktı. Böyle bir saldırı yok.
+
+Şimdi sunucuda ikinci bir hedef var: **insan parolasıyla** şifrelenmiş bir blob,
+tek engel Argon2id. Uçtan uca şifreleme bozulmuyor ama **sistemin en zayıf halkası
+artık parolanın gücü.** Alınan önlemler:
+
+- Kasa için ayrı ve ağır parametreler: `t=4, m=128 MiB` (senkron `t=3, m=48 MiB`).
+  Yalnızca kurulumda ve kurtarmada koşuyor.
+- Parola alt sınırı 8'den **12**'ye çıktı. Eski sınır yalnızca yerel diski
+  koruyorken yeterliydi; kasaya erişmek için kimseye fiziksel erişim gerekmiyor.
+- Sabit tuz kaçınılmaz (kurtarma anında elde paroladan başka hiçbir şey yok, tuz
+  okunacak bir yer yok) ve bedeli parametrelerle ödendi. Etikette sürüm var.
+
+Bu değişikliğin bağlamı da kayda giriyor: ürün piyasaya sürülmüyor, tek kişilik
+kişisel kullanım. Bedeli taşıyan başka kimse yok.
+
+### Neden ayrı bir kimlik
+
+Senkronda her şey koddan türüyor. Kurtarmada elde kod YOK — onu almaya
+geliniyor. Kasanın kimliği bu yüzden yalnızca paroladan türüyor; döngüyü kıran
+şey bu. İki türetme de Argon2id + HKDF kullanıyor ama tuzları ve etiketleri ayrı.
+
+### İki hata ve bir ders
+
+Kurtarma gerçek tarayıcıda kanıtlanırken iki şey çıktı:
+
+1. **`SenkronDepo` sonsuz döngüye giriyordu.** Oturum makinesi ortak tabana
+   çıkarılırken yapılan toplu değiştirme, yardımcı fonksiyonun gövdesindeki
+   çağrıyı da değiştirmiş ve fonksiyon kendini çağırır olmuştu. Hiçbir birim
+   testi yakalamadı: `SenkronDepo`nun gerçek metotları yalnızca tarayıcı
+   denemesinde koşuyor.
+
+2. **Bir muhafız sessizce boşa geçmeye başlamıştı.** "Kurulum ekranı mı" sorusu
+   bir düğmenin görünürlüğüne bakıyordu; kasa gelince o düğme kurulumda da
+   göründü ve ayrım yok oldu.
+
+İkincisi bu projede üçüncü kez (K-036'daki boş tarama, K-037'deki kök-yalnızca
+OPFS taraması). Ders artık yazılı: **bir muhafız, koruduğu şey değişince sessizce
+hiçbir şey ölçmez hâle gelebilir — ve düşmediği için fark edilmez.** Muhafız
+eklerken kırıp denemek yetmiyor; koruduğu şey değişince yeniden kırıp denemek
+gerekiyor.
+
+### Doğrulama
+
+`arac/sahteNeon.mjs` Neon'un dokunulan kadarını taklit ediyor. `npm run muhur
+kasa` gerçek Chromium'da: defter kur → kayıt bırak → senkron aç (2 satır,
+~764 B şifreli) → kurtarma parolası kur → **OPFS ve localStorage'ı tamamen sil**
+→ yenile → yalnızca parola → defter geri geldi. Kasa yazması iptal edilip
+koşturuldu, deneme düşüyor.
+
+Kalan sınır: gerçek Neon'da denenmedi. `defter_kasa` şeması `sema/sunucu.sql`de
+duruyor ve elle uygulanması gerekiyor.
+
+---
+
 ## 2026-08-31 · K-037 · Vercel'e taşınma ve kendi vekilimiz
 
 Depo private yapılacaktı. GitHub Pages private depoda ücretli plan istiyor,

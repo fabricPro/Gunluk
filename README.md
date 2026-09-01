@@ -43,9 +43,17 @@ veritabanı bellekte açılıyor ve diske yalnızca o paroladan türeyen
 anahtarla mühürlenmiş baytlar yazılıyor. Defter Kimliği ve model anahtarı
 da aynı anahtarla sarmalı, `localStorage`'ta düz durmuyorlar.
 
-Bedeli açık: **parolayı unutursan o tarayıcıdaki defter bir daha
-açılmaz** — bizde kopyası yok. İki kaçış yolu var: mühürlü yedek dosyası
-ve senkron açıksa Defter Kimliği.
+Senkron açıksa bir **kurtarma parolası** belirleyebilirsin: Defter
+Kimliğin o parolayla şifrelenip sunucuda tutulur. Tarayıcıdaki her şey
+silinse bile yalnızca parolanı yazman yetiyor, defter geri iniyor.
+Kodu kaybetsen parola, parolayı unutsan kod kurtarıyor.
+
+Bedeli açık ve K-038'de yazılı: kurtarma parolası açılmadan sunucudaki
+defteri açmanın tek yolu 128 bitlik rastgele bir kodu kırmaktır;
+açtıktan sonra ikinci bir hedef doğar ve onu koruyan tek şey parolanın
+gücüdür. Bu yüzden en az 12 karakter isteniyor. Kurtarma parolası
+olmadan da her şey çalışır; o zaman kaçış yolları mühürlü yedek dosyası
+ve bir yere yazdığın Defter Kimliğidir.
 
 `npm run muhur` bunu gerçek bir tarayıcıda sınıyor: yazılan metnin OPFS
 baytlarında geçmediğini, yanlış parolanın açmadığını ve şifresiz eski bir

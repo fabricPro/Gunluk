@@ -80,6 +80,19 @@ değil mantıksal bir sayaç kullanılır.
 Kimlik doğrulaması, Defter Kimliği'nden türetilen ve hiçbir yere
 ulaşmayan sentetik bir adresle yapılır.
 
+*Kurtarma parolası açarsanız* sunucuda ikinci bir şey daha durur:
+**Defter Kimliği'nizin parolanızla şifrelenmiş bir kopyası.** Amacı,
+tarayıcınızdaki her şey silinse bile defterinize geri dönebilmeniz.
+Parolanız hiçbir zaman bize ulaşmaz; şifreyi açan anahtar ondan
+cihazınızda türer, dolayısıyla o kopyayı biz de açamayız.
+
+Dürüst olmak gerekirse bu bir bedeldir: kurtarma parolası açılmadan
+sunucudaki defteri açmanın tek yolu 128 bitlik rastgele bir kodu
+kırmaktır. Açtıktan sonra ikinci bir hedef doğar ve onu koruyan tek şey
+parolanızın gücüdür. Bu yüzden en az 12 karakter isteniyor ve anahtar
+kasa için bilerek daha yavaş üretiliyor. İstemezseniz açmayın; her şey
+kurtarma parolası olmadan da çalışır.
+
 *Tarayıcı sürümünde defteriniz de şifrelidir.* İlk açılışta bir parola
 istenir; veritabanı yalnızca bellekte açılır ve diske o paroladan türeyen
 anahtarla mühürlenmiş hâlde yazılır. Defter Kimliği ve model anahtarınız
@@ -236,6 +249,21 @@ service or social SDK. There are no third-party trackers in the app.
 If you enable sync, your encrypted data is stored in a Postgres database
 operated by **Neon** (Neon Inc.) in the AWS Frankfurt region. Neon cannot
 open the encrypted blocks; neither we nor they hold the key.
+
+*If you set a recovery passphrase,* one more thing is kept on the
+server: **a copy of your Notebook Key, encrypted with your passphrase.**
+Its purpose is to let you get back into your notebook even if everything
+in your browser is wiped. Your passphrase never reaches us; the key that
+opens that copy is derived from it on your device, so we cannot open it
+either.
+
+To be honest about the cost: without a recovery passphrase, the only way
+into the notebook on the server is breaking a 128-bit random code. With
+one, a second target exists and the only thing protecting it is the
+strength of your passphrase. That is why at least 12 characters are
+required and why the key for the vault is deliberately slower to derive.
+If you would rather not have it, don't set one — everything works
+without it.
 
 *In the browser your notebook is encrypted too.* On first open you are
 asked for a passphrase; the database is opened in memory only and written
