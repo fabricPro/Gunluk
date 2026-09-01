@@ -9,6 +9,92 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-09-01 · K-039 · Hesap: kullanıcı adı + şifre, senkron ayrı bir düğme değil
+
+Çevrimiçi kullanmak üç kavram istiyordu: **senkronu aç**, **Defter Kimliği**'ni
+ikinci cihaza yaz, **kurtarma parolası** belirle. Artık bir tane var: giriş yap.
+
+Bu yeni bir makine değil, K-038'in tamamlanması. Kasa zaten "paroladan hesap
+türet → anahtarı getir → defteri indir" yapıyordu; eksik olan kullanıcı adı,
+açık bir *hesap aç / giriş yap* ayrımı, ve senkronun ayrı bir anahtar olmaktan
+çıkmasıydı.
+
+### K-038 geri alınmıyor, genelleşiyor
+
+Kasa artık "kurtarma parolası" değil, hesabın kendisi. Değişen tek şey tuz.
+
+**Ve bu bir kazanç.** K-038 sabit tuzu MECBUREN kabul etmişti: kurtarma anında
+elde paroladan başka hiçbir şey yoktu, tuz okunacak bir yer yoktu. Kullanıcı adı
+tam olarak o eksik parça. Tuz artık kullanıcıya özel; önceden hesaplanmış tablo
+saldırısı kapanıyor. Bu değişiklik kriptoyu zayıflatmıyor, **güçlendiriyor.**
+
+Kullanıcı adı sunucuya **gitmiyor**: tuzun içinde kalıyor, sunucu yalnızca
+türetilmiş opak kimliği görüyor.
+
+Defterin şifrelemesi şifreye de inmiyor. Asıl anahtar hâlâ 128 bit rastgele
+Defter Kimliği; şifre onu yalnızca sarmalıyor. K-038'de kabul edilen bedel
+(sunucuda insan parolasıyla şifrelenmiş ikinci bir hedef) aynen duruyor,
+büyümüyor.
+
+### Şifre unutulursa yardım yok
+
+Parola sıfırlama **yok** ve bu her yerde yazılı. Sıfırlama, anahtarın sunucuda
+çözülebilir durumda tutulmasını gerektirirdi; o da sunucunun defteri okuyabilmesi
+demek olurdu. İkinci yol Defter Kimliği: hesap açarken bir kez gösteriliyor.
+
+### Aynı ad + farklı şifre = başka hesap
+
+Kimlik ikisinden birden türüyor. İyi tarafı: ad benzersizliği diye bir sorun yok,
+kimse kimsenin adını kapatmıyor. Bedeli: yanlış şifre "yanlış şifre" değil,
+"böyle bir hesap yok" demek — arayüz bunu tek cümlede söylüyor.
+
+**Giriş hesap YARATMIYOR.** Bu, buradaki en kritik nokta. Yaratsaydı şifresini
+yanlış yazan kullanıcıya sessizce boş bir defter açılır, "giriş başarılı" denir
+ve kullanıcı defterini kaybettiğini anlamadan üstüne yazmaya başlardı.
+`Oturum.oturumAc(yarat = false)` bunun için zaten duruyordu.
+
+### Hesapsız mod duruyor — ilke 2.3 böyle ayakta kalıyor
+
+Karşılamada üç yol var: giriş yap, hesap aç, **bu cihazda kal**. Üçüncüsü
+olmasaydı uygulama "önce yerel" bir defter olmaktan çıkıp hesap gerektiren bir
+servis olurdu. Sunucuya gitmek bir SEÇİM olmaya devam ediyor.
+
+### Yolda çıkan üç şey
+
+1. **Karşılamada `parolaKipi` kurulmuyordu.** Yalnızca CSS sınıfı eklenip bayrak
+   unutulunca giriş alanı PIN gibi davranıyor ve şifredeki harfleri siliyordu;
+   32 karakterlik şifre "en az 12 karakter" hatası veriyordu.
+2. **Yazdıktan sonra senkronu tetikleyen hiçbir şey yoktu.** Eski modelde
+   kullanıcı ayarlardan "şimdi eşitle" diyordu; yeni modelde demiyor. `Durum.dinle`ye
+   borçlandırmalı bir tur bağlandı. Bu olmadan ikinci cihaz boş kalıyordu — ve
+   bunu yalnızca iki bağlamlı tarayıcı denemesi yakaladı.
+3. **Çıkış mühür yuvalarını da silmek zorunda.** Yalnızca kilit kaydı silinseydi
+   yuvalar yetim kalırdı: yeni kurulumdaki yeni anahtar onları açamaz ve uygulama
+   bir daha açılmazdı.
+
+### Bir tuzak: kullanıcı adı ve yerel küçük harf
+
+Ad anahtar türetmesine girdiği için normalizasyonun cihazdan cihaza değişmemesi
+şart. `toLocaleLowerCase` Türkçe yerelde "ALI" → "alı", İngilizcede "ali" verirdi
+ve **aynı kullanıcı iki cihazda iki ayrı hesaba düşerdi.** `toLowerCase` +
+NFKC kullanılıyor ve bir test kaynağı tarayarak bunu sabitliyor.
+
+O testi yazarken K-038'deki hata tekrarlandı: tarama, `hesapKimlik.ts`in
+KULLANILMAYAN çağrıyı anlatan yorumuna takılıyordu. Yorumlar atılarak düzeltildi.
+
+### Doğrulama
+
+`npm run muhur hesap`, gerçek Chromium, **iki ayrı tarayıcı bağlamı** (gerçek
+ikinci cihaz: kendi deposu, kendi çerezleri). Birinci cihazda hesap açılıp kayıt
+bırakılıyor; ikinci bağlamda yalnızca kullanıcı adı ve şifreyle giriliyor ve
+kayıt orada. Ne kod yazılıyor ne senkron açılıyor. Yanlış şifre defteri açmıyor
+ve sunucuda üçüncü bir hesap oluşmuyor — sunucu kaydında sayıldı.
+
+Kalan sınır: gerçek Neon'da denenmedi. `defter_kasa` şeması hâlâ elle
+uygulanmayı bekliyor.
+
+---
+
 ## 2026-09-01 · K-038 · Kasa: anahtar Neon'da, parolayla kilitli
 
 Tarayıcı "site verilerini" temizleyince üç şey aynı anda gidiyordu: mühürlü

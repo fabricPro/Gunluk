@@ -151,6 +151,9 @@ Sıra önemli. Her adım bir öncekine yaslanıyor.
 ### Faz 7 — Kayıp riski
 18. ~~**Kasa: anahtar Neon'da, parolayla kilitli.**~~ **Tamam.** Tarayıcı site verilerini temizleyince kaybolan şey defter değil, onu açan koddu. Kasa o kodu kullanıcının parolasıyla şifreleyip sunucuda tutuyor; temiz bir tarayıcıda yalnızca parola yazmak yetiyor. Kodu kaybetsen parola, parolayı unutsan kod kurtarıyor. Kasanın kimliği senkronunkinden ayrı ve yalnızca paroladan türüyor — kurtarmada elde kod olmadığı için döngüyü kıran şey bu. Bedeli açık: sunucuda insan parolasıyla şifrelenmiş ikinci bir hedef var, o yüzden Argon2id ağırlaştırıldı (t=4, m=128 MiB) ve alt sınır 12 karaktere çıktı. Gerçek Chromium'da, yerel bir sahte Neon'a karşı, her şey silinip yalnızca parolayla kurtarılarak kanıtlandı (KARARLAR.md · K-038).
 
+### Faz 8 — Hesap
+19. ~~**Kullanıcı adı + şifreyle giriş.**~~ **Tamam.** Çevrimiçi kullanmak üç kavram istiyordu (senkronu aç, kodu taşı, kurtarma parolası); artık bir tane var: giriş yap. Kasa K-038'den geri alınmadı, genelleşti — tek fark tuz. Kullanıcı adı tuz olunca K-038'in mecburen kabul ettiği sabit tuz sorunu da kapandı; ad sunucuya hiç gitmiyor. Giriş hesap YARATMIYOR: yaratsaydı şifresini yanlış yazan kullanıcıya sessizce boş defter açılırdı. Hesapsız mod duruyor ve ilke 2.3 böyle ayakta kalıyor. Gerçek Chromium'da İKİ AYRI tarayıcı bağlamıyla kanıtlandı: birinci cihazda yazılan kayıt, ikinci bağlamda yalnızca ad+şifreyle giriş yapılınca orada (KARARLAR.md · K-039).
+
 ---
 
 ## 7. Teknik notlar

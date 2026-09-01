@@ -43,17 +43,21 @@ veritabanı bellekte açılıyor ve diske yalnızca o paroladan türeyen
 anahtarla mühürlenmiş baytlar yazılıyor. Defter Kimliği ve model anahtarı
 da aynı anahtarla sarmalı, `localStorage`'ta düz durmuyorlar.
 
-Senkron açıksa bir **kurtarma parolası** belirleyebilirsin: Defter
-Kimliğin o parolayla şifrelenip sunucuda tutulur. Tarayıcıdaki her şey
-silinse bile yalnızca parolanı yazman yetiyor, defter geri iniyor.
-Kodu kaybetsen parola, parolayı unutsan kod kurtarıyor.
+**Kullanıcı adı ve şifreyle giriş yapıyorsun**; defterin her cihazda
+seninle. Senkron ayrı bir düğme değil — giriş yapmak zaten senkron
+demek. İkisi de sunucuya ulaşmıyor: kullanıcı adı, anahtar üretilirken
+kullanılan tuzun içinde kalıyor ve sunucu yalnızca opak bir kimlik
+görüyor.
 
-Bedeli açık ve K-038'de yazılı: kurtarma parolası açılmadan sunucudaki
-defteri açmanın tek yolu 128 bitlik rastgele bir kodu kırmaktır;
-açtıktan sonra ikinci bir hedef doğar ve onu koruyan tek şey parolanın
-gücüdür. Bu yüzden en az 12 karakter isteniyor. Kurtarma parolası
-olmadan da her şey çalışır; o zaman kaçış yolları mühürlü yedek dosyası
-ve bir yere yazdığın Defter Kimliğidir.
+Hesap açmadan da kullanabilirsin. O zaman defter yalnızca o cihazda
+kalır ve tek istek çıkmaz.
+
+**Şifreni unutursan sıfırlama yok.** Sıfırlama, defteri açan anahtarı
+sunucuda çözülebilir tutmayı gerektirirdi — yani okunabilir olmasını.
+İkinci yolun, hesap açarken bir kez gösterilen Defter Kimliği; onu bir
+yere yaz. Bedeli K-038'de yazılı: sunucuda şifrenle sarmalanmış bir
+anahtar duruyor ve onu koruyan tek şey şifrenin gücü, o yüzden en az 12
+karakter isteniyor.
 
 `npm run muhur` bunu gerçek bir tarayıcıda sınıyor: yazılan metnin OPFS
 baytlarında geçmediğini, yanlış parolanın açmadığını ve şifresiz eski bir

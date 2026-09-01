@@ -80,7 +80,20 @@ değil mantıksal bir sayaç kullanılır.
 Kimlik doğrulaması, Defter Kimliği'nden türetilen ve hiçbir yere
 ulaşmayan sentetik bir adresle yapılır.
 
-*Kurtarma parolası açarsanız* sunucuda ikinci bir şey daha durur:
+*Hesap:* kullanıcı adı ve şifreyle giriş yaparsınız. **Bunların ikisi de
+sunucuya ulaşmaz.** Kullanıcı adı, şifreden anahtar üretilirken kullanılan
+tuzun içinde kalır; sunucunun gördüğü tek şey ikisinden türeyen opak bir
+kimliktir. E-posta, telefon ya da başka bir bilgi istenmez.
+
+**Şifrenizi unutursanız sıfırlayamayız.** Sıfırlama, defterinizi açan
+anahtarı sunucuda çözülebilir hâlde tutmayı gerektirirdi — yani bizim
+okuyabilmemizi. İkinci yolunuz, hesap açarken bir kez gösterilen Defter
+Kimliği'dir; onu bir yere yazın.
+
+Hesap açmadan da kullanabilirsiniz. O zaman defter yalnızca cihazınızda
+kalır ve tek bir istek bile çıkmaz.
+
+*Hesap açarsanız* sunucuda ikinci bir şey daha durur:
 **Defter Kimliği'nizin parolanızla şifrelenmiş bir kopyası.** Amacı,
 tarayıcınızdaki her şey silinse bile defterinize geri dönebilmeniz.
 Parolanız hiçbir zaman bize ulaşmaz; şifreyi açan anahtar ondan
@@ -250,7 +263,20 @@ If you enable sync, your encrypted data is stored in a Postgres database
 operated by **Neon** (Neon Inc.) in the AWS Frankfurt region. Neon cannot
 open the encrypted blocks; neither we nor they hold the key.
 
-*If you set a recovery passphrase,* one more thing is kept on the
+*Accounts:* you sign in with a username and a password. **Neither of them
+reaches the server.** The username stays inside the salt used to derive the
+key from your password; all the server sees is an opaque identity derived
+from the two. No email, no phone number, nothing else is asked for.
+
+**If you forget your password we cannot reset it.** A reset would require
+keeping the key that opens your notebook in a form the server could
+decrypt — that is, in a form we could read. Your second way in is the
+Notebook Key, shown once when you create the account; write it down.
+
+You can also use the app without an account. Then the notebook stays on
+your device and not a single request leaves it.
+
+*If you have an account,* one more thing is kept on the
 server: **a copy of your Notebook Key, encrypted with your passphrase.**
 Its purpose is to let you get back into your notebook even if everything
 in your browser is wiped. Your passphrase never reaches us; the key that
