@@ -1,5 +1,6 @@
 import { Durum } from './durum.js'
 import { cihazDili, type Dil } from './cekirdek/dil.js'
+import { S } from './cekirdek/metin.js'
 import { GomuAkis } from './gomuAkis.js'
 import { ModelAkis } from './modelAkis.js'
 import type { SenkronAkis as SenkronAkisTip } from './senkronAkis.js'
@@ -62,7 +63,20 @@ async function baslat(): Promise<void> {
   const kilitEkrani = kilitEkraniBagla(kilit, async (anaAnahtar) => {
     anahtariDayat(anaAnahtar)
     kilitEkrani.gizle()
-    await uygulamayiKur()
+    try {
+      await uygulamayiKur()
+    } catch (e) {
+      /*
+       * Doğru parolayla bile açılamayan tek durum: mühürlü dosya bozuk.
+       * Kullanıcı BOŞ bir ekranla kalmasın — kilit ekranı geri geliyor ve
+       * ne olduğunu söylüyor (KARARLAR.md · K-037).
+       */
+      console.error('[defter] defter acilamadi', e)
+      anahtariDayat(null)
+      kilit.kilitle()
+      await kilitEkrani.goster('ac')
+      kilitEkrani.uyar(S('kil.acilmadi'))
+    }
   })
 
   /*

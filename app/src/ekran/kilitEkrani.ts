@@ -22,7 +22,11 @@ export type KilitKipi = 'ac' | 'kur'
 export function kilitEkraniBagla(
   kilit: Kilit,
   cozuldu: (anaAnahtar: string) => Promise<void>,
-): { goster: (kip?: KilitKipi) => Promise<void>; gizle: () => void } {
+): {
+  goster: (kip?: KilitKipi) => Promise<void>
+  gizle: () => void
+  uyar: (metin: string) => void
+} {
   let parolaKipi = false
   let girilen = ''
   let kip: KilitKipi = 'ac'
@@ -171,5 +175,5 @@ export function kilitEkraniBagla(
     $('#kilitEkrani').classList.remove('acik')
   }
 
-  return { goster, gizle }
+  return { goster, gizle, uyar: uyari }
 }

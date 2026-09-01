@@ -283,6 +283,10 @@ const TR: Metinler = {
   'kil.kurTekrar': 'Bir daha yaz.',
   'kil.kurUymadi': 'İkisi aynı değil. Baştan.',
   'kil.kurBekle': 'Anahtar hazırlanıyor…',
+  'kil.acilmadi':
+    'Parola doğru ama defter açılamadı — bu tarayıcıdaki mühürlü dosya bozuk ' +
+    'olabilir. Varsa mühürlü yedeğinden geri yükle; senkron açıksa başka bir ' +
+    'cihazdan Defter Kimliğinle ulaşabilirsin.',
 
   /* ölçüm örneği — arayüzde görünmüyor, sayfa kapasitesi bununla ölçülüyor */
   'olcum.ornek':
@@ -722,6 +726,11 @@ const EN: Metinler = {
   'kil.kurTekrar': 'Type it once more.',
   'kil.kurUymadi': "Those two don't match. Start over.",
   'kil.kurBekle': 'Preparing the key…',
+  'kil.acilmadi':
+    'The passphrase is right but the notebook would not open — the sealed file ' +
+    'in this browser may be damaged. Restore from a sealed backup if you have ' +
+    'one; if sync is on you can reach it from another device with your ' +
+    'Notebook Key.',
 
   'olcum.ornek':
     'I got up early again and opened the window; the air was cold. ' +

@@ -241,6 +241,27 @@ const calis = async () => {
   const govde = await sayfa.textContent('body')
   de(govde.includes(ISARET), 'yazdığımız kayıt yerinde')
 
+  console.log('\n5. Mühür bozulursa boş ekran değil, açıklama')
+  /* Her iki yuva da bozuluyor: yedek yuva kurtarmasın, hata yolu koşsun. */
+  await sayfa.evaluate(async () => {
+    const kok = await navigator.storage.getDirectory()
+    for await (const [ad, tutamac] of kok.entries()) {
+      if (!ad.startsWith('defter.muhur') || tutamac.kind !== 'file') continue
+      const y = await tutamac.createWritable()
+      await y.write(new Uint8Array([68, 70, 84, 82, 77, 72, 82, 1, ...new Array(200).fill(7)]))
+      await y.close()
+    }
+  })
+  await sayfa.reload()
+  await sayfa.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
+  await sayfa.click('#kilParola')
+  await sayfa.fill('#kilPin', PAROLA)
+  await sayfa.press('#kilPin', 'Enter')
+  await bekle(sayfa, 6000)
+  de(await sayfa.isVisible('#kilitEkrani.acik'), 'kilit ekranı geri geldi (boş ekran yok)')
+  const soylenen = await sayfa.textContent('#kilUyari')
+  de(soylenen.length > 30, `ne olduğu yazıyor: "${soylenen.slice(0, 60)}…"`)
+
   await kapat()
   console.log(hata ? `\nDÜŞEN: ${hata}\n` : '\nHepsi geçti.\n')
   process.exit(hata ? 1 : 0)

@@ -157,7 +157,13 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
             ? `<button data-eylem="biyoKapat">${S('ay.biyoKapat')}</button>`
             : `<button data-eylem="biyoAc">${S('ay.biyoAc')}</button>`,
         )
-      d.push(`<button data-eylem="kaldir">${S('ay.kilitKaldir')}</button>`)
+      /*
+       * Tarayıcıda kilidi kaldırmak defteri OKUNAMAZ bırakırdı: mühür o
+       * anahtarla açılıyor ve kaldırınca anahtar yok oluyor. Cihazda
+       * öyle değil — orada SQLCipher anahtarı ayrı duruyor (K-037).
+       */
+      if (!tarayiciMi)
+        d.push(`<button data-eylem="kaldir">${S('ay.kilitKaldir')}</button>`)
     }
     $('#ayKilitDugmeler').innerHTML = d.join('')
 
