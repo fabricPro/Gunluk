@@ -98,10 +98,38 @@ yazılana kadar bekle, yenile (açma ekranı, parola kipinde, çıkış yolu gö
 açılıyor ve **deftere yazılıp geri okunuyor**. `hesap` ve `hepsi` de geçiyor;
 635 test ve üretim derlemesi temiz.
 
-Kalan sınır: `kasa` aşaması artık koşmuyor — var olmayan bir `senkronAc`
-düğmesini bekliyor. Bu K-039'dan kalma, bu değişiklikten önce de böyleydi;
-sessizce geçmiyor, gürültüyle düşüyor. Kapsadığı şeyin çoğu `hesap` aşamasına
-geçti; kalanı ayrıca ele alınacak.
+### `kasa` aşaması da yeni modele taşındı
+
+`kasa` bir süredir koşmuyordu: K-039'da silinen `senkronAc` düğmesini
+bekliyordu. Silmek yerine düzeltildi, çünkü sınadığı senaryo başka hiçbir
+aşamada yok — `hesap` AYRI bir bağlamda (ikinci cihaz) giriş yapıyor, `kasa`
+ise **aynı tarayıcıda site verileri temizlendikten sonra** kurtarmayı sınıyor.
+K-038'i başlatan soru buydu: "tarayıcı geçmişi temizlenirse kayıtlar da mı
+silinecek."
+
+Yolu yeni modele göre yeniden yazıldı ve böylece o güne dek hiç sınanmamış bir
+yol da kapsandı: yerel defterin ayarlardan hesaba taşınması (`hesabaTasi`).
+Ayrıca `herSeyiSil` artık **çerezleri de** siliyor; gerçek "site verilerini
+temizle" de siliyor ve bırakılırsa kurtarma bayat bir oturumla yürüyebilirdi.
+
+Dört kırma denemesi koşuldu; ikisi beklendiği gibi düştü, biri **düşmedi** ve
+bu da yazıldı:
+
+| Kırma | Sonuç |
+|---|---|
+| 6. adımda şifre yanlış verildi | ✗ düştü — kurtarma gerçekten şifreye bağlı |
+| Hesaba taşıma atlandı | ✗ düştü — "sunucuda N satır" iddiası boş değil |
+| Çerez temizliği kaldırıldı | ✗ düştü — iddia çerezi gerçekten ölçüyor |
+| Yükleme beklemesi kaldırıldı | **✓ geçti** — bekleme bir doğruluk muhafızı değil |
+
+Sonuncusu önemli: bekleme kaldırılınca 6. adım yine geçiyor, çünkü yükleme
+zaten bitmiş oluyor. Yani o bekleme bir **kararlılık** muhafızı — yavaş bir
+koşuda silme yüklemeden önce olur ve aşama sebepsiz düşerdi. Planda "onsuz
+anlamsızlaşır" diye yazılmıştı; doğru değilmiş. Bir muhafızın ne ölçtüğünü
+kırma denemesi söylüyor, niyet değil.
+
+Kalan sınır: gerçek Neon'da hâlâ denenmedi. Aşamalar sahte Neon'a karşı
+koşuyor; sınadıkları şey istemci akışı, sunucu değil.
 
 ---
 

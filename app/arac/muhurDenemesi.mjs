@@ -208,15 +208,23 @@ const kutulariCevapla = (sayfa, cevaplar) => {
   sayfa.on('dialog', (d) => void d.accept(sira.length ? sira.shift() : ''))
 }
 
-/** Site verilerini temizlemenin taklidi: OPFS + localStorage. */
-const herSeyiSil = (sayfa) =>
-  sayfa.evaluate(async () => {
+/**
+ * "Site verilerini temizle"nin taklidi: OPFS + localStorage + ÇEREZ.
+ *
+ * Çerez şart. Kalırsa sunucudaki oturum hayatta kalır ve kurtarma bayat
+ * bir oturumla da yürüyebilir — "yalnızca kullanıcı adı ve şifreyle"
+ * iddiası kanıtlanmamış olur. Gerçek temizlik de çerezi siliyor.
+ */
+const herSeyiSil = async (sayfa, baglam) => {
+  await sayfa.evaluate(async () => {
     localStorage.clear()
     sessionStorage.clear()
     const kok = await navigator.storage.getDirectory()
     for await (const [ad] of kok.entries())
       await kok.removeEntry(ad, { recursive: true }).catch(() => {})
   })
+  await baglam.clearCookies()
+}
 
 /** Aşama `kasa`: yaz → senkron+kasa aç → her şeyi sil → parolayla kurtar. */
 /**
@@ -407,12 +415,35 @@ const asamaHesap = async () => {
   process.exit(hata ? 1 : 0)
 }
 
+/**
+ * Aşama `kasa` — "site verilerimi temizlersem defterim gider mi?"
+ *
+ * K-038'i başlatan soru buydu. `hesap` aşaması AYRI bir bağlamda
+ * (ikinci cihaz) giriş yapıyor; burada sınanan başka bir şey: AYNI
+ * tarayıcıda her şey silindikten sonra kurtarma.
+ *
+ * Yolu da yeni modele göre: senkron ayrı bir anahtar değil (K-039), o
+ * yüzden yerel defter ayarlardan hesaba TAŞINIYOR (`hesabaTasi`) — bu
+ * yol başka hiçbir denemede geçmiyor.
+ */
 const asamaKasa = async () => {
   const { baglam, kapat } = await baglamAc()
   const sayfa = await sayfaAc(baglam)
-  kutulariCevapla(sayfa, [PAROLA, PAROLA])
+  const ad = `kullanici${Date.now().toString(36)}`
+  const dur = (n) => {
+    console.log(`\nDÜŞEN: ${n}\n`)
+    process.exit(1)
+  }
 
-  console.log('\n1. Defter kuruluyor ve bir kayıt bırakılıyor')
+  /*
+   * Kuyruk BİR KEZ kuruluyor. `kutulariCevapla` her çağrıda yeni bir
+   * dinleyici ekliyor; iki dinleyici aynı kutuyu iki kez yanıtlamaya
+   * kalkar ve Playwright "Dialog is already handled" diye düşer.
+   * 1. adımda hiç kutu çıkmıyor, sıradakiler 2. adımın soruları.
+   */
+  kutulariCevapla(sayfa, [ad, PAROLA, PAROLA])
+
+  console.log('\n1. Yerel defter kuruluyor ve bir kayıt bırakılıyor')
   await sayfa.goto(ADRES)
   await sayfa.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
   await kilitKur(sayfa, PAROLA)
@@ -424,53 +455,75 @@ const asamaKasa = async () => {
   await bekle(sayfa, 1500)
   de(true, 'kayıt bırakıldı')
 
-  console.log('\n2. Senkron açılıyor')
+  console.log('\n2. Yerel defter ayarlardan HESABA TAŞINIYOR')
+  /* `hesapAc` eylemi üç prompt soruyor: ad, şifre, şifre tekrar. */
   await sayfa.click('#ayarlarBtn')
   await bekle(sayfa, 500)
-  await sayfa.click('[data-eylem="senkronAc"]')
-  await sayfa.waitForSelector('#senkronKimlikKarti.acik', { timeout: 10000 })
+  await sayfa.click('[data-eylem="hesapAc"]')
+  await sayfa.waitForSelector('#senkronKimlikKarti.acik', { timeout: 60000 })
   const kod = (await sayfa.textContent('#skKod')).trim()
   de(kod.length > 20, `Defter Kimliği üretildi (${kod.slice(0, 9)}…)`)
   await sayfa.check('#skOnay')
   await sayfa.click('#skDevam')
-  await bekle(sayfa, 4000)
-  const durumMetni = await sayfa.textContent('#aySenkronDurum')
-  de(!/başarısız|failed/i.test(durumMetni), `senkron durumu: ${durumMetni}`)
+  await bekle(sayfa, 1000)
 
-  console.log('\n3. Kurtarma parolası kuruluyor')
-  await sayfa.click('[data-eylem="kasaKur"]')
-  await bekle(sayfa, 6000)
-  de(
-    /kurulu|is <b>set<\/b>|set\b/i.test(await sayfa.textContent('#aySenkronDurum')),
-    'ayar kağıdı kasayı kurulu gösteriyor',
-  )
+  console.log('\n3. Defter GERÇEKTEN sunucuya çıktı mı')
+  /*
+   * Ölçülen şey ayar kağıdındaki satır sayısı: "Defterin N satırı
+   * sunucuda". N > 0 ancak yükleme GERÇEKTEN bittiyse olur — taşıma
+   * adımı atlanınca bu iddia düşüyor, denendi.
+   *
+   * Beklemenin kendisi bir DOĞRULUK muhafızı değil, bir KARARLILIK
+   * muhafızı: kaldırıldığında 6. adım yine geçiyor, çünkü yükleme
+   * zaten bitmiş oluyor. Ama bu bir yarış; yavaş bir koşuda silme
+   * yüklemeden önce olur ve 6. adım sebepsiz düşerdi. Ölçtüğü şeyi
+   * olduğundan büyük göstermemek için burada yazılı (K-040).
+   */
+  let satir = 0
+  for (let i = 0; i < 40 && satir === 0; i++) {
+    await bekle(sayfa, 1000)
+    const m = /<b>(\d+)<\/b>\s*(satır|rows)/.exec(await sayfa.innerHTML('#aySenkronDurum'))
+    satir = m ? Number(m[1]) : 0
+  }
+  de(satir > 0, `sunucuda ${satir} satır var`)
+  if (!satir) {
+    console.log(`    durum: ${(await sayfa.textContent('#aySenkronDurum')).slice(0, 140)}`)
+    await kapat()
+    dur(hata)
+  }
 
   console.log('\n4. Tarayıcıdaki HER ŞEY siliniyor')
-  await herSeyiSil(sayfa)
+  await herSeyiSil(sayfa, baglam)
   const kalan = await diskiOku(sayfa)
   const yerelKalan = await sayfa.evaluate(() => JSON.stringify(localStorage))
-  de(kalan.length === 0, 'OPFS boş')
+  de(kalan.length === 0, `OPFS boş (kalan: ${kalan.map((d) => d.ad).join(', ') || 'yok'})`)
   de(yerelKalan === '{}', 'localStorage boş')
+  de((await baglam.cookies()).length === 0, 'çerez kalmadı')
 
-  console.log('\n5. Yalnızca parolayla kurtarılıyor')
+  console.log('\n5. Yanlış şifre kurtarmıyor')
   await sayfa.reload()
   await sayfa.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
-  de(!(await sayfa.isVisible('#kagit-kap .kagit')), 'defter gerçekten yok')
-  await sayfa.click('#kilParola')
+  de(!(await sayfa.textContent('body')).includes(ISARET), 'defter gerçekten yok')
+  await sayfa.click('#kilGiris')
+  await bekle(sayfa, 300)
+  await sayfa.fill('#kilAd', ad)
+  await sayfa.fill('#kilPin', PAROLA + '-yanlis')
+  await sayfa.press('#kilPin', 'Enter')
+  await bekle(sayfa, 12000)
+  de(await sayfa.isVisible('#kilitEkrani.acik'), 'yanlış şifre defter AÇMIYOR')
+
+  console.log('\n6. Yalnızca kullanıcı adı ve şifreyle kurtarılıyor')
+  await sayfa.fill('#kilAd', ad)
   await sayfa.fill('#kilPin', PAROLA)
   await sayfa.press('#kilPin', 'Enter')
-
-  /* Kasa açılmazsa kilit ekranı kapanmıyor; çıplak zaman aşımı yerine
-     okunur bir satır düşsün. */
-  const acildi = await defterAcildi(sayfa, 45000)
+  const acildi = await defterAcildi(sayfa, 60000)
     .then(() => true)
     .catch(() => false)
-  de(acildi, 'kasa açıldı ve defter kuruldu')
+  de(acildi, 'defter açıldı')
   if (!acildi) {
-    console.log(`    ekranda: ${(await sayfa.textContent('#kilUyari')).slice(0, 90)}`)
+    console.log(`    ekranda: ${(await sayfa.textContent('#kilUyari')).slice(0, 120)}`)
     await kapat()
-    console.log(`\nDÜŞEN: ${hata}\n`)
-    process.exit(1)
+    dur(hata)
   }
 
   /* Çekme ağ üzerinden ve borçlandırmalı; kayıt görünene kadar bekleniyor. */
@@ -479,7 +532,7 @@ const asamaKasa = async () => {
     await bekle(sayfa, 1000)
     geldi = (await sayfa.textContent('body')).includes(ISARET)
   }
-  de(geldi, 'silinen defter YALNIZCA PAROLAYLA geri geldi')
+  de(geldi, 'SİTE VERİLERİ SİLİNDİ, defter kullanıcı adı ve şifreyle geri geldi')
 
   await kapat()
   console.log(hata ? `\nDÜŞEN: ${hata}\n` : '\nKasa denemesi geçti.\n')
