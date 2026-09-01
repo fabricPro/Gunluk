@@ -2,6 +2,10 @@
 --  SUNUCU ŞEMASI — Neon Postgres (senkron)
 -- ════════════════════════════════════════════════════════════
 --
+--  Bu dosya BAŞTAN SONA, İSTENDİĞİ KADAR ÇOK KEZ çalıştırılabilir:
+--  her ifade `if not exists` / `or replace` / `drop ... if exists` ile
+--  yazıldı. Neon konsolundaki SQL Editor'e olduğu gibi yapıştırılır.
+--
 --  Bu dosyayı uygulamanın göç makinesi ÇALIŞTIRMAZ. `001..008` yerel
 --  SQLite'ın şeması; bu ise sunucudaki tek tablonun kaydı. Burada
 --  durmasının sebebi: sunucu şeması da koddur ve gözden geçirilebilir
@@ -77,6 +81,7 @@ create trigger defter_blob_surum before insert or update on defter_blob
 alter table defter_blob enable row level security;
 alter table defter_blob force  row level security;
 
+drop policy if exists kendi_satirlari on defter_blob;
 create policy kendi_satirlari on defter_blob for all to authenticated
   using       (auth.user_id() = kullanici)
   with check  (auth.user_id() = kullanici);
@@ -150,6 +155,7 @@ create trigger defter_kasa_sahiplik before insert or update on defter_kasa
 alter table defter_kasa enable row level security;
 alter table defter_kasa force  row level security;
 
+drop policy if exists kendi_kasasi on defter_kasa;
 create policy kendi_kasasi on defter_kasa for all to authenticated
   using       (auth.user_id() = kullanici)
   with check  (auth.user_id() = kullanici);
