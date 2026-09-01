@@ -79,6 +79,21 @@ export function kurtarmaUret(): string {
   return bicimle(kodYaz(gizli))
 }
 
+/**
+ * Baytlardan kodu geri yazar — `kurtarmaCoz`un tersi.
+ *
+ * Kasa yalnızca 16 baytlık gizliyi tutuyor; kullanıcıya gösterilecek olan
+ * ise kodun kendisi. Kurtarmadan sonra "Defter Kimliğini göster" hâlâ
+ * çalışsın diye bu yön de gerekiyor (KARARLAR.md · K-038).
+ *
+ * Yanlış uzunlukta bayt gelirse `null`: sessizce geçerli görünen ama
+ * yanlış bir kod üretmektense hiç üretmemek doğru.
+ */
+export function kurtarmaYaz(gizli: Uint8Array): string | null {
+  if (gizli.length !== GIZLI_BAYT) return null
+  return bicimle(kodYaz(gizli))
+}
+
 function kodYaz(gizli: Uint8Array): string {
   /*
    * Sağlama 10 bit ve tam olarak iki base32 karakterine sığıyor. Baytlara
