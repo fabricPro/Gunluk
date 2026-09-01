@@ -251,7 +251,7 @@ metinleriyle olmak zorunda. İngilizce görsellerde defter içeriği de
 - [ ] Gizlilik politikası bir adreste yayında (bkz. `yayin/gizlilik.md`)
 - [ ] Destek adresi ve URL'si girildi
 - [ ] `npm run gorsel` arayüzün son hâliyle koşturuldu
-- [ ] Cihazda SQLCipher doğrulandı (tarayıcı derlemesi şifresiz — K-013)
+- [ ] Cihazda SQLCipher doğrulandı (tarayıcı sürümü de artık şifreli — K-037)
 - [ ] Cihazda biyometri doğrulandı (K-021)
 - [ ] Cihazda gömü modeli indirmesi doğrulandı (K-029)
 - [ ] Kriz kartının cihazda göründüğü ve kaydırıldığı doğrulandı (K-030)
