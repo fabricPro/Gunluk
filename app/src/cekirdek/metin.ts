@@ -123,6 +123,7 @@ const TR: Metinler = {
   'kilit.parola': 'parola kullan',
   'kilit.pin': 'PIN kullan',
   'kilit.kurAlt': 'parola belirle',
+  'kilit.kurtarAlt': 'parolanla kurtar',
 
   /* ayarlar */
   'ay.baslik': 'Ayarlar',
@@ -283,6 +284,15 @@ const TR: Metinler = {
   'kil.kurTekrar': 'Bir daha yaz.',
   'kil.kurUymadi': 'İkisi aynı değil. Baştan.',
   'kil.kurBekle': 'Anahtar hazırlanıyor…',
+  'kil.kurtarBtn': 'defterim vardı, parolamla kurtar',
+  'kil.kurtarVazgec': 'yeni defter aç',
+  'kil.kurtarSor':
+    'Kurtarma parolanı yaz. Defter Kimliğin sunucudaki kasadan gelecek ve ' +
+    'defterin inecek.',
+  'kil.kurtarBekle': 'Kasa açılıyor…',
+  'kil.kurtarOlmadi':
+    'Bu parolayla açılacak bir kasa bulunamadı. Parolayı yanlış yazmış ' +
+    'olabilirsin; ya da bu defterde kasa hiç açılmamıştır.',
   'kil.acilmadi':
     'Parola doğru ama defter açılamadı — bu tarayıcıdaki mühürlü dosya bozuk ' +
     'olabilir. Varsa mühürlü yedeğinden geri yükle; senkron açıksa başka bir ' +
@@ -433,6 +443,26 @@ const TR: Metinler = {
   'ay.senkronBagla': 'başka cihazdaki deftere bağlan',
   'ay.senkronSimdi': 'şimdi eşitle',
   'ay.senkronKimlikGoster': 'Defter Kimliğini göster',
+  'ay.kasaAcik':
+    '<br>Kurtarma parolası <b>kurulu</b>. Bu tarayıcıdaki her şey silinse bile ' +
+    'parolanla geri gelirsin.',
+  'ay.kasaKapali':
+    '<br><b>Kurtarma parolası yok.</b> Site verilerini temizlersen Defter Kimliğin ' +
+    'de silinir ve sunucudaki şifreli kopya bir daha açılamaz.',
+  'ay.kasaKur': 'kurtarma parolası belirle',
+  'ay.kasaDegistir': 'kurtarma parolasını değiştir',
+  'ay.kasaSil': 'kurtarma parolasını kaldır',
+  'ay.kasaSor':
+    'Kurtarma parolası (en az {n} karakter). Tarayıcıda kilit parolanla aynısını ' +
+    'yaz ki hatırlayacağın tek şey olsun:',
+  'ay.kasaEskiSor': 'Şu anki kurtarma parolan:',
+  'ay.kasaKisa': 'En az {n} karakter olmalı.',
+  'ay.kasaYaziliyor': 'Kasa hazırlanıyor…',
+  'ay.kasaOldu': 'Kurtarma parolası kuruldu.',
+  'ay.kasaOlmadi': 'Kasa yazılamadı. Parolayı ve bağlantını kontrol et.',
+  'ay.kasaSilOnay':
+    'Kurtarma parolası kaldırılsın mı?\n\nBundan sonra Defter Kimliğini ' +
+    'kaybedersen sunucudaki kopya bir daha açılamaz.',
   'ay.senkronKapat': 'senkronu kapat',
   'ay.senkronKodSor': 'Diğer cihazdaki Defter Kimliği:',
   'ay.senkronKodGecersiz': 'Bu bir Defter Kimliğine benzemiyor. Kodu olduğu gibi yapıştır.',
@@ -581,6 +611,7 @@ const EN: Metinler = {
   'kilit.parola': 'use a passphrase',
   'kilit.pin': 'use a PIN',
   'kilit.kurAlt': 'set a passphrase',
+  'kilit.kurtarAlt': 'recover with your passphrase',
 
   'ay.baslik': 'Settings',
   'ay.kilit': 'Lock',
@@ -726,6 +757,15 @@ const EN: Metinler = {
   'kil.kurTekrar': 'Type it once more.',
   'kil.kurUymadi': "Those two don't match. Start over.",
   'kil.kurBekle': 'Preparing the key…',
+  'kil.kurtarBtn': 'I had a notebook — recover with my passphrase',
+  'kil.kurtarVazgec': 'start a new notebook',
+  'kil.kurtarSor':
+    'Type your recovery passphrase. Your Notebook Key will come from the vault ' +
+    'on the server and your notebook will come down.',
+  'kil.kurtarBekle': 'Opening the vault…',
+  'kil.kurtarOlmadi':
+    'No vault could be opened with that passphrase. You may have typed it ' +
+    'wrong, or no vault was ever set up for this notebook.',
   'kil.acilmadi':
     'The passphrase is right but the notebook would not open — the sealed file ' +
     'in this browser may be damaged. Restore from a sealed backup if you have ' +
@@ -872,6 +912,26 @@ const EN: Metinler = {
   'ay.senkronBagla': 'connect to a notebook on another device',
   'ay.senkronSimdi': 'sync now',
   'ay.senkronKimlikGoster': 'show the Notebook Key',
+  'ay.kasaAcik':
+    '<br>A recovery passphrase is <b>set</b>. Even if everything in this browser ' +
+    'is wiped, your passphrase brings it back.',
+  'ay.kasaKapali':
+    '<br><b>No recovery passphrase.</b> If you clear site data your Notebook Key ' +
+    'goes with it, and the encrypted copy on the server can never be opened again.',
+  'ay.kasaKur': 'set a recovery passphrase',
+  'ay.kasaDegistir': 'change the recovery passphrase',
+  'ay.kasaSil': 'remove the recovery passphrase',
+  'ay.kasaSor':
+    'Recovery passphrase (at least {n} characters). In a browser, use the same one ' +
+    'as your lock passphrase so there is only one thing to remember:',
+  'ay.kasaEskiSor': 'Your current recovery passphrase:',
+  'ay.kasaKisa': 'It must be at least {n} characters.',
+  'ay.kasaYaziliyor': 'Preparing the vault…',
+  'ay.kasaOldu': 'Recovery passphrase set.',
+  'ay.kasaOlmadi': 'The vault could not be written. Check the passphrase and your connection.',
+  'ay.kasaSilOnay':
+    'Remove the recovery passphrase?\n\nAfter this, losing your Notebook Key means ' +
+    'the copy on the server can never be opened again.',
   'ay.senkronKapat': 'turn off sync',
   'ay.senkronKodSor': 'The Notebook Key from your other device:',
   'ay.senkronKodGecersiz': "That doesn't look like a Notebook Key. Paste the code exactly.",

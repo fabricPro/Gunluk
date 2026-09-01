@@ -5,6 +5,10 @@ import { GomuAkis } from './gomuAkis.js'
 import { ModelAkis } from './modelAkis.js'
 import type { SenkronAkis as SenkronAkisTip } from './senkronAkis.js'
 import type { Sunucu as SunucuTip } from './veri/senkronDepo.js'
+import type { KasaYapici as KasaYapiciTip } from './kasaAkis.js'
+
+/** Kasanın kurulu olduğunu söyleyen yerel işaret. */
+const KASA_AYARI = 'kasa.acik'
 import { belgeOneki, sorguOneki } from './cekirdek/gomuModel.js'
 import { Kilit } from './kilitAkis.js'
 import { arsiviBagla } from './ekran/arsiv.js'
@@ -60,6 +64,41 @@ async function baslat(): Promise<void> {
   /* Kilitlenmede çağrılıyor; uygulama kurulunca gerçek durdurucuya bağlanır. */
   let indekslemeyiDurdur: () => void = () => {}
 
+  /**
+   * Kasa sunucusunu kuran şey.
+   *
+   * Kurtarma defter AÇILMADAN önce koşuyor: elde ne veritabanı var ne
+   * anahtar. Bu yüzden burada, `uygulamayiKur`un dışında
+   * (KARARLAR.md · K-038).
+   */
+  const kasaYapici = async (): Promise<KasaYapiciTip> => {
+    const [{ Kasa, sunucuAyari }] = await Promise.all([import('./veri/senkronDepo.js')])
+    const ayar = sunucuAyari()
+    return (kimlik) => new Kasa(ayar, kimlik)
+  }
+
+  /**
+   * Yalnızca parolayla kurtarır: kasadan Defter Kimliği'ni alır, kilidi
+   * o parolayla kurar, kodu güvenli depoya yazar ve defteri açar.
+   *
+   * Sıra bağlayıcı: kod güvenli depoya ancak ana anahtar bellekteyken
+   * yazılabiliyor (tarayıcıda sarmalanıyor), yani kilit kurulduktan
+   * SONRA. `uygulamayiKur` da kodu oradan okuyup senkronu kuruyor ve
+   * defterin tamamı iniyor.
+   */
+  const kasadanAc = async (parola: string): Promise<boolean> => {
+    const { kasadanKurtar } = await import('./kasaAkis.js')
+    const kod = await kasadanKurtar(parola, await kasaYapici())
+    if (!kod) return false
+
+    const av = await kilit.kur(parola)
+    anahtariDayat(av)
+    await (await anahtarDeposu(nativeMi, SENKRON_KODU)).yaz(kod)
+    kilitEkrani.gizle()
+    await uygulamayiKur()
+    return true
+  }
+
   const kilitEkrani = kilitEkraniBagla(kilit, async (anaAnahtar) => {
     anahtariDayat(anaAnahtar)
     kilitEkrani.gizle()
@@ -77,7 +116,7 @@ async function baslat(): Promise<void> {
       await kilitEkrani.goster('ac')
       kilitEkrani.uyar(S('kil.acilmadi'))
     }
-  })
+  }, kasadanAc)
 
   /*
    * Arka plana geçince kilitlen. Dinleyici erken dönüşten ÖNCE bağlanıyor:
@@ -237,6 +276,12 @@ async function baslat(): Promise<void> {
     } catch {
       senkronKod = null
     }
+    /*
+     * "Bu defterin kasası var mı" yalnızca yerel bir işaret: doğru cevap
+     * sunucuda ve her açılışta ağ isteği atmaya değmiyor. Yanlış olursa
+     * en kötü ihtimalle düğmenin yazısı yanlış olur.
+     */
+    let kasaVar = (await depo.ayarOku(KASA_AYARI)) === '1'
     let senkronAkis: SenkronAkisTip | null = null
     let senkronKullanim: { satir: number; bayt: number } | null = null
     let senkronDinleyici: () => void = () => {}
@@ -329,6 +374,31 @@ async function baslat(): Promise<void> {
             calisiyor: false, bekleyen: 0, asama: '', hata: null, sonSenkron: null,
           },
         kullanim: () => senkronKullanim,
+        kasaVar: () => kasaVar,
+        /*
+         * Kasa yalnızca senkron açıkken anlamlı: kurtarma kodu getiriyor
+         * ama getirilen kodla inecek bir defter yoksa boşa çalışır.
+         */
+        kasaYaz: async (parola, eskiParola) => {
+          if (!senkronKod) return false
+          const { kasaTasi, kasayaYaz } = await import('./kasaAkis.js')
+          const yap = await kasaYapici()
+          const oldu = eskiParola
+            ? await kasaTasi(eskiParola, parola, senkronKod, yap)
+            : await kasayaYaz(parola, senkronKod, yap)
+          if (oldu) {
+            kasaVar = true
+            await depo.ayarYaz(KASA_AYARI, '1')
+          }
+          return oldu
+        },
+        kasaSil: async (parola) => {
+          const { kasaKimligiTuret } = await import('./cekirdek/kasaKimlik.js')
+          const kimlik = await kasaKimligiTuret(parola)
+          if (kimlik) await (await kasaYapici())(kimlik).sil().catch(() => {})
+          kasaVar = false
+          await depo.ayarYaz(KASA_AYARI, '0')
+        },
         ac: async (kod) => {
           await kodDepo.yaz(kod)
           senkronKod = kod
@@ -341,6 +411,8 @@ async function baslat(): Promise<void> {
              gerek yok" sözünün karşılığı. */
           await senkronSunucu?.hepsiniSil().catch(() => {})
           await kodDepo.sil().catch(() => {})
+          kasaVar = false
+          await depo.ayarYaz(KASA_AYARI, '0')
           await depo.ayarYaz('senkron.sonGorulen', '0')
           await depo.senkronHepsiniIsaretle()
           senkronAkis = null

@@ -1,3 +1,4 @@
+import { EN_AZ_PAROLA } from '../cekirdek/kasaKimlik.js'
 import type { Kilit } from '../kilitAkis.js'
 import { $, $$, S } from './ortak.js'
 
@@ -15,13 +16,23 @@ import { $, $$, S } from './ortak.js'
  * Kurulumda parola İKİ KEZ soruluyor. Yanlış yazılan bir parola, defteri
  * bir daha açılmamak üzere kapatır; tek yazımla geçmek kabul edilemez.
  */
-const EN_AZ = 8
+/*
+ * Alt sınır kasadan geliyor. Kilit parolası tarayıcıda kurtarma
+ * parolasıyla AYNI şey: yalnızca yerel diski değil, sunucudaki kasayı da
+ * o açıyor. 8 yeterli değil (KARARLAR.md · K-038).
+ */
+const EN_AZ = EN_AZ_PAROLA
 
 export type KilitKipi = 'ac' | 'kur'
 
 export function kilitEkraniBagla(
   kilit: Kilit,
   cozuldu: (anaAnahtar: string) => Promise<void>,
+  /**
+   * Yalnızca parolayla kurtarma. Verilmezse o yol hiç görünmüyor —
+   * cihazda kasa ayrı bir kavram ve kurulum ekranı zaten çıkmıyor.
+   */
+  kasadanAc?: (parola: string) => Promise<boolean>,
 ): {
   goster: (kip?: KilitKipi) => Promise<void>
   gizle: () => void
@@ -30,6 +41,8 @@ export function kilitEkraniBagla(
   let parolaKipi = false
   let girilen = ''
   let kip: KilitKipi = 'ac'
+  /** Kurulum ekranında "parolamla kurtar" seçildi mi. */
+  let kurtarmaKipi = false
   /** Kurulumda ilk yazılan parola; ikincisiyle karşılaştırılıyor. */
   let ilkParola: string | null = null
 
@@ -56,6 +69,19 @@ export function kilitEkraniBagla(
         ? S('kil.beklemeDk', { n: Math.ceil(sn / 60) })
         : S('kil.beklemeSn', { n: sn }),
     )
+  }
+
+  /**
+   * Kurtarma: kasadan Defter Kimliği'ni alır ve defteri indirir.
+   *
+   * Parola İKİ KEZ sorulmuyor — burada yeni bir parola belirlenmiyor,
+   * var olan biri sınanıyor. Yanlışsa kasa açılmıyor ve öyle deniyor.
+   */
+  const kurtar = async (yazilan: string): Promise<void> => {
+    alan().value = ''
+    uyari(S('kil.kurtarBekle'))
+    const oldu = await kasadanAc!(yazilan).catch(() => false)
+    if (!oldu) uyari(S('kil.kurtarOlmadi'))
   }
 
   /** Kurulum: parolayı iki kez alır, sonra kilidi kurar. */
@@ -105,14 +131,31 @@ export function kilitEkraniBagla(
 
   alan().addEventListener('keydown', (e) => {
     if ((e as KeyboardEvent).key !== 'Enter' || !alan().value) return
-    void (kip === 'kur' ? kur(alan().value) : dene(alan().value))
+    const yazilan = alan().value
+    if (kip !== 'kur') return void dene(yazilan)
+    void (kurtarmaKipi ? kurtar(yazilan) : kur(yazilan))
   })
 
   /* PIN kipinde alan görünmez; noktalara dokunmak klavyeyi geri getirsin. */
   $('#kilNoktalar').onclick = () => alan().focus()
   $('.kil-kapak').onclick = () => alan().focus()
 
+  /*
+   * Tek düğme, iki iş — yeni bir öge sokmamak için (K-013'ün tasarım
+   * refleksi). Açma ekranında PIN/parola arasında geçiyor; kurulum
+   * ekranında "parolamla kurtar" oluyor.
+   */
   $('#kilParola').onclick = () => {
+    if (kip === 'kur') {
+      kurtarmaKipi = !kurtarmaKipi
+      ilkParola = null
+      alan().value = ''
+      $('#kilAlt').textContent = S(kurtarmaKipi ? 'kilit.kurtarAlt' : 'kilit.kurAlt')
+      $('#kilParola').textContent = S(kurtarmaKipi ? 'kil.kurtarVazgec' : 'kil.kurtarBtn')
+      uyari(kurtarmaKipi ? S('kil.kurtarSor') : S('kil.kurSor', { n: EN_AZ }))
+      alan().focus()
+      return
+    }
     parolaKipi = !parolaKipi
     $('#kilitEkrani').classList.toggle('parola', parolaKipi)
     alan().value = ''
@@ -160,9 +203,15 @@ export function kilitEkraniBagla(
     uyari(kip === 'kur' ? S('kil.kurSor', { n: EN_AZ }) : '')
     noktalariCiz()
 
+    kurtarmaKipi = false
     $('#kilBiyo').style.display =
       kip === 'ac' && kilit.biyometriAcik ? '' : 'none'
-    $('#kilParola').style.display = kip === 'kur' ? 'none' : ''
+    /*
+     * Kurulumda bu düğme "parolamla kurtar"; kasa yolu yoksa (cihaz)
+     * hiç görünmüyor.
+     */
+    $('#kilParola').style.display = kip === 'ac' || kasadanAc ? '' : 'none'
+    $('#kilParola').textContent = S(kip === 'kur' ? 'kil.kurtarBtn' : 'kilit.parola')
     $('#kilitEkrani').classList.add('acik')
     /* Diğer katmanlar kapalı kalsın: kilitliyken hiçbiri anlamlı değil. */
     for (const k of ['#toren', '#kitaplik', '#yeniDefter', '#fihrist', '#yak', '#ayarlar'])
