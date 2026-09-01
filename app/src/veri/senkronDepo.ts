@@ -94,31 +94,50 @@ function bitisZamani(jwt: string): number {
   }
 }
 
-export class SenkronDepo implements Sunucu {
+/**
+ * Ortak oturum makinesi.
+ *
+ * İki hesap türü var ve ikisi de aynı Better Auth akışını kullanıyor:
+ * senkron hesabı (Defter Kimliği'nden türer) ve kasa hesabı (paroladan
+ * türer). Kimlik türetmeleri ayrı, ağ akışı aynı — bu yüzden burada
+ * (KARARLAR.md · K-038).
+ *
+ * Kimlikten yalnızca `eposta` ve `parola` okunuyor. Şifreleme anahtarına
+ * bu katman hiç dokunmuyor ve `test/senkronGizlilik.test.ts` bunu
+ * sabitliyor: gövdeler buraya HAZIR ŞİFRELİ geliyor.
+ */
+abstract class Oturum {
   private jeton: Jeton | null = null
 
   constructor(
-    private readonly ayar: SunucuAyar,
-    private readonly kimlik: SenkronKimlik,
+    protected readonly ayar: SunucuAyar,
+    protected readonly kimlik: { eposta: string; parola: string },
   ) {}
 
   /* ── kimlik ──────────────────────────────────────────────── */
 
   /**
-   * Oturum açar; hesap yoksa açıp tekrar dener.
+   * Oturum açar.
    *
-   * Kullanıcıya "kayıt ol" diye bir şey sorulmuyor: Defter Kimliği
-   * girildiği an hesap ya vardır ya yaratılır. Sentetik e-posta
-   * (`<opak>@defter.invalid`) hiçbir yere ulaşmıyor ve doğrulama
-   * istenmiyor — Neon tarafında `require_email_verification` kapalı.
+   * `yarat` true ise hesap yoksa açılıp tekrar deneniyor: Defter Kimliği
+   * girildiği an hesap ya vardır ya yaratılır, kullanıcıya "kayıt ol"
+   * diye bir şey sorulmuyor. Sentetik e-posta (`<opak>@defter.invalid`)
+   * hiçbir yere ulaşmıyor ve doğrulama istenmiyor — Neon tarafında
+   * `require_email_verification` kapalı.
+   *
+   * `yarat` FALSE ise hesap yokken yaratılmıyor, `false` dönüyor. Kasayı
+   * okurken bu şart: yanlış parola girildiğinde sessizce boş bir kasa
+   * hesabı açmak, kullanıcıya "kurtarma başarılı" deyip boş defter
+   * vermek olurdu.
    */
-  private async oturumAc(): Promise<void> {
+  protected async oturumAc(yarat: boolean): Promise<boolean> {
     const govde = JSON.stringify({
       email: this.kimlik.eposta,
       password: this.kimlik.parola,
     })
     let y = await this.authIstek('/sign-in/email', govde)
     if (y.status === 401 || y.status === 403 || y.status === 404) {
+      if (!yarat) return false
       const kayit = await this.authIstek(
         '/sign-up/email',
         JSON.stringify({
@@ -131,6 +150,7 @@ export class SenkronDepo implements Sunucu {
       y = await this.authIstek('/sign-in/email', govde)
     }
     if (!y.ok) throw new SenkronHatasi(await this.hataMetni(y))
+    return true
   }
 
   private authIstek(yol: string, govde: string): Promise<Response> {
@@ -145,15 +165,20 @@ export class SenkronDepo implements Sunucu {
     )
   }
 
-  /** Geçerli JWT; yoksa ya da bitmek üzereyse yenisini alır. */
-  private async jwt(): Promise<string> {
+  /**
+   * Geçerli JWT; yoksa ya da bitmek üzereyse yenisini alır.
+   *
+   * `yarat` false iken hesap yoksa `null` dönüyor — hata değil, "böyle
+   * bir hesap yok" demek.
+   */
+  protected async jwt(yarat: boolean): Promise<string | null> {
     if (this.jeton && this.jeton.biter - PAY_MS > Date.now()) return this.jeton.jwt
 
     const jeton = () =>
       this.iste(() => fetch(this.ayar.auth + '/token', { credentials: 'include' }))
     let y = await jeton()
     if (!y.ok) {
-      await this.oturumAc()
+      if (!(await this.oturumAc(yarat))) return null
       y = await jeton()
       if (!y.ok) throw new SenkronHatasi(await this.hataMetni(y))
     }
@@ -173,7 +198,7 @@ export class SenkronDepo implements Sunucu {
    * arayüze düşmüyor: uygulama Türkçe-öncelikli ve hata da çevrilmek
    * zorunda (KARARLAR.md · K-035).
    */
-  private async hataMetni(y: Response): Promise<string> {
+  protected async hataMetni(y: Response): Promise<string> {
     if (y.status === 401 || y.status === 403) return S('ag.senkronKimlik')
     if (y.status >= 500) return S('ag.senkronSunucu')
     const ham = await y.text().catch(() => '')
@@ -185,7 +210,7 @@ export class SenkronDepo implements Sunucu {
    * `fetch` ağ seviyesinde patlarsa (DNS, çevrimdışı, CORS) tarayıcı
    * "Failed to fetch" atıyor — kullanıcıya İngilizce sızmasın.
    */
-  private async iste(f: () => Promise<Response>): Promise<Response> {
+  protected async iste(f: () => Promise<Response>): Promise<Response> {
     try {
       return await f()
     } catch (e) {
@@ -196,8 +221,13 @@ export class SenkronDepo implements Sunucu {
 
   /* ── veri ────────────────────────────────────────────────── */
 
-  private async apiIstek(yol: string, secenek: RequestInit = {}): Promise<Response> {
-    const jwt = await this.jwt()
+  protected async apiIstek(
+    yol: string,
+    secenek: RequestInit = {},
+    yarat = true,
+  ): Promise<Response | null> {
+    const jwt = await this.jwt(yarat)
+    if (!jwt) return null
     return this.iste(() =>
       fetch(this.ayar.api + yol, {
         ...secenek,
@@ -209,6 +239,23 @@ export class SenkronDepo implements Sunucu {
       }),
     )
   }
+}
+
+/**
+ * Senkronun ağ katmanı.
+ *
+ * Hesabı yoksa açıyor: Defter Kimliği girildiği an hesap ya vardır ya
+ * yaratılır.
+ */
+export class SenkronDepo extends Oturum implements Sunucu {
+  constructor(ayar: SunucuAyar, kimlik: SenkronKimlik) {
+    super(ayar, kimlik)
+  }
+
+  /** Senkron her zaman hesabı yaratabilir; `null` dönmüyor. */
+  private async istek(yol: string, secenek: RequestInit = {}): Promise<Response> {
+    return (await this.istek(yol, secenek))!
+  }
 
   /**
    * Su seviyesinden yeni satırları çeker.
@@ -217,7 +264,7 @@ export class SenkronDepo implements Sunucu {
    * hiçbir satırı atlamıyor ve iki kez getirmiyor.
    */
   async cek(sonGorulen: number, sinir = 200): Promise<{ zarf: Zarf; surum: number }[]> {
-    const y = await this.apiIstek(
+    const y = await this.istek(
       `/defter_blob?surum=gt.${sonGorulen}&order=surum.asc&limit=${sinir}` +
         `&select=satir,surum,iv,govde`,
     )
@@ -242,7 +289,7 @@ export class SenkronDepo implements Sunucu {
    */
   async it(zarflar: Zarf[]): Promise<void> {
     if (!zarflar.length) return
-    const y = await this.apiIstek('/defter_blob?on_conflict=kullanici,satir', {
+    const y = await this.istek('/defter_blob?on_conflict=kullanici,satir', {
       method: 'POST',
       headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
       body: JSON.stringify(zarflar),
@@ -252,7 +299,7 @@ export class SenkronDepo implements Sunucu {
 
   /** Kaç satır ve kaç bayt tutuluyor — ayar kağıdı bunu gösteriyor. */
   async kullanim(): Promise<{ satir: number; bayt: number }> {
-    const y = await this.apiIstek('/defter_blob?select=govde', {
+    const y = await this.istek('/defter_blob?select=govde', {
       headers: { Prefer: 'count=exact' },
     })
     if (!y.ok) throw new SenkronHatasi(await this.hataMetni(y))
@@ -270,10 +317,73 @@ export class SenkronDepo implements Sunucu {
    * sözünün karşılığı: silme uygulamanın içinde, tek dokunuşta.
    */
   async hepsiniSil(): Promise<void> {
-    const y = await this.apiIstek('/defter_blob?satir=neq.', {
+    const y = await this.istek('/defter_blob?satir=neq.', {
       method: 'DELETE',
       headers: { Prefer: 'return=minimal' },
     })
     if (!y.ok) throw new SenkronHatasi(await this.hataMetni(y))
+  }
+}
+
+/** Kasada duran satır — gövde ZATEN şifreli. */
+export interface KasaSatir {
+  iv: string
+  govde: string
+}
+
+/**
+ * KASA — Defter Kimliği'nin paroladan açılan kopyası.
+ *
+ * Kimliği senkronunkinden ayrı ve yalnızca paroladan türüyor
+ * (`cekirdek/kasaKimlik.ts`). Sebebi basit: kurtarma anında elde kod
+ * YOK, onu almaya geliniyor (KARARLAR.md · K-038).
+ *
+ * **Şifreleme burada bitmiyor, burada başlamıyor.** Bu sınıf `iv` ve
+ * `govde` dizelerini taşıyor; ikisini de çağıran taraf üretiyor ve
+ * çözüyor. Senkronun zarfıyla aynı disiplin: ağ katmanı anahtarı hiç
+ * görmüyor.
+ */
+export class Kasa extends Oturum {
+  /**
+   * Kasayı okur.
+   *
+   * `null` üç durumda dönüyor ve üçü de aynı anlama geliyor — "bu
+   * parolayla açılacak bir kasa yok": hesap yok, satır yok, ya da satır
+   * boş. Hesap YARATILMIYOR; yaratılsaydı yanlış parola giren
+   * kullanıcıya sessizce boş bir kasa açılır ve "kurtarma başarılı"
+   * denip boş bir defter verilirdi.
+   */
+  async oku(): Promise<KasaSatir | null> {
+    const y = await this.apiIstek('/defter_kasa?select=iv,govde&limit=1', {}, false)
+    if (!y) return null
+    if (!y.ok) throw new SenkronHatasi(await this.hataMetni(y))
+    const satirlar = (await y.json()) as KasaSatir[]
+    const satir = satirlar[0]
+    return satir?.iv && satir.govde ? satir : null
+  }
+
+  /** Kasayı yazar; hesap yoksa açılıyor. Tek satır, upsert. */
+  async yaz(satir: KasaSatir): Promise<void> {
+    const y = (await this.apiIstek('/defter_kasa?on_conflict=kullanici', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify([satir]),
+    }))!
+    if (!y.ok) throw new SenkronHatasi(await this.hataMetni(y))
+  }
+
+  /**
+   * Kasayı siler.
+   *
+   * Hesap yoksa sessizce geçiyor: silinecek bir şey yoktu. Parola
+   * değişiminde ESKİ kasayı temizlemek için de bu kullanılıyor.
+   */
+  async sil(): Promise<void> {
+    const y = await this.apiIstek(
+      '/defter_kasa?kullanici=neq.',
+      { method: 'DELETE', headers: { Prefer: 'return=minimal' } },
+      false,
+    )
+    if (y && !y.ok) throw new SenkronHatasi(await this.hataMetni(y))
   }
 }
