@@ -22,6 +22,21 @@ export const MODEL_ANAHTARI = 'defter.model.anahtar'
  */
 export const SENKRON_KODU = 'defter.senkron.kod'
 
+/**
+ * Hesabın TÜRETİLMİŞ kimlik bilgisi — `<opak eposta>\n<türetilmiş parola>`.
+ *
+ * Neden saklanıyor: yeniden yüklemeden sonra elde şifre yok, yalnızca
+ * Defter Kimliği var. Senkron da defter satırlarının durduğu HESAPLA
+ * oturum açmak zorunda; açamazsa kendi hesabını yaratır ve kullanıcı
+ * defterini boş görür (KARARLAR.md · K-043).
+ *
+ * Kodun yanında, aynı korumalı depoda duruyor: ikisi de aynı sınıftan
+ * sır ve zaten aynı yerdeler, yeni bir açık yüzey açılmıyor. Kullanıcının
+ * yazdığı şifre BURADA DA durmuyor — duran şey ondan türetilmiş,
+ * yalnızca bu hesaba yarayan bir dize.
+ */
+export const HESAP_KIMLIGI = 'defter.hesap.kimlik'
+
 import { aesAnahtar, b64Oku, b64Yaz, onaltilikOku } from '../cekirdek/gizle.js'
 import { muhruAc, muhurMu, muhurle } from '../cekirdek/muhur.js'
 import { dayatilanAnahtar } from './kripto.js'

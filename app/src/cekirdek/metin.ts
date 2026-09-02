@@ -316,9 +316,9 @@ const TR: Metinler = {
     'Hesabına girildi ama sunucuda kasan görünmüyor. Defterin duruyor ' +
     'olabilir; hiçbir şeyin üstüne yazılmadı. Bunu bana bildir.',
   'kil.kasaAcilmadi':
-    'Hesap bulundu ve şifre kabul edildi, ama kasa bu şifreyle açılamadı. ' +
-    'Kasanın ÜSTÜNE YAZILMADI — defterin olduğu gibi duruyor. Elinde ' +
-    'Defter Kimliği varsa onunla gir.',
+    'Kasa bulundu ama bu şifreyle açılamadı. Kasanın ÜSTÜNE YAZILMADI — ' +
+    'defterin olduğu gibi duruyor. Şifreni bir daha dene; elinde Defter ' +
+    'Kimliği varsa onunla da girebilirsin.',
   'kil.hesapSor':
     'Kullanıcı adı seç ve bir şifre yaz (en az {n} karakter). ' +
     'Şifreni unutursan defterin açılmaz; sıfırlama yok, bizde kopyası yok.',
@@ -793,9 +793,9 @@ const EN: Metinler = {
     'You were signed in, but no vault came back from the server. Your ' +
     'notebook may still be there; nothing was overwritten. Tell me about this.',
   'kil.kasaAcilmadi':
-    'The account was found and the password accepted, but the vault would ' +
-    'not open with it. The vault was NOT overwritten — your notebook is ' +
-    'untouched. If you have your Notebook Key, sign in with that.',
+    'The vault was found but would not open with this password. It was NOT ' +
+    'overwritten — your notebook is untouched. Try the password again; if ' +
+    'you have your Notebook Key you can sign in with that instead.',
   'kil.hesapSor':
     'Pick a username and a password (at least {n} characters). If you forget ' +
     'the password your notebook cannot be opened; there is no reset and we ' +

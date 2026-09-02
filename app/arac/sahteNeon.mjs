@@ -98,6 +98,15 @@ const sunucu = createServer(async (istek, cikti) => {
     return
   }
 
+  /*
+   * Yalnızca denemeler için: kaç hesap açıldığını söyler.
+   *
+   * Senkronun KENDİ hesabını açıp açmadığı ancak buradan görülüyor;
+   * uygulamanın içinden bakılamıyor (KARARLAR.md · K-043).
+   */
+  if (yol === '/sayim')
+    return json(cikti, 200, { hesap: hesaplar.size, kasa: kasalar.size })
+
   /* ── kimlik ────────────────────────────────────────────── */
 
   if (yol === '/auth/sign-up/email') {

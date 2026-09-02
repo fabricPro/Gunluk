@@ -23,7 +23,12 @@ import { yakmayiBagla } from './ekran/yak.js'
 import { defteriAc } from './veri/db.js'
 import { Depo } from './veri/depo.js'
 import { anahtariDayat, veritabaniAnahtari } from './veri/kripto.js'
-import { MODEL_ANAHTARI, SENKRON_KODU, anahtarDeposu } from './veri/anahtarDepo.js'
+import {
+  HESAP_KIMLIGI,
+  MODEL_ANAHTARI,
+  SENKRON_KODU,
+  anahtarDeposu,
+} from './veri/anahtarDepo.js'
 import { cihazDepo, tarayiciDepo } from './veri/kilitDepo.js'
 import { surucuSec } from './veri/surucu.js'
 import type { SqlSurucu } from './veri/db.js'
@@ -82,10 +87,40 @@ async function baslat(): Promise<void> {
    * SONRA. `uygulamayiKur` da kodu oradan okuyup senkronu kuruyor ve
    * su seviyesi sıfırdan başladığı için defterin tamamı iniyor.
    */
-  const defteriKodla = async (kod: string, sifre: string): Promise<void> => {
+  /**
+   * Hesabın türetilmiş kimlik bilgisini saklar.
+   *
+   * Senkron, defter satırlarının durduğu hesapla oturum açmak zorunda;
+   * yeniden yüklemede elde şifre olmadığı için türetilmiş hâli
+   * saklanıyor (KARARLAR.md · K-043).
+   */
+  const hesapKimligiYaz = async (ad: string, sifre: string): Promise<void> => {
+    const { hesapKimligiTuret } = await import('./cekirdek/hesapKimlik.js')
+    const k = await hesapKimligiTuret(ad, sifre)
+    if (!k) return
+    await (await anahtarDeposu(nativeMi, HESAP_KIMLIGI)).yaz(`${k.eposta}\n${k.parola}`)
+  }
+
+  /** Saklanan kimlik bilgisi; yoksa `null`. */
+  const hesapKimligiOku = async (): Promise<{ eposta: string; parola: string } | null> => {
+    const ham = await (await anahtarDeposu(nativeMi, HESAP_KIMLIGI)).oku().catch(() => null)
+    const [eposta, parola] = (ham ?? '').split('\n')
+    return eposta && parola ? { eposta, parola } : null
+  }
+
+  const defteriKodla = async (kod: string, sifre: string, ad?: string): Promise<void> => {
     const av = await kilit.kur(sifre)
     anahtariDayat(av)
     await (await anahtarDeposu(nativeMi, SENKRON_KODU)).yaz(kod)
+    /*
+     * Hesap kimliği de BURADA yazılıyor, daha önce değil.
+     *
+     * Tarayıcıda güvenli depo sırları ana anahtarla sarmalıyor; ana
+     * anahtar da ancak `kilit.kur` sonrası bellekte oluyor. Önce
+     * yazmayı denemek sessizce atıyor ve hesap açma "bağlantını
+     * kontrol et" diye düşüyordu.
+     */
+    if (ad) await hesapKimligiYaz(ad, sifre)
     /*
      * Ekran açılış BAŞARILI olunca gizleniyor, önce değil.
      *
@@ -125,14 +160,14 @@ async function baslat(): Promise<void> {
       const { girisYap } = await import('./hesapAkis.js')
       const s = await girisYap(ad, sifre, await kasaYapici())
       if (s.durum !== 'tamam') return s.durum
-      await defteriKodla(s.kod, sifre)
+      await defteriKodla(s.kod, sifre, ad)
       return 'tamam'
     },
     ac: async (ad: string, sifre: string): Promise<HesapDurum> => {
       const { hesapAc } = await import('./hesapAkis.js')
       const s = await hesapAc(ad, sifre, await kasaYapici())
       if (s.durum !== 'tamam') return s.durum
-      await defteriKodla(s.kod, sifre)
+      await defteriKodla(s.kod, sifre, ad)
       /* Kod bir kez gösteriliyor: şifre unutulursa tek yol bu. */
       yeniHesapKodu = s.kod
       return 'tamam'
@@ -150,7 +185,7 @@ async function baslat(): Promise<void> {
      */
     temizle: async (): Promise<void> => {
       const { yuvalariSil } = await import('./veri/muhurYuva.js')
-      for (const ad of [SENKRON_KODU, MODEL_ANAHTARI])
+      for (const ad of [SENKRON_KODU, MODEL_ANAHTARI, HESAP_KIMLIGI])
         await (await anahtarDeposu(nativeMi, ad)).sil().catch(() => {})
       await yuvalariSil()
       await kilit.kaldir()
@@ -349,8 +384,18 @@ async function baslat(): Promise<void> {
       ])
       const kimlik = await kimlikTuret(kod)
       if (!kimlik) throw new Error('Defter Kimliği geçersiz.')
+      /*
+       * Oturum HESAP kimliğiyle açılıyor, şifreleme KOD kimliğiyle
+       * yapılıyor. Defter satırları hesabın altında duruyor; senkron
+       * koddan türeyen ayrı bir hesapla girseydi onları göremez, boş
+       * bir defter açardı (KARARLAR.md · K-043).
+       *
+       * Hesap kimliği yoksa (kodla kurulmuş eski cihaz) koddan türeyen
+       * kimlik kullanılıyor — eski davranış.
+       */
+      const oturumKimligi = (await hesapKimligiOku()) ?? kimlik
       /* Cihazda doğrudan Neon, tarayıcıda kendi kaynağımızdan (K-037). */
-      senkronSunucu = new SenkronDepo(sunucuAyari(), kimlik)
+      senkronSunucu = new SenkronDepo(sunucuAyari(), kimlik, oturumKimligi)
       senkronAkis = new SenkronAkis(depo, senkronSunucu, kimlik)
       senkronAkis.dinle(() => senkronDinleyici())
       await senkronAkis.tazele()
@@ -450,6 +495,9 @@ async function baslat(): Promise<void> {
           if (s.durum !== 'tamam') return null
           const kod = s.kod
           await kodDepo.yaz(kod)
+          /* Senkron bu hesapla oturum açacak (K-043). Defter zaten
+             açık, yani ana anahtar bellekte. */
+          await hesapKimligiYaz(ad, sifre)
           senkronKod = kod
           await depo.ayarYaz('senkron.sonGorulen', '0')
           await depo.senkronHepsiniIsaretle()
@@ -469,7 +517,8 @@ async function baslat(): Promise<void> {
           senkronAkis?.dur()
           indekslemeyiDurdur()
           await kodDepo.sil().catch(() => {})
-          await (await anahtarDeposu(nativeMi, MODEL_ANAHTARI)).sil().catch(() => {})
+          for (const ad of [MODEL_ANAHTARI, HESAP_KIMLIGI])
+            await (await anahtarDeposu(nativeMi, ad)).sil().catch(() => {})
           const { defteriSifirla } = await import('./veri/sifirla.js')
           await defteriSifirla(surucu!)
           await acilis.unut()

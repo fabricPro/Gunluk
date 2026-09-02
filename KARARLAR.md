@@ -9,6 +9,123 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-09-02 · K-043 · Oturum kimliğe bağlanmıyordu — K-038'in hesap ayrımı hiç var olmamış
+
+Giriş bir denemede düştü, ikincide açıldı. Aynı istek dizisi, farklı sonuç.
+Altından iki şey çıktı; ikincisi K-038'i geri aldırıyor.
+
+### `jwt()` ortalıktaki çerezi kullanıyordu
+
+```ts
+let y = await jeton()          // GET /auth/token — çerezle
+if (!y.ok) { await this.oturumAc(yarat); ... }
+```
+
+Çerez geçerliyse 200 dönüyor ve **`oturumAc` hiç çağrılmıyor.** Çerez kavanozu
+KAYNAĞA ait, kimliğe değil: dönen JWT, o çerez kimin oturumundan kaldıysa onun.
+
+Kullanıcının yaşadığı buydu. Şifre yanlış yazıldı → kimlik başka; ama çerez
+hâlâ gerçek hesabındı → sunucu GERÇEK kasayı döndürdü → istemci yanlış
+anahtarla açamadı. Ekranda "şifre kabul edildi ama kasa açılamadı" yazdı; oysa
+şifre hiç doğrulanmamıştı. Doğru cümle "şifreyi yanlış yazdın" idi. K-042'nin
+yeni mesajı, yanlış bir varsayımın üstüne kurulduğu için yanlış yönlendiriyordu.
+
+### Ve K-038'in ayrımı hiç gerçekleşmemiş
+
+K-038 kasa hesabının (paroladan) senkron hesabından (koddan) **ayrı** olmasını
+şart koşuyordu. Sunucuda **tek** hesap vardı: kasa hesabı — ve defter satırları
+da onun altında. Sebep aynı: `SenkronDepo` koddan türeyen kimliğiyle kuruluyor
+ama kasadan kalan çerezi bulup onunla konuşuyordu; kendi hesabını hiç açmadı.
+
+**Patlamayı bekleyen bir kayıptı.** Çerez düştüğü an senkron kendi hesabını
+açacak, defter satırlarını orada arayacak, bulamayacaktı. Kullanıcı defterini
+boş görürdü. Veri silinmez ama kaybolmuş görünür — pratikte farkı yok.
+
+### Karar: tek hesap, bilerek
+
+Ayrım geri alınıyor. K-038'in gerekçesi *"kurtarmada elde kod yok, kasaya
+paroladan ulaşılabilmeli"* idi; bu tek hesapla da sağlanıyor — kasa zaten
+paroladan türeyen hesabın altında. Ayrımın kendisi hiçbir işe yaramıyordu.
+
+**Şifreleme ayrımı AYNEN duruyor:** defter satırları KOD türevli anahtarla,
+kasa PAROLA türevli anahtarla şifreli. Sunucu ikisini de açamıyor. Değişen tek
+şey kimin adına oturum açıldığı.
+
+Bir de: "iki hesap" varsayımı tek çerez kavanozuyla **zaten kurulamazdı**. Bir
+kaynakta aynı anda tek oturum olabiliyor. Tasarım, uygulanamaz bir şeyi şart
+koşmuş ve bunu iki gün boyunca kimse fark etmedi, çünkü kaza eseri çalışıyordu.
+
+### Ne yapıldı
+
+- `Oturum` ilk jetondan ÖNCE kendi kimliğiyle oturum açıyor. Başka hesabın
+  çerezini kullanmak artık yapısal olarak mümkün değil.
+- Hesabın türetilmiş kimlik bilgisi (`HESAP_KIMLIGI`) kodun yanına, aynı
+  korumalı depoya yazılıyor: yeniden yüklemede elde şifre olmuyor. Kullanıcının
+  şifresi orada DA durmuyor — duran şey ondan türetilmiş, yalnızca bu hesaba
+  yarayan bir dize.
+- `SenkronDepo` oturumu hesap kimliğiyle açıyor, şifrelemeyi kod kimliğiyle
+  yapıyor.
+
+Yazma sırası bağlayıcı çıktı: kimlik bilgisi ancak `kilit.kur` SONRASI
+yazılabiliyor, çünkü tarayıcıda güvenli depo sırları ana anahtarla sarmalıyor.
+Önce denemek hesap açmayı "bağlantını kontrol et" ile düşürdü.
+
+### Muhafız — ve önce boş çıkan hâli
+
+`hesap` aşamasına 5. adım: iki cihaz, yenileme, sonra sunucudaki hesap sayısı.
+
+İlk yazdığım iddia yenileme ÖNCESİ/SONRASI sayıyı karşılaştırıyordu ve kırma
+denemesinde `4 → 4` diye **geçiyordu** — fazladan hesaplar zaten yenilemeden
+önce açılmıştı. Ölçülmesi gereken mutlak sayıydı: iki cihaz, tek kullanıcı,
+**tek hesap**. Düzeltilince kırma denemesi `2` gösterip düşüyor, düzeltmeyle
+`1` gösterip geçiyor.
+
+Aynı ders, bu oturumda kaçıncı kez olduğunu artık saymıyorum: *bir muhafız,
+kırıldığında düştüğü görülene kadar yoktur.*
+
+### Doğrulama
+
+637 test; `hesap`, `cikmaz`, `kasa`, `hepsi` aşamalarının tamamı geçiyor.
+Canlıdaki veri taşınmıyor — satırlar zaten hesabın altında, bu değişiklik var
+olanı sabitliyor.
+
+---
+
+## 2026-09-02 · K-042 · Dört durumu tek cevaba katlamak — ve sessiz üstüne yazma
+
+Site verileri temizlendikten sonra giriş yapılamadı. Sunucu kaydı: `sign-in`
+200, `token` 200, `GET /rest/defter_kasa` 200 — sonra hiçbir istek yok. Ekranda
+"bu ad ve şifreyle defter yok".
+
+Ama o cümle **dört ayrı durumu** birden anlatıyordu: hesap yok, satır yok,
+satır geldi ama açılmadı, girdi geçersiz. `girisYap` hepsine `null` diyordu.
+Hangisi olduğunu koddan öğrenmenin yolu yoktu — yani hata teşhis edilemezdi.
+
+K-040 "bir muhafız kırılmadan yoktur" diyordu; bunun eşi şu: **iki durumu tek
+cevaba katlayan bir arayüz, arızayı görünmez yapar.**
+
+`Kasa.oku()` artık `hesapYok` / `satirYok` / `var` ayrımını yapıyor;
+`hesapAc` ve `girisYap` `KasaSonuc` döndürüyor; kilit ekranı her duruma ayrı
+cümle kuruyor (TR + EN).
+
+### Altından çıkan asıl hata: açılamayan kasanın üstüne yazılıyordu
+
+```ts
+const mevcut = await kasa.oku()
+if (mevcut) { const gizli = await ac(...); if (gizli) return kurtarmaYaz(gizli) }
+const kod = kurtarmaUret()        // AÇILAMADIYSA da buraya düşüyordu
+await kasa.yaz(...)               // ve kasanın ÜSTÜNE yazıyordu
+```
+
+Sunucudaki defteri açan tek anahtar o eski koddu. Üstüne yazmak, kullanıcı
+yalnızca "hesap aç"a bastı diye yıllık bir defteri sessizce ve **kalıcı olarak**
+okunamaz hâle getirirdi. Artık `cozulemedi` dönüyor ve satıra dokunulmuyor.
+
+Muhafızı kırılarak doğrulandı: eski davranış geri konunca "satır DEĞİŞMİYOR"
+iddiası düşüyor.
+
+---
+
 ## 2026-09-02 · K-041 · Sunucuya hiç yazılamıyormuş — ve taklidin sınırı
 
 Bütün tarayıcı denemeleri yeşilken, gerçek Neon'a **bugüne kadar tek satır

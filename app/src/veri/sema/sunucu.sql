@@ -154,9 +154,14 @@ alter table defter_blob drop column if exists silindi;
 --  Şifreyi açan anahtar kullanıcının parolasından CİHAZDA türüyor
 --  (Argon2id t=4, m=128 MiB) ve parola sunucuya hiç gelmiyor.
 --
---  Kasanın hesabı senkronunkinden AYRI: senkron kimliği koddan türüyor,
---  ama kurtarmada elde kod yok — onu almaya geliniyor. Kasa kimliği
---  yalnızca paroladan türüyor; döngüyü kıran şey bu.
+--  Kasa ve defter satırları AYNI hesabın altında (KARARLAR.md · K-043).
+--  K-038 bunların ayrı hesaplar olmasını şart koşmuştu; o ayrım hiç
+--  gerçekleşmedi ve gerçekleşemezdi de — bir kaynakta aynı anda tek
+--  oturum çerezi olabiliyor. Gerekçesi (kurtarmada elde kod yok, kasaya
+--  paroladan ulaşılmalı) tek hesapla zaten karşılanıyor.
+--
+--  ŞİFRELEME ayrımı duruyor: defter satırları KOD türevli anahtarla,
+--  kasa PAROLA türevli anahtarla şifreli. Sunucu ikisini de açamıyor.
 --
 --  Dürüst olmak gerekirse bu bir bedel: senkronda sunucudaki defteri
 --  açmanın tek yolu 128 bit rastgele bir kodu kırmaktı. Artık burada

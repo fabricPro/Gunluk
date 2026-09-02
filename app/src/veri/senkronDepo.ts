@@ -108,6 +108,14 @@ function bitisZamani(jwt: string): number {
  */
 abstract class Oturum {
   private jeton: Jeton | null = null
+  /**
+   * Bu nesne KENDİ kimliğiyle oturum açtı mı.
+   *
+   * Çerez kavanozu kaynağa ait, kimliğe değil. Bu bayrak olmadan
+   * `jwt()` ortalıkta duran herhangi bir çerezi kullanıyordu ve JWT
+   * BAŞKA bir hesabın oluyordu (KARARLAR.md · K-043).
+   */
+  private kendiOturumu = false
 
   constructor(
     protected readonly ayar: SunucuAyar,
@@ -176,6 +184,30 @@ abstract class Oturum {
 
     const jeton = () =>
       this.iste(() => fetch(this.ayar.auth + '/token', { credentials: 'include' }))
+
+    /*
+     * ÖNCE KENDİ OTURUMUNU AÇ.
+     *
+     * Eskiden doğrudan `/token` isteniyordu; çerez geçerliyse 200
+     * dönüyor ve `oturumAc` HİÇ çağrılmıyordu. Çerez kaynağa ait,
+     * kimliğe değil — yani JWT, o çerez kimin oturumundan kaldıysa
+     * onun oluyordu. İki sonucu vardı ve ikisi de canlıda görüldü:
+     *
+     *   · Yanlış şifre yazan kullanıcı için sunucu GERÇEK kasayı
+     *     döndürüyordu; istemci onu açamayınca "şifren doğru ama kasa
+     *     bozuk" deniyordu. Doğrusu "şifreyi yanlış yazdın" idi.
+     *   · `SenkronDepo` kendi hesabını hiç açmıyor, kasadan kalan
+     *     çerezle konuşuyordu. K-038'in şart koştuğu hesap ayrımı bu
+     *     yüzden hiç gerçekleşmedi (KARARLAR.md · K-043).
+     *
+     * Bir kez açılıyor: sonraki jeton yenilemeleri çerezi kullanabilir,
+     * çünkü artık çerezin BU kimliğe ait olduğu biliniyor.
+     */
+    if (!this.kendiOturumu) {
+      if (!(await this.oturumAc(yarat))) return null
+      this.kendiOturumu = true
+    }
+
     let y = await jeton()
     if (!y.ok) {
       if (!(await this.oturumAc(yarat))) return null
@@ -248,8 +280,23 @@ abstract class Oturum {
  * yaratılır.
  */
 export class SenkronDepo extends Oturum implements Sunucu {
-  constructor(ayar: SunucuAyar, kimlik: SenkronKimlik) {
-    super(ayar, kimlik)
+  /**
+   * `kimlik` şifreleme için, `oturum` oturum açmak için.
+   *
+   * İkisi ayrılıyor çünkü defter satırları HESABIN altında duruyor
+   * ama koddan türeyen anahtarla şifreli. Tek kimlik varsayıldığında
+   * senkron koddan türeyen ayrı bir hesap açıyor ve kendi satırlarını
+   * göremiyordu (KARARLAR.md · K-043).
+   *
+   * `oturum` verilmezse `kimlik` kullanılıyor — kodla kurulmuş eski
+   * cihazların davranışı değişmiyor.
+   */
+  constructor(
+    ayar: SunucuAyar,
+    kimlik: SenkronKimlik,
+    oturum?: { eposta: string; parola: string },
+  ) {
+    super(ayar, oturum ?? kimlik)
   }
 
   /** Senkron her zaman hesabı yaratabilir; `null` dönmüyor. */

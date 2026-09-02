@@ -37,6 +37,8 @@
 import { chromium } from 'playwright'
 
 const ADRES = process.env.DEFTER_ADRES ?? 'http://localhost:4173'
+/* Sahte Neon — yalnızca sayım uç noktası için. */
+const SAHTE = process.env.DEFTER_SAHTE ?? 'http://localhost:8788'
 const PAROLA = 'cok-gizli-kurtarma-parolasi-8f2c'
 const ISARET = 'KIMSEYE-SOYLEMEDIGIM-SEY-8f2c1d4b-BU-DISARI-CIKMAMALI'
 
@@ -409,6 +411,46 @@ const asamaHesap = async () => {
     geldi = (await s2.textContent('body')).includes(ISARET)
   }
   de(geldi, 'BİRİNCİ CİHAZDA YAZILAN KAYIT İKİNCİ CİHAZDA — kod yazılmadı, senkron açılmadı')
+
+  console.log('\n5. Yenilendikten sonra senkron AYNI hesapta kalıyor')
+  /*
+   * Asıl muhafız bu.
+   *
+   * Senkron, oturumu koddan türeyen KENDİ kimliğiyle açsaydı ayrı bir
+   * hesap yaratırdı; defter satırları o hesabın altında olmadığı için
+   * kullanıcı defterini BOŞ görürdü. Canlıda bu, kasadan kalan çerez
+   * sayesinde kazara doğru çalışıyordu — çerez düştüğü anda patlardı
+   * (KARARLAR.md · K-043).
+   *
+   * Ölçülen şey sunucudaki HESAP SAYISI: iki cihaz, tek hesap.
+   */
+  /* Node'dan soruluyor: sayfadan sorunca CORS engelliyor. */
+  const sayim = async () => (await (await fetch(`${SAHTE}/sayim`)).json()).hesap
+
+  await s2.reload()
+  /* Yenilemeden sonra defter kilitli; parolayla açılıyor (K-040). */
+  await s2.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
+  await s2.fill('#kilPin', PAROLA)
+  await s2.press('#kilPin', 'Enter')
+  await defterAcildi(s2, 60000).catch(() => {})
+  let hala = false
+  for (let i = 0; i < 25 && !hala; i++) {
+    await bekle(s2, 1000)
+    hala = (await s2.textContent('body')).includes(ISARET)
+  }
+  de(hala, 'yenilemeden sonra kayıt HÂLÂ duruyor')
+
+  /*
+   * ASIL İDDİA: MUTLAK hesap sayısı.
+   *
+   * Önce/sonra karşılaştırması hiçbir şey ölçmüyordu — kırma
+   * denemesinde de 4 → 4 geçiyordu, çünkü fazladan hesaplar zaten
+   * yenilemeden ÖNCE açılmıştı. Ölçülmesi gereken şey şu: iki cihaz,
+   * tek kullanıcı, sunucuda TEK hesap. Senkron koddan türeyen kendi
+   * hesabını açsaydı bu sayı büyürdü (KARARLAR.md · K-043).
+   */
+  const toplam = await sayim()
+  de(toplam === 1, `sunucuda tek hesap var (${toplam})`)
 
   await tarayici.close()
   console.log(hata ? `\nDÜŞEN: ${hata}\n` : '\nHesap denemesi geçti.\n')
