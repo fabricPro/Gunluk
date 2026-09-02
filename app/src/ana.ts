@@ -365,6 +365,8 @@ async function baslat(): Promise<void> {
      * geliyor. Kapalıyken uygulama bugünkü gibi çevrimdışı.
      */
     const kodDepo = await anahtarDeposu(nativeMi, SENKRON_KODU)
+    /* Hesap kimliği cihazda var mı — `hesapli` bunu da sayıyor. */
+    let hesapKimligiVar = !!(await hesapKimligiOku())
     let senkronKod: string | null = null
     try {
       senkronKod = await kodDepo.oku()
@@ -490,7 +492,17 @@ async function baslat(): Promise<void> {
           senkronDinleyici()
         },
         /* Hesaplı defterde senkron ayrı bir düğme değil (K-039). */
-        hesapli: () => !!senkronKod,
+        /*
+         * "Hesaba bağlı" = kod VAR **ve** hesap kimliği var.
+         *
+         * Yalnızca koda bakmak yanlıştı: K-043'ten önce giriş yapmış
+         * cihazlarda kod var ama hesap kimliği yok. O cihaz kendini
+         * bağlı sanıyor, oysa senkron hiçbir hesaba giremiyor — ve
+         * "buluta taşı" düğmesi de gizli olduğu için kullanıcının
+         * defterini hesabına bağlamasının hiçbir yolu kalmıyordu
+         * (KARARLAR.md · K-046).
+         */
+        hesapli: () => !!senkronKod && hesapKimligiVar,
         /** Hesap yeni açıldıysa gösterilecek kod; bir kez okunuyor. */
         yeniKod: () => {
           const k = yeniHesapKodu
@@ -514,6 +526,7 @@ async function baslat(): Promise<void> {
           /* Senkron bu hesapla oturum açacak (K-043). Defter zaten
              açık, yani ana anahtar bellekte. */
           await hesapKimligiYaz(ad, sifre)
+          hesapKimligiVar = true
           senkronKod = kod
           await depo.ayarYaz('senkron.sonGorulen', '0')
           await depo.senkronHepsiniIsaretle()
