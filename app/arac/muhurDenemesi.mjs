@@ -477,6 +477,58 @@ const asamaHesap = async () => {
   const fark = sonra - once
   de(fark <= 2, `20 saniye boşta: ${fark} istek (en fazla 2 bekleniyor)`)
 
+  console.log('\n7. Kullanım sayısı GÖVDESİZ geliyor')
+  /*
+   * Ayar kağıdındaki "N satır sunucuda (~X)" için eskiden bütün şifreli
+   * gövdeler indiriliyordu. Ölçülen şey "hangi adrese gidildi" değil,
+   * yanıtın BÜYÜKLÜĞÜ (KARARLAR.md · K-045).
+   *
+   * İki iddia birlikte: yanıt küçük OLMALI (gövde inmiyor) ve gösterilen
+   * sayı sunucuda gerçekten duranla UYUŞMALI. Yalnızca ilki olsaydı
+   * isteği hiç atmamak da geçerdi; yalnızca ikincisi olsaydı eski hâli
+   * de geçerdi.
+   *
+   * Defterin büyüklüğüne bağlı bir eşik YOK: ilk yazdığımda "40 KB'lık
+   * kayıt bırak, sayı 30 000'i geçsin" diyordu ve kayıt hiç yazılmayınca
+   * "880 B" eşiği birimsiz karşılaştırma yüzünden geçiyordu. Şimdi
+   * karşılaştırma sunucunun kendi toplamıyla.
+   */
+  const sayimJson = async () => (await (await fetch(`${SAHTE}/sayim`)).json())
+  /*
+   * TOPLAM bayt ölçülüyor, tek bir yolunki değil.
+   *
+   * Önce yalnızca `/rest/rpc/defter_kullanim` yolunu sayıyordum; eski
+   * gövdeli sürüm başka bir yola gittiği için o sayaç 0 kalıyor ve
+   * "yanıt küçük" iddiası kendiliğinden geçiyordu. Uygulamanın hangi
+   * adrese gittiğinden bağımsız olarak, ayarları açmanın ağdan ne
+   * indirdiği ölçülüyor.
+   */
+  const toplamBayt = (j) => Object.values(j.bayt).reduce((t, x) => t + x, 0)
+  const oncekiBayt = toplamBayt(await sayimJson())
+
+  await s1.click('#ayarlarBtn')
+  await bekle(s1, 3000)
+
+  const sonSayim = await sayimJson()
+  const kullanimBayt = toplamBayt(sonSayim) - oncekiBayt
+  const gercek = sonSayim.blobBayt
+
+  const durumMetni = await s1.textContent('#aySenkronDurum')
+  /* Birimiyle okunuyor: "880 B" ile "880 KB" aynı sayı değil. */
+  const m = /([\d.]+)\s*(KB|MB|B)\b/.exec(durumMetni)
+  const carpan = { B: 1, KB: 1024, MB: 1048576 }[m?.[2] ?? 'B']
+  const bildirilen = Number(m?.[1] ?? 0) * carpan
+
+  de(kullanimBayt > 0, `ayarları açmak bir istek attı (${kullanimBayt} B indi)`)
+  de(
+    kullanimBayt < 300,
+    `ayarları açmak GÖVDE indirmiyor (${kullanimBayt} B, sunucuda ${gercek} B var)`,
+  )
+  de(
+    gercek > 0 && Math.abs(bildirilen - gercek) <= gercek * 0.1,
+    `gösterilen boyut sunucudakiyle uyuşuyor (${m?.[0] ?? '?'} ≈ ${gercek} B)`,
+  )
+
   await tarayici.close()
   console.log(hata ? `\nDÜŞEN: ${hata}\n` : '\nHesap denemesi geçti.\n')
   process.exit(hata ? 1 : 0)

@@ -141,6 +141,43 @@ grant select, insert, update, delete on defter_blob to authenticated;
 alter table defter_blob drop column if exists silindi;
 
 
+-- ── kullanım sayımı SUNUCUDA ────────────────────────────────
+--
+-- Ayar kağıdı "defterin N satırı sunucuda (~X)" diyor. Bu iki sayı için
+-- istemci eskiden `select=govde` ile BÜTÜN şifreli gövdeleri
+-- indiriyordu; yıllık bir defterde ayarları her açış tüm defteri çekmek
+-- demekti (KARARLAR.md · K-045).
+--
+-- `count=exact` satır sayısını bedavaya veriyor ama bayt toplamı için
+-- sunucuda toplamak gerekiyor; o yüzden bu fonksiyon.
+--
+-- `security invoker` — VARSAYILAN, ve burada şart. `definer` olsaydı
+-- fonksiyon sahibi olarak koşar, `defter_blob` üzerindeki RLS atlanır ve
+-- HERKESİN satırları sayılırdı. Invoker olunca `kendi_satirlari`
+-- politikası uygulanıyor: çağıran yalnızca kendi satırlarını sayıyor.
+-- (`defter_kim()` tanımlayıcı olmak ZORUNDAYDI çünkü `auth` şemasına
+-- dokunuyor; burada öyle bir ihtiyaç yok.)
+--
+-- `length(govde)` base64 karakter sayısı — istemcinin eskiden topladığı
+-- `govde.length` ile birebir aynı; gösterilen sayı değişmiyor.
+-- `coalesce` mezar taşları için: silinen satırın gövdesi NULL ve eski
+-- istemci kodu orada `TypeError` atıyordu.
+
+create or replace function defter_kullanim()
+returns table (satir bigint, bayt bigint)
+language sql stable
+as $$
+  select count(*)::bigint, coalesce(sum(length(govde)), 0)::bigint
+  from defter_blob
+$$;
+
+comment on function defter_kullanim() is
+  'Kullanıcının kendi satır sayısı ve bayt toplamı. RLS uygulanır (invoker).';
+
+revoke all on function defter_kullanim() from public;
+grant execute on function defter_kullanim() to authenticated;
+
+
 -- ════════════════════════════════════════════════════════════
 --  KASA — Defter Kimliği'nin paroladan açılan kopyası
 -- ════════════════════════════════════════════════════════════

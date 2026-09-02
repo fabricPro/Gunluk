@@ -9,6 +9,91 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-09-02 · K-045 · Kullanım sayımı sunucuya taşındı — ve `invoker` neden şart
+
+K-044 kullanım isteğinin SIKLIĞINI düşürmüştü; isteğin kendisi hâlâ pahalıydı:
+
+```ts
+this.istek('/defter_blob?select=govde', { headers: { Prefer: 'count=exact' } })
+```
+
+Ayar kağıdındaki "Defterin **N** satırı sunucuda (~X)" tek satırı için defterin
+**bütün şifreli gövdeleri** iniyordu. Yıllık bir defterde ayarları her açış tüm
+defteri çekmek demek.
+
+`count=exact` satır sayısını bedavaya veriyor ama bayt toplamı için sunucuda
+toplamak gerekiyor. O yüzden küçük bir RPC: `defter_kullanim()`.
+
+### `security invoker` — varsayılan, ve burada şart
+
+`definer` olsaydı fonksiyon sahibi olarak koşardı; sahip `neondb_owner` ve onun
+`rolbypassrls` özniteliği var. Yani RLS atlanır ve fonksiyon **herkesin
+satırlarını** sayardı — kullanıcıya başkasının defterinin boyutunu gösteren bir
+sızıntı.
+
+`defter_kim()` (K-041) tanımlayıcı olmak ZORUNDAYDI, çünkü `auth` şemasına
+dokunuyor ve `authenticated` oraya giremiyor. Buradaysa öyle bir ihtiyaç yok:
+fonksiyon yalnızca `defter_blob`u okuyor ve RLS'in uygulanması tam olarak
+istenen şey. **İki fonksiyon, iki ayrı sebep; ikisini aynı kalıba sokmak
+yanlış olurdu.**
+
+Doğrulaması da bunu gösteriyor — ve tahminim yanlış çıktı. "Sahip olarak
+çağırınca 0 satır dönmeli, bu invoker'ın kanıtı" diye yazmıştım; **4 döndü**,
+çünkü `neondb_owner` RLS'i zaten atlıyor (`rolbypassrls = true`). Gerçek sınav
+`authenticated` rolüyle koşmak:
+
+```sql
+set local role authenticated;
+select * from defter_kullanim();   -- satir 0, bayt 0
+```
+
+JWT yokken 0 — yani RLS fonksiyonun İÇİNDEN de uygulanıyor. `definer` olsaydı
+burada 4 görünürdü. Ayrıca `prosecdef = false` ve `anonymous` çalıştıramıyor.
+
+### Yolda kapanan bir hata
+
+Eski istemci kodu `s.govde.length` topluyordu. `defter_blob.govde` **null
+olabiliyor**: silme mezar taşları alanları boş zarflar. Böyle bir satır gelince
+`TypeError` atardı ve kullanım okuması düşerdi. Canlıda henüz silme olmadığı
+için görülmemişti. RPC `coalesce` ile sayıyor.
+
+### Muhafız iki kez düzeltildi
+
+Ölçülen şey "hangi adrese gidildi" değil, **ayarları açmanın ağdan ne
+indirdiği**.
+
+İlk sürüm yalnızca `/rest/rpc/defter_kullanim` yolunun baytını sayıyordu. Kırma
+denemesinde eski kod BAŞKA bir yola gidiyor, o sayaç 0 kalıyor ve "yanıt küçük"
+iddiası kendiliğinden geçiyordu — muhafız yine boş. Toplam bayta çevrildi.
+
+İkinci hata birim körlüğüydü: "40 KB'lık kayıt bırak, gösterilen sayı 30 000'i
+geçsin" diyordu ama `"880 B"` metninden yalnızca `880` okunup eşiğe
+bakılıyordu. Kayıt hiç yazılmayınca bile geçiyordu. Şimdi birimle çarpılıyor ve
+karşılaştırma sunucunun KENDİ toplamıyla — defterin büyüklüğüne bağlı bir eşik
+yok.
+
+| | ayarları açmak |
+|---|---|
+| Önce | **1025 B** indi |
+| Sonra | **24 B** |
+
+### Doğrulama
+
+637 test; `hesap` (13 ✓), `cikmaz`, `kasa`, `hepsi`. Neon'da RPC uygulandı ve
+`authenticated` rolüyle sınandı.
+
+Buradan sınayamadığım tek şey: PostgREST'in fonksiyonu `/rpc/` altında
+YAYIMLADIĞI. `*.neon.tech` bu ortamda engelli; ayarlar kağıdında sayı görünürse
+yayımlanmış demektir.
+
+### Açık uç — bu kararın dışında
+
+Muhafızı yazarken 40 000 karakterlik bir kayıt denedim: alan metni kabul etti
+ama kayıt ne ekrana düştü ne sunucuya gitti. Küçük kayıtlar sorunsuz. Çok uzun
+kayıtlara ne olduğu ayrıca bakılacak.
+
+---
+
 ## 2026-09-02 · K-044 · "Koştu" ile "değişti" aynı değer değil — kendini besleyen senkron
 
 Vercel kaydında senkron ~5 saniyede bir istek atıyordu ve defter açık kaldığı

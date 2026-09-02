@@ -345,16 +345,22 @@ export class SenkronDepo extends Oturum implements Sunucu {
   }
 
   /** Kaç satır ve kaç bayt tutuluyor — ayar kağıdı bunu gösteriyor. */
+  /**
+   * Sunucudaki satır sayısı ve bayt toplamı — GÖVDESİZ.
+   *
+   * Eskiden `select=govde` ile bütün şifreli gövdeler indirilip istemcide
+   * toplanıyordu; ayar kağıdındaki tek bir satır için yıllık defterin
+   * tamamı ağdan geçiyordu. Sayımı `defter_kullanim()` RPC'si yapıyor ve
+   * yanıt tek satır (KARARLAR.md · K-045).
+   *
+   * Eski kod ayrıca mezar taşlarında düşüyordu: silinen satırın `govde`si
+   * NULL ve `s.govde.length` orada atıyordu. RPC `coalesce` ile sayıyor.
+   */
   async kullanim(): Promise<{ satir: number; bayt: number }> {
-    const y = await this.istek('/defter_blob?select=govde', {
-      headers: { Prefer: 'count=exact' },
-    })
+    const y = await this.istek('/rpc/defter_kullanim')
     if (!y.ok) throw new SenkronHatasi(await this.hataMetni(y))
-    const satirlar = (await y.json()) as { govde: string }[]
-    return {
-      satir: satirlar.length,
-      bayt: satirlar.reduce((t, s) => t + s.govde.length, 0),
-    }
+    const [s] = (await y.json()) as { satir: number; bayt: number }[]
+    return { satir: Number(s?.satir ?? 0), bayt: Number(s?.bayt ?? 0) }
   }
 
   /**

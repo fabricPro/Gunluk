@@ -35,6 +35,8 @@ let dizi = 0
 let sayac = 0
 /** Kaç istek geldi — boştaki senkron gürültüsünü ÖLÇMEK için. */
 let istekSayisi = 0
+/** Yola göre GÖNDERİLEN bayt — "gövde inmiyor" iddiasını ölçmek için. */
+const gidenBayt = new Map()
 
 const b64url = (o) => Buffer.from(JSON.stringify(o)).toString('base64url')
 
@@ -53,8 +55,10 @@ const govdeOku = (istek) =>
   })
 
 const json = (cikti, kod, veri, baslik = {}) => {
+  const govde = JSON.stringify(veri)
   cikti.writeHead(kod, { 'content-type': 'application/json', ...baslik })
-  cikti.end(JSON.stringify(veri))
+  cikti.end(govde)
+  return govde.length
 }
 
 /** Çerezden hesabı bulur; JWT varsa ondan. */
@@ -94,6 +98,12 @@ const sunucu = createServer(async (istek, cikti) => {
     console.log(`${istek.method} ${istek.url.slice(0, 90)} -> ${kod}`)
     return bit(kod, ...k)
   }
+  const son = cikti.end.bind(cikti)
+  cikti.end = (govde, ...k) => {
+    if (govde && yol !== '/sayim')
+      gidenBayt.set(yol, (gidenBayt.get(yol) ?? 0) + govde.length)
+    return son(govde, ...k)
+  }
 
   if (istek.method === 'OPTIONS') {
     cikti.writeHead(204).end()
@@ -111,6 +121,13 @@ const sunucu = createServer(async (istek, cikti) => {
       hesap: hesaplar.size,
       kasa: kasalar.size,
       istek: istekSayisi,
+      bayt: Object.fromEntries(gidenBayt),
+      /* Sunucuda GERÇEKTEN duran toplam — ayarların gösterdiği sayı
+         bununla karşılaştırılıyor. */
+      blobBayt: [...bloblar.values()].reduce(
+        (t, m) => t + [...m.values()].reduce((x, z) => x + (z.govde ?? '').length, 0),
+        0,
+      ),
     })
 
   /* Sayım isteğinin kendisi sayılmıyor. */
@@ -157,6 +174,14 @@ const sunucu = createServer(async (istek, cikti) => {
     }
     kasalar.delete(id)
     return json(cikti, 204, {})
+  }
+
+  /* Sunucu tarafı sayım — gerçek şemadaki `defter_kullanim()` RPC'si. */
+  if (yol === '/rest/rpc/defter_kullanim') {
+    const kendi = bloblar.get(id) ?? new Map()
+    let bayt = 0
+    for (const z of kendi.values()) bayt += (z.govde ?? '').length
+    return json(cikti, 200, [{ satir: kendi.size, bayt }])
   }
 
   if (yol === '/rest/defter_blob') {
