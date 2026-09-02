@@ -501,6 +501,9 @@ const TR: Metinler = {
   'ag.baglanilamadi': 'Bağlanılamadı. İnternet bağlantını kontrol et.',
   'ag.senkronOturum':
     'Oturum kurulamadı — tarayıcı çerezi engelliyor olabilir. Cihaz uygulamasında dene.',
+  'ag.senkronHesapYok':
+    'Senkron bu cihazda bir hesaba bağlı değil. Ayarlardan çıkış yapıp ' +
+    'kullanıcı adın ve şifrenle yeniden gir.',
   'ag.senkronKimlik': 'Defter Kimliği kabul edilmedi.',
   'ag.senkronSunucu': 'Sunucu şu an cevap vermiyor. Biraz sonra yeniden denenecek.',
   'ag.modelAnahtar': 'Anahtar kabul edilmedi. Ayarlardan kontrol et.',
@@ -976,6 +979,9 @@ const EN: Metinler = {
   'ag.senkronOturum':
     "Couldn't sign in — your browser may be blocking cookies. Try the device app.",
   'ag.senkronKimlik': 'The Notebook Key was not accepted.',
+  'ag.senkronHesapYok':
+    'Sync is not attached to an account on this device. Sign out in settings ' +
+    'and sign in again with your username and password.',
   'ag.senkronSunucu': "The server isn't responding right now. It will retry shortly.",
   'ag.modelAnahtar': 'The key was not accepted. Check it in settings.',
   'ag.modelKota': "Anthropic isn't accepting requests right now (quota or rate limit). Try later.",

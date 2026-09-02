@@ -299,9 +299,29 @@ export class SenkronDepo extends Oturum implements Sunucu {
     super(ayar, oturum ?? kimlik)
   }
 
-  /** Senkron her zaman hesabı yaratabilir; `null` dönmüyor. */
+  /**
+   * Senkron HESAP YARATMAZ.
+   *
+   * Eskiden `yarat = true` ile çağrılıyordu. Hesap kimliği cihazda
+   * yoksa (K-043'ten ÖNCE giriş yapmış bir cihaz) senkron koddan
+   * türeyen kimliğiyle oturum açmaya çalışıyor, hesap bulunmayınca
+   * YENİ BİR HESAP AÇIYOR ve defterin tamamını oraya itiyordu. Canlıda
+   * tam olarak bu oldu: 190 KB'lık defter, kasası olmayan ikinci bir
+   * hesabın altına gitti (KARARLAR.md · K-046).
+   *
+   * Hesap açmak `hesapAc`ın işi. Senkron yalnızca var olan bir hesaba
+   * bağlanır; bağlanamıyorsa istek `null` döner ve akış sessizce
+   * durur — yanlış yere yazmaktansa hiç yazmamak doğru.
+   */
   private async istek(yol: string, secenek: RequestInit = {}): Promise<Response> {
-    return (await this.apiIstek(yol, secenek))!
+    const y = await this.apiIstek(yol, secenek, false)
+    /*
+     * Hesap yoksa sessizce geçilmiyor: senkron durumu hatayı gösteriyor
+     * ve kullanıcı "eşitlenmiyor" değil, NEDEN eşitlenmediğini görüyor.
+     * Sessiz geçmek, defterin yedeklendiğini sanmakla aynı şey olurdu.
+     */
+    if (!y) throw new SenkronHatasi(S('ag.senkronHesapYok'))
+    return y
   }
 
   /**
