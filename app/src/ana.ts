@@ -13,7 +13,7 @@ import { ayarlariBagla } from './ekran/ayarlar.js'
 import { defteriBagla } from './ekran/defter.js'
 import { fihristiBagla } from './ekran/fihrist.js'
 import { kilidiBagla } from './ekran/kilit.js'
-import { ACILMADI, kilitEkraniBagla } from './ekran/kilitEkrani.js'
+import { ACILMADI, kilitEkraniBagla, type HesapDurum } from './ekran/kilitEkrani.js'
 import { kitapligiBagla } from './ekran/kitaplik.js'
 import { kapsuleBagla } from './ekran/kapsul.js'
 import { sayfaOlc } from './ekran/olcum.js'
@@ -121,21 +121,21 @@ async function baslat(): Promise<void> {
   let yeniHesapKodu: string | null = null
 
   const hesapYollari = {
-    giris: async (ad: string, sifre: string): Promise<boolean> => {
+    giris: async (ad: string, sifre: string): Promise<HesapDurum> => {
       const { girisYap } = await import('./hesapAkis.js')
-      const kod = await girisYap(ad, sifre, await kasaYapici())
-      if (!kod) return false
-      await defteriKodla(kod, sifre)
-      return true
+      const s = await girisYap(ad, sifre, await kasaYapici())
+      if (s.durum !== 'tamam') return s.durum
+      await defteriKodla(s.kod, sifre)
+      return 'tamam'
     },
-    ac: async (ad: string, sifre: string): Promise<boolean> => {
+    ac: async (ad: string, sifre: string): Promise<HesapDurum> => {
       const { hesapAc } = await import('./hesapAkis.js')
-      const kod = await hesapAc(ad, sifre, await kasaYapici())
-      if (!kod) return false
-      await defteriKodla(kod, sifre)
+      const s = await hesapAc(ad, sifre, await kasaYapici())
+      if (s.durum !== 'tamam') return s.durum
+      await defteriKodla(s.kod, sifre)
       /* Kod bir kez gösteriliyor: şifre unutulursa tek yol bu. */
-      yeniHesapKodu = kod
-      return true
+      yeniHesapKodu = s.kod
+      return 'tamam'
     },
     /**
      * Açma ekranından çıkış: bu cihazı temizleyip karşılamaya döner.
@@ -444,8 +444,11 @@ async function baslat(): Promise<void> {
          */
         hesabaTasi: async (ad, sifre) => {
           const { hesapAc } = await import('./hesapAkis.js')
-          const kod = await hesapAc(ad, sifre, await kasaYapici())
-          if (!kod) return null
+          const s = await hesapAc(ad, sifre, await kasaYapici())
+          /* Açılamayan bir kasanın üstüne yazılmıyor; `hesapAc` de
+             yazmıyor, burada da sessizce başarı denmiyor (K-042). */
+          if (s.durum !== 'tamam') return null
+          const kod = s.kod
           await kodDepo.yaz(kod)
           senkronKod = kod
           await depo.ayarYaz('senkron.sonGorulen', '0')

@@ -306,6 +306,19 @@ const TR: Metinler = {
   'kil.girisOlmadi':
     'Bu kullanıcı adı ve şifreyle bir defter bulunamadı. Şifre yanlışsa ' +
     'başka bir hesaba bakmış oluyoruz — ikisini de kontrol et.',
+  /*
+   * Aşağıdaki iki mesaj birbirinden AYRI olmak zorunda: ilki sunucuya
+   * ulaşıldığını ama kasanın gelmediğini, ikincisi kasanın geldiğini
+   * ama açılmadığını söylüyor. Tek cümleye katlanınca canlıdaki bir
+   * arıza teşhis edilemedi (KARARLAR.md · K-042).
+   */
+  'kil.kasaBos':
+    'Hesabına girildi ama sunucuda kasan görünmüyor. Defterin duruyor ' +
+    'olabilir; hiçbir şeyin üstüne yazılmadı. Bunu bana bildir.',
+  'kil.kasaAcilmadi':
+    'Hesap bulundu ve şifre kabul edildi, ama kasa bu şifreyle açılamadı. ' +
+    'Kasanın ÜSTÜNE YAZILMADI — defterin olduğu gibi duruyor. Elinde ' +
+    'Defter Kimliği varsa onunla gir.',
   'kil.hesapSor':
     'Kullanıcı adı seç ve bir şifre yaz (en az {n} karakter). ' +
     'Şifreni unutursan defterin açılmaz; sıfırlama yok, bizde kopyası yok.',
@@ -776,6 +789,13 @@ const EN: Metinler = {
   'kil.girisOlmadi':
     'No notebook was found for that username and password. A wrong password ' +
     'points at a different account — check both.',
+  'kil.kasaBos':
+    'You were signed in, but no vault came back from the server. Your ' +
+    'notebook may still be there; nothing was overwritten. Tell me about this.',
+  'kil.kasaAcilmadi':
+    'The account was found and the password accepted, but the vault would ' +
+    'not open with it. The vault was NOT overwritten — your notebook is ' +
+    'untouched. If you have your Notebook Key, sign in with that.',
   'kil.hesapSor':
     'Pick a username and a password (at least {n} characters). If you forget ' +
     'the password your notebook cannot be opened; there is no reset and we ' +

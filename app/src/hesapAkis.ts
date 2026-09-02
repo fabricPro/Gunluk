@@ -5,7 +5,7 @@ import {
   hesapKimligiTuret,
   type HesapKimlik,
 } from './cekirdek/hesapKimlik.js'
-import type { KasaSatir } from './veri/senkronDepo.js'
+import type { KasaOkuma, KasaSatir } from './veri/senkronDepo.js'
 
 /**
  * HESAP AKIŞI — şifreleme burada, ağ orada.
@@ -19,10 +19,31 @@ import type { KasaSatir } from './veri/senkronDepo.js'
  */
 
 export interface KasaSunucu {
-  oku(): Promise<KasaSatir | null>
+  oku(): Promise<KasaOkuma>
   yaz(satir: KasaSatir): Promise<void>
   sil(): Promise<void>
 }
+
+/**
+ * `hesapAc` ve `girisYap`ın cevabı.
+ *
+ * Eskiden ikisi de `string | null` dönüyordu ve `null` dört ayrı şeyi
+ * birden anlatıyordu. Canlıda tam olarak bunun bedeli ödendi: sunucu
+ * 200 dönerken kullanıcı "böyle bir defter yok" görüyordu ve hatanın
+ * ağda mı, satır düzeyi güvenlikte mi, şifre çözmede mi olduğu
+ * ayırt edilemiyordu (KARARLAR.md · K-042).
+ *
+ *   `yok`        — bu ad ve şifreyle hesap yok
+ *   `satirYok`   — hesap VAR, oturum açıldı, ama kasa satırı gelmedi
+ *   `cozulemedi` — satır geldi ama bu şifreyle AÇILMADI
+ *   `gecersiz`   — ad ya da şifre biçim olarak kabul edilmedi
+ */
+export type KasaSonuc =
+  | { durum: 'tamam'; kod: string }
+  | { durum: 'yok' }
+  | { durum: 'satirYok' }
+  | { durum: 'cozulemedi' }
+  | { durum: 'gecersiz' }
 
 /** Kimliği verilen kasa için sunucuyu kuran şey — çağıran taraf sağlıyor. */
 export type KasaYapici = (kimlik: HesapKimlik) => KasaSunucu
@@ -31,59 +52,78 @@ export type KasaYapici = (kimlik: HesapKimlik) => KasaSunucu
  * Yeni hesap açar ve Defter Kimliği'ni üretip kasaya yazar.
  *
  * Dönen kod kullanıcıya BİR KEZ gösteriliyor: şifresini unutursa tek
- * yolu bu. `null` ise ad ya da şifre kabul edilmedi.
+ * yolu bu.
  *
  * Var olan bir hesabın ad ve şifresiyle çağrılırsa yeni kod ÜRETİLMİYOR;
- * kasadaki okunup döndürülüyor. Böylece "hesap aç" ile "giriş yap"
- * karışsa bile defter üstüne yazılmıyor — bu, veri kaybının en sessiz
- * yoluydu.
+ * kasadaki okunup döndürülüyor. Kasa AÇILAMIYORSA da yeni kod
+ * üretilmiyor: `cozulemedi` dönüyor ve satıra dokunulmuyor. İkisi de
+ * veri kaybının en sessiz yoluydu (K-039, K-042).
  */
 export async function hesapAc(
   ad: string,
   sifre: string,
   yap: KasaYapici,
   param: KilitParam = HESAP_PARAM,
-): Promise<string | null> {
+): Promise<KasaSonuc> {
   const kimlik = await hesapKimligiTuret(ad, sifre, param)
-  if (!kimlik) return null
+  if (!kimlik) return { durum: 'gecersiz' }
 
   const kasa = yap(kimlik)
   const mevcut = await kasa.oku()
-  if (mevcut) {
-    const gizli = await ac(mevcut, kimlik.sifre).catch(() => null)
-    if (gizli) return kurtarmaYaz(gizli)
+
+  if (mevcut.durum === 'var') {
+    const gizli = await ac(mevcut.satir, kimlik.sifre).catch(() => null)
+    const kod = gizli && kurtarmaYaz(gizli)
+    if (kod) return { durum: 'tamam', kod }
+    /*
+     * VAR OLAN BİR KASANIN ÜSTÜNE YAZILMIYOR.
+     *
+     * Burada eskiden yeni bir Defter Kimliği üretilip kasanın üstüne
+     * yazılıyordu. Sunucudaki defteri açan tek anahtar o eski koddu:
+     * üstüne yazmak, kullanıcı "hesap aç"a bastı diye yıllık bir
+     * defteri sessizce ve KALICI olarak okunamaz hâle getirirdi.
+     *
+     * Açılamayan bir kasa ya yanlış şifre ya da bozulmuş bir satır
+     * demek. İkisinde de doğru davranış aynı: dur ve söyle
+     * (KARARLAR.md · K-042).
+     */
+    return { durum: 'cozulemedi' }
   }
 
   const kod = kurtarmaUret()
   await kasa.yaz(await kapat(kurtarmaCoz(kod)!, kimlik.sifre))
-  return kod
+  return { durum: 'tamam', kod }
 }
 
 /**
  * Giriş yapar ve Defter Kimliği'ni getirir.
  *
- * `null` ise "bu ad ve şifreyle defter yok". Hesap YARATILMIYOR:
- * `Kasa.oku` oturumu `yarat = false` ile açıyor. Yaratsaydı şifresini
- * yanlış yazan kullanıcıya sessizce boş bir defter açılır ve "giriş
- * başarılı" denirdi — kullanıcı defterini kaybettiğini anlamadan üstüne
- * yazmaya başlardı.
+ * Dönen `KasaSonuc` hangi katmanda durulduğunu söylüyor; çağıran taraf
+ * kullanıcıya doğru cümleyi kurabilsin diye (K-042).
+ *
+ * Hesap YARATILMIYOR: `Kasa.oku` oturumu `yarat = false` ile açıyor.
+ * Yaratsaydı şifresini yanlış yazan kullanıcıya sessizce boş bir defter
+ * açılır ve "giriş başarılı" denirdi — kullanıcı defterini kaybettiğini
+ * anlamadan üstüne yazmaya başlardı.
  */
 export async function girisYap(
   ad: string,
   sifre: string,
   yap: KasaYapici,
   param: KilitParam = HESAP_PARAM,
-): Promise<string | null> {
+): Promise<KasaSonuc> {
   const kimlik = await hesapKimligiTuret(ad, sifre, param)
-  if (!kimlik) return null
+  if (!kimlik) return { durum: 'gecersiz' }
 
-  const satir = await yap(kimlik).oku()
-  if (!satir) return null
+  const okuma = await yap(kimlik).oku()
+  if (okuma.durum === 'hesapYok') return { durum: 'yok' }
+  if (okuma.durum === 'satirYok') return { durum: 'satirYok' }
 
   /* GCM etiketi tutmazsa `ac` atıyor: yanlış şifre çökme değil, cevabı
      "hayır" olan bir soru. */
-  const gizli = await ac(satir, kimlik.sifre).catch(() => null)
-  return gizli ? kurtarmaYaz(gizli) : null
+  const gizli = await ac(okuma.satir, kimlik.sifre).catch(() => null)
+  const kod = gizli && kurtarmaYaz(gizli)
+  return kod ? { durum: 'tamam', kod } : { durum: 'cozulemedi' }
 }
 
 /**

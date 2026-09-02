@@ -343,23 +343,40 @@ export interface KasaSatir {
  * çözüyor. Senkronun zarfıyla aynı disiplin: ağ katmanı anahtarı hiç
  * görmüyor.
  */
+/**
+ * `Kasa.oku()`nun cevabı.
+ *
+ * `hesapYok` ile `satirYok` ayrımı teşhis için: ikincisi "oturum
+ * açıldı ama sunucu satır vermedi" demek ve bu, satırın gerçekten
+ * olmamasından da satır düzeyi güvenliğin onu süzmesinden de
+ * gelebilir — ikisi de sessizce "kasa yok" sayılmamalı.
+ */
+export type KasaOkuma =
+  | { durum: 'hesapYok' }
+  | { durum: 'satirYok' }
+  | { durum: 'var'; satir: KasaSatir }
+
 export class Kasa extends Oturum {
   /**
-   * Kasayı okur.
+   * Kasayı okur — ve HANGİ durumda olduğunu söyler.
    *
-   * `null` üç durumda dönüyor ve üçü de aynı anlama geliyor — "bu
-   * parolayla açılacak bir kasa yok": hesap yok, satır yok, ya da satır
-   * boş. Hesap YARATILMIYOR; yaratılsaydı yanlış parola giren
-   * kullanıcıya sessizce boş bir kasa açılır ve "kurtarma başarılı"
-   * denip boş bir defter verilirdi.
+   * Eskiden üçü de `null` dönüyordu: hesap yok, satır yok, satır boş.
+   * Üstüne bir de "satır geldi ama açılmadı" hâli çağıranda aynı yere
+   * düşüyordu. Dört ayrı durum tek cevaba katlanınca canlıda çıkan bir
+   * arıza teşhis edilemez oldu: sunucu 200 dönüyor, kullanıcı "böyle bir
+   * defter yok" görüyor ve arada ne olduğu bilinmiyordu (K-042).
+   *
+   * Hesap YARATILMIYOR: yaratılsaydı yanlış parola giren kullanıcıya
+   * sessizce boş bir kasa açılır ve "kurtarma başarılı" denirdi.
    */
-  async oku(): Promise<KasaSatir | null> {
+  async oku(): Promise<KasaOkuma> {
     const y = await this.apiIstek('/defter_kasa?select=iv,govde&limit=1', {}, false)
-    if (!y) return null
+    if (!y) return { durum: 'hesapYok' }
     if (!y.ok) throw new SenkronHatasi(await this.hataMetni(y))
     const satirlar = (await y.json()) as KasaSatir[]
     const satir = satirlar[0]
-    return satir?.iv && satir.govde ? satir : null
+    if (!satir?.iv || !satir.govde) return { durum: 'satirYok' }
+    return { durum: 'var', satir }
   }
 
   /** Kasayı yazar; hesap yoksa açılıyor. Tek satır, upsert. */

@@ -36,13 +36,29 @@ import { $, $$, S } from './ortak.js'
  */
 export const ACILMADI = 'DefterAcilmadi'
 
+/**
+ * Hesap yolunun nerede durduğu.
+ *
+ * Boolean yetmiyordu: "olmadı" dört ayrı şey olabiliyor ve kullanıcıya
+ * hepsi için aynı cümle kuruluyordu. Canlıda bunun bedeli ödendi —
+ * sunucu 200 dönerken ekranda "böyle bir defter yok" yazıyordu ve
+ * hatanın hangi katmanda olduğu ayırt edilemiyordu (KARARLAR.md · K-042).
+ */
+export type HesapDurum =
+  | 'tamam'
+  | 'yok'
+  | 'satirYok'
+  | 'cozulemedi'
+  | 'gecersiz'
+  | 'hata'
+
 export type KilitKipi = 'ac' | 'karsilama'
 type Yol = 'secim' | 'giris' | 'hesap' | 'yerel'
 
 /** Karşılamadaki hesap yolları; verilmezse yalnızca yerel defter. */
 export interface HesapYollari {
-  giris: (ad: string, sifre: string) => Promise<boolean>
-  ac: (ad: string, sifre: string) => Promise<boolean>
+  giris: (ad: string, sifre: string) => Promise<HesapDurum>
+  ac: (ad: string, sifre: string) => Promise<HesapDurum>
   /**
    * Bu cihazı temizleyip karşılamaya döner.
    *
@@ -132,13 +148,30 @@ export function kilitEkraniBagla(
       await cozuldu(await kilit.kur(sifre))
     })
 
-  /** Hesap yolunu koşturur; başarısızlıkta DOĞRU uyarıyı bırakır. */
-  const hesapYolu = async (calis: () => Promise<boolean>, mesaj: string): Promise<void> => {
+  /**
+   * Hesap yolunu koşturur ve DURUMA GÖRE doğru uyarıyı bırakır.
+   *
+   * `yoksa` her yol için ayrı: girişte "böyle bir defter yok", hesap
+   * açmada "hesap açılamadı". Geri kalan durumlar ikisinde de aynı
+   * cümleyi hak ediyor, çünkü aynı şeyi anlatıyorlar.
+   */
+  const hesapYolu = async (
+    calis: () => Promise<HesapDurum>,
+    yoksa: string,
+  ): Promise<void> => {
+    let d: HesapDurum
     try {
-      if (!(await calis())) uyari(mesaj)
+      d = await calis()
     } catch (h) {
-      if (!(h instanceof Error && h.name === ACILMADI)) uyari(mesaj)
+      /* Defter açılamadıysa uyarı zaten yerinde: üstüne yazma. */
+      if (h instanceof Error && h.name === ACILMADI) return
+      d = 'hata'
     }
+    if (d === 'tamam') return
+    if (d === 'satirYok') return uyari(S('kil.kasaBos'))
+    if (d === 'cozulemedi') return uyari(S('kil.kasaAcilmadi'))
+    if (d === 'gecersiz') return uyari(S('kil.kurKisa', { n: EN_AZ_SIFRE }))
+    uyari(yoksa)
   }
 
   const hesapAc = (yazilan: string): Promise<void> =>
