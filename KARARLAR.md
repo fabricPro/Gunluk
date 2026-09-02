@@ -9,6 +9,69 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-09-02 · K-046 · Kasa yanlış şifreyle şifrelenmiş — ve bir mesajın olmayan kapıyı göstermesi
+
+Kullanıcı "Kasa bulundu ama bu şifreyle açılamadı" alıyordu. Üç denemede de
+`sign-in` **200**, `token` 200, `GET /rest/defter_kasa` 200 — yani şifre hesaba
+uyuyor, kasa geliyor, açılmıyor.
+
+`hesapKimligiTuret` e-postayı, auth parolasını ve şifreleme anahtarını **tek
+bir Argon2 kökünden** türetiyor. Giriş başarılıysa anahtarın da doğru olması
+ZORUNDA. Değilse tek açıklama kalıyor:
+
+**Kasa, sahibi olan hesabın şifresinden BAŞKA bir şifreyle şifrelenmiş.**
+
+### Nasıl olmuş
+
+- **06:09** — `hesapAc(ad, P1)`. Hesap açıldı; kasa POST'u 403 aldı (K-041).
+  Hesap P1'e ait, kasa yok.
+- **06:27** — kullanıcı `hesapAc(ad, P2)` yaptı. O günkü `jwt()` ortalıktaki
+  çerezi kullanıyordu (K-043'ün düzelttiği hata): **P2 ile oturum hiç
+  açılmadı.** Kasa, P1'in hesabının altına yazıldı ama **P2'nin anahtarıyla**
+  şifrelendi.
+
+K-043 sebebi kapattı. O gün yazılan satır bozuk kaldı: P1 ile giriliyor, kasa
+geliyor, P2 gerekiyor.
+
+Üç kararın birbirine değdiği yer burası. K-042'nin "açılamayan kasanın üstüne
+yazma" muhafızı **doğru davrandı** — üstüne yazsaydı defteri açan kod kalıcı
+olarak giderdi. Ama doğru davranmak kullanıcıyı kilitli bıraktı; muhafız tek
+başına yetmiyor, yanında bir çıkış yolu gerekiyor.
+
+### Asıl ders: mesaj var olmayan bir kapıyı gösteriyordu
+
+K-042'de yazdığım metin şunu diyordu:
+
+> "…elinde Defter Kimliği varsa onunla da girebilirsin."
+
+**Öyle bir yol yok.** Karşılama ekranında üç düğme var: giriş yap, hesap aç, bu
+cihazda kal. Kod girme yolu K-039'da kaldırılmış. Mesajı yazarken arayüzde o
+yolun DURUP DURMADIĞINA bakmamışım.
+
+Kural: **bir hata mesajı, var olduğunu doğrulamadığım bir yolu öneremez.**
+Kodun ne yaptığını kırma denemesiyle sınıyorum; mesajın ne vaat ettiğini de
+aynı gözle okumak gerekiyor. Yanlış yönlendiren bir mesaj, sessiz kalan bir
+mesajdan kötü.
+
+Metin düzeltildi: kasanın üstüne yazılmadığını söylüyor (doğru ve önemli) ve
+gerçek çıkışı gösteriyor — defter cihazda açılıyorsa parolayla aç, ayarlardan
+BAŞKA bir şifreyle hesaba bağla.
+
+### Çıkış yolu neden işe yarıyor
+
+Cihaz sağlam: defter de Defter Kimliği de orada, kasaya ihtiyaç yok. Ayarlardan
+"hesap aç ve buluta taşı" **farklı** bir şifreyle çağrılınca temiz bir hesap ve
+DOĞRU bir kasa yaratılıyor, defterin tamamı oraya yükleniyor. Aynı şifre
+kullanılırsa `hesapAc` bozuk kasayı bulup — doğru davranışla — reddediyor.
+
+### Kalan çöp
+
+Sunucuda iki işe yaramaz şey var: bozuk kasa satırı ve koddan türeyen ikinci
+hesabın altındaki kopya (K-043'ün yarattığı). Kullanıcının defteri yeni hesapta
+göründükten SONRA, izin alınarak silinecek.
+
+---
+
 ## 2026-09-02 · K-045 · Kullanım sayımı sunucuya taşındı — ve `invoker` neden şart
 
 K-044 kullanım isteğinin SIKLIĞINI düşürmüştü; isteğin kendisi hâlâ pahalıydı:

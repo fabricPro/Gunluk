@@ -315,10 +315,17 @@ const TR: Metinler = {
   'kil.kasaBos':
     'Hesabına girildi ama sunucuda kasan görünmüyor. Defterin duruyor ' +
     'olabilir; hiçbir şeyin üstüne yazılmadı. Bunu bana bildir.',
+  /*
+   * Buradaki yol GERÇEKTEN var olan bir yol olmak zorunda. Önceki hâli
+   * "elinde Defter Kimliği varsa onunla gir" diyordu; karşılama
+   * ekranında kod girme yolu YOK (K-039'da kaldırılmış). Kullanıcıyı
+   * olmayan bir kapıya gönderiyordu (KARARLAR.md · K-046).
+   */
   'kil.kasaAcilmadi':
     'Kasa bulundu ama bu şifreyle açılamadı. Kasanın ÜSTÜNE YAZILMADI — ' +
-    'defterin olduğu gibi duruyor. Şifreni bir daha dene; elinde Defter ' +
-    'Kimliği varsa onunla da girebilirsin.',
+    'defterin olduğu gibi duruyor. Şifreni bir daha dene. Defterin bu ' +
+    'cihazda açılıyorsa: parolanla aç, sonra Ayarlar\u2019dan ' +
+    '\u201chesap aç ve buluta taşı\u201d ile BAŞKA bir şifre vererek bağla.',
   'kil.hesapSor':
     'Kullanıcı adı seç ve bir şifre yaz (en az {n} karakter). ' +
     'Şifreni unutursan defterin açılmaz; sıfırlama yok, bizde kopyası yok.',
@@ -797,8 +804,10 @@ const EN: Metinler = {
     'notebook may still be there; nothing was overwritten. Tell me about this.',
   'kil.kasaAcilmadi':
     'The vault was found but would not open with this password. It was NOT ' +
-    'overwritten — your notebook is untouched. Try the password again; if ' +
-    'you have your Notebook Key you can sign in with that instead.',
+    'overwritten — your notebook is untouched. Try the password again. If ' +
+    'the notebook still opens on this device: unlock it with your ' +
+    'passphrase, then use Settings \u2192 “create an account and move to ' +
+    'the cloud” with a DIFFERENT password.',
   'kil.hesapSor':
     'Pick a username and a password (at least {n} characters). If you forget ' +
     'the password your notebook cannot be opened; there is no reset and we ' +
