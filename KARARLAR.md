@@ -9,6 +9,131 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-09-02 · K-041 · Sunucuya hiç yazılamıyormuş — ve taklidin sınırı
+
+Bütün tarayıcı denemeleri yeşilken, gerçek Neon'a **bugüne kadar tek satır
+yazılmamıştı.** K-036'dan beri "senkron çalışıyor" diye yazdığımız her şey
+sahte bir sunucuya karşı doğruydu.
+
+Kullanıcı canlı sitede hesap açmayı denedi. Vercel çalışma kaydı sırayı
+gösterdi:
+
+```
+GET  /auth/token        200   JWT alındı
+GET  /rest/defter_kasa  200   kasa okundu
+POST /rest/defter_kasa  403   kasa YAZILAMADI
+```
+
+Neon tarafı tamamladı: `neon_auth.user`'da bir hesap, `defter_kasa` ve
+`defter_blob` bomboş. Hesap açılmış, kasa yazılamamıştı.
+
+### Sebep: şemaya girilemiyordu
+
+`authenticated` rolünün `auth` **şemasına** USAGE yetkisi yok. Fonksiyona
+EXECUTE yetkisi VAR — bu yüzden yüzeysel bakışta her şey doğru görünüyor — ama
+şema kapalı olduğu için `auth.user_id()` çağrısı `permission denied for schema
+auth` ile düşüyor. SQLSTATE 42501, Data API bunu 403'e çeviriyor.
+
+Tahmin edilmedi, koşuldu:
+
+```sql
+set local role authenticated;
+select auth.user_id();     -- permission denied for schema auth
+```
+
+### Neden okuma çalışıyor GÖRÜNÜYORDU
+
+Bu hatanın en sinsi tarafı bu. `GET` 200 dönüyordu — ama tablo **boş** olduğu
+için. Süzülecek satır yokken Postgres RLS `USING` ifadesini hiç
+değerlendirmiyor, yani `auth.user_id()` hiç çağrılmıyor.
+
+İlk satır yazılabilseydi okumalar da 403 olacaktı. Yani "okuma çalışıyor,
+yazma bozuk" diye bir durum yoktu; ikisi de bozuktu, biri kendini gizliyordu.
+
+### Yaptığım hata: dönen bir ifade, işe yaramış demek değil
+
+İlk düzeltme denemem `grant usage on schema auth to authenticated` oldu.
+**Hatasız döndü.** Ölçmeseydim "düzeltildi" diyecektim.
+
+Ölçtüm: `has_schema_privilege` hâlâ `false`. Sebebi şu — `auth` şeması
+`cloud_admin`e ait, `neondb_owner` orada `grant` edemiyor ve Postgres bu
+durumda **hata değil UYARI** veriyor. İfade "başarıyla" hiçbir şey yapmıştı.
+
+Bu, oturum boyunca dört kez düştüğüm tuzağın sunucu tarafındaki karşılığı.
+K-040 "bir muhafız, kırıldığında düştüğü görülene kadar yoktur" diyordu.
+Aynısının bu hâli: **bir işlemin döndüğü, işe yaradığı anlamına gelmiyor.**
+
+### Çözüm: köprü kendi şemamızda
+
+Yetkiyi doğrudan vermek mümkün değil. Data API'yi varsayılan grant'lerle
+yeniden kurmak da bir seçenekti ama uç nokta adresini değiştirebilirdi; o
+adres `app/.env` ve `api/vekil.ts` içinde yazılı ve değişse ikisini de
+güncelleyip yeniden yayınlamak gerekirdi.
+
+`neondb_owner` `auth` şemasını kullanabiliyor. O yüzden köprü ona ait:
+
+```sql
+create or replace function defter_kim() returns text
+language sql stable security definer
+set search_path = auth, pg_catalog
+as $$ select auth.user_id() $$;
+```
+
+Sütun varsayılanları, iki tetik ve iki RLS politikası artık bunu çağırıyor.
+
+**Yetki yükseltmesi değil.** `auth.user_id()` oturumdaki JWT'nin `sub`
+iddiasını okuyor ve o JWT isteği YAPAN kullanıcınınki. Tanımlayıcı olarak
+koşmak hangi JWT'nin okunduğunu değiştirmiyor — herkes yine yalnızca kendi
+kimliğini alıyor, RLS aynı sıkılıkta. `search_path` sabitlendi, `public`ten
+EXECUTE geri alındı.
+
+### Neden hiçbir deneme yakalamadı
+
+`arac/sahteNeon.mjs` bir **HTTP taklidi**: içinde Postgres yok, RLS yok, rol
+yok, şema izni yok. `hepsi`, `hesap`, `kasa`, `cikmaz` — hepsi ona karşı
+koşuyor ve hepsi geçiyordu.
+
+**Bir taklit ancak taklit ettiği kadarını sınar.** Sahte sunucu istemci
+akışını doğru sınıyor ve o işini yaptı: akışta hata yoktu. Ama sunucunun
+yetki modelini hiç temsil etmiyor, o yüzden o katmandaki hata ancak gerçek
+Neon'a dokununca göründü. Bu bir eksiklik değil, taklidin tanımı — kaydı
+gereken şey, **hangi soruların ona sorulamayacağı.**
+
+### Doğrulama — ilk kez gerçek Neon
+
+Kullanıcı canlı sitede hesap açtı ve kayıt bıraktı.
+
+| | önce | sonra |
+|---|---|---|
+| `neon_auth.user` | 1 | 1 (yetim hesap kendini onardı; `oturumAc` önce `sign-in` deniyor) |
+| `defter_kasa` | 0 | **1** |
+| `defter_blob` | 0 | **2** |
+
+```
+06:09:13  POST /rest/defter_kasa  403   ← düzeltmeden önce
+06:27:06  POST /rest/defter_kasa  201
+06:27:08  POST /rest/defter_blob  201
+06:27:35  POST /rest/defter_blob  201
+```
+
+Sonrasında tek bir 403 yok.
+
+**Gizlilik sözü de ilk kez gerçek veriyle sınandı ve tuttu:** `satir` 64 haneli
+onaltılık (HMAC — varlık tipi bile görünmüyor), `iv` 12 bayt, `govde` saf
+base64 AES-GCM. Çözülen baytların yalnızca **%35–41'i** yazdırılabilir
+aralıkta; düzgün rastgele veride beklenen oran 95/256 ≈ %37. Gövdeler
+rastgeleden ayırt edilemiyor. `defter_kasa.kullanici` ile `neon_auth.user.id`
+birebir aynı: RLS doğru kimliğe bağlı.
+
+### Açık uç: senkron turu fazla sık
+
+Çalışma kaydında bir tur sırasında ~5 saniyede iki `GET /rest/defter_blob`
+görünüyor; bir seferinde ~50 saniye sürdü. Veri doğru yazılıp okunuyor, yani
+arıza değil — ama borçlandırmalı tur beklenenden sık tetikleniyor ve iki çağrı
+yarıda kesilmiş (`status 0`). Bu kararın kapsamında değil; ayrıca bakılacak.
+
+---
+
 ## 2026-09-01 · K-040 · Açma ekranından çıkış yolu — ve dört muhafızın boş çıkması
 
 K-039 yayına çıktıktan sonra kullanıcının ilk cümlesi şuydu:
@@ -128,8 +253,10 @@ koşuda silme yüklemeden önce olur ve aşama sebepsiz düşerdi. Planda "onsuz
 anlamsızlaşır" diye yazılmıştı; doğru değilmiş. Bir muhafızın ne ölçtüğünü
 kırma denemesi söylüyor, niyet değil.
 
-Kalan sınır: gerçek Neon'da hâlâ denenmedi. Aşamalar sahte Neon'a karşı
-koşuyor; sınadıkları şey istemci akışı, sunucu değil.
+O günkü sınır — "gerçek Neon'da denenmedi" — ertesi gün kalktı: `kasa`nın
+taklide karşı sınadığı senaryo canlıda da doğrulandı. Ama önce sunucuda bir
+hata çıktı; aşamalar sahte Neon'a karşı koştuğu için onu hiçbiri
+göremiyordu (K-041).
 
 ---
 
@@ -214,8 +341,9 @@ bırakılıyor; ikinci bağlamda yalnızca kullanıcı adı ve şifreyle giriliy
 kayıt orada. Ne kod yazılıyor ne senkron açılıyor. Yanlış şifre defteri açmıyor
 ve sunucuda üçüncü bir hesap oluşmuyor — sunucu kaydında sayıldı.
 
-Kalan sınır: gerçek Neon'da denenmedi. `defter_kasa` şeması hâlâ elle
-uygulanmayı bekliyor.
+O günkü sınır — "gerçek Neon'da denenmedi, `defter_kasa` şeması elle
+uygulanmayı bekliyor" — kapandı: şema uygulandı, hesap açma ve senkron canlıda
+çalışıyor. Yolda bir de sunucu tarafı hata çıktı (K-041).
 
 ---
 
@@ -299,8 +427,9 @@ kasa` gerçek Chromium'da: defter kur → kayıt bırak → senkron aç (2 satı
 → yenile → yalnızca parola → defter geri geldi. Kasa yazması iptal edilip
 koşturuldu, deneme düşüyor.
 
-Kalan sınır: gerçek Neon'da denenmedi. `defter_kasa` şeması `sema/sunucu.sql`de
-duruyor ve elle uygulanması gerekiyor.
+O günkü sınır — "gerçek Neon'da denenmedi" — kapandı: kasa canlıda yazılıyor
+ve okunuyor, gövdesi rastgeleden ayırt edilemiyor. Şemanın kendisinde bir
+eksik vardı ve ancak gerçek sunucuda göründü (K-041).
 
 ---
 
