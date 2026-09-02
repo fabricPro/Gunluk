@@ -351,6 +351,14 @@ const asamaCikmaz = async () => {
 const asamaHesap = async () => {
   const tarayici = await chromium.launch({ executablePath: process.env.CHROMIUM })
   const ad = `kullanici${Date.now().toString(36)}`
+  /*
+   * Sahte sunucu aşamalar arasında yaşıyor ve hesap biriktiriyor; bu
+   * yüzden MUTLAK sayı değil, BU koşuda açılanların farkı ölçülüyor.
+   * Mutlak sayıya bakan ilk sürüm, arka arkaya koşunca sebepsiz
+   * düşüyordu.
+   */
+  const basHesap = await (async () =>
+    (await (await fetch(`${SAHTE}/sayim`)).json()).hesap)()
 
   console.log('\n1. Birinci cihaz: hesap açılıyor')
   const bir = await tarayici.newContext()
@@ -449,8 +457,25 @@ const asamaHesap = async () => {
    * tek kullanıcı, sunucuda TEK hesap. Senkron koddan türeyen kendi
    * hesabını açsaydı bu sayı büyürdü (KARARLAR.md · K-043).
    */
-  const toplam = await sayim()
-  de(toplam === 1, `sunucuda tek hesap var (${toplam})`)
+  const acilan = (await sayim()) - basHesap
+  de(acilan === 1, `bu koşuda TEK hesap açıldı (${acilan})`)
+
+  console.log('\n6. Boşta duran defter sunucuyu RAHAT BIRAKIYOR')
+  /*
+   * Senkron turu kendi kendini besliyordu: tur biter → ekran tazelenir
+   * → tazeleme senkronu yeniden borçlandırır → 4 saniye sonra tur…
+   * Defter açık kaldığı sürece, hiçbir şey değişmese bile
+   * (KARARLAR.md · K-044).
+   *
+   * Ölçüm doğrudan: hiçbir şey yapmadan 20 saniye bekle, gelen istek
+   * sayısına bak. Eski kodda ~8-10 istek geliyordu.
+   */
+  const istek = async () => (await (await fetch(`${SAHTE}/sayim`)).json()).istek
+  const once = await istek()
+  await bekle(s2, 20000)
+  const sonra = await istek()
+  const fark = sonra - once
+  de(fark <= 2, `20 saniye boşta: ${fark} istek (en fazla 2 bekleniyor)`)
 
   await tarayici.close()
   console.log(hata ? `\nDÜŞEN: ${hata}\n` : '\nHesap denemesi geçti.\n')

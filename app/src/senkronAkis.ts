@@ -32,6 +32,21 @@ export class SenkronAkis {
   private suruyor = false
   private dinleyiciler: (() => void)[] = []
 
+  /**
+   * Son tur GERÇEKTEN bir şey değiştirdi mi.
+   *
+   * `calistir()`in dönüşü "hata almadan koştu" demek, "değişti" demek
+   * değil — ve çağıran taraf bunu "değişti" diye okuyunca sonsuz bir
+   * döngü kuruluyordu: tur biter → ekran tazelenir → tazeleme senkronu
+   * yeniden borçlandırır → 4 saniye sonra tur biter… Defter açık kaldığı
+   * sürece sürüyordu (KARARLAR.md · K-044).
+   *
+   * Ayrı bir alan, çünkü `calistir()`in boolean anlamı ("koştu mu")
+   * testlerde sabitlenmiş durumda; ikisini tek değere bindirmek yine
+   * aynı karışıklığı üretirdi.
+   */
+  sonTurDegisti = false
+
   durum: SenkronDurum = {
     calisiyor: false,
     bekleyen: 0,
@@ -75,9 +90,11 @@ export class SenkronAkis {
     this.durum.calisiyor = true
     this.durum.hata = null
     this.duyur()
+    this.sonTurDegisti = false
     try {
-      await this.cek()
-      if (!this.iptal) await this.it()
+      const cekilen = await this.cek()
+      const itilen = this.iptal ? 0 : await this.it()
+      this.sonTurDegisti = cekilen + itilen > 0
       this.durum.sonSenkron = Date.now()
       return true
     } catch (e) {
@@ -94,15 +111,17 @@ export class SenkronAkis {
 
   /* ── çekme ─────────────────────────────────────────────── */
 
-  private async cek(): Promise<void> {
+  /** Uygulanan satır sayısı — 0 ise uzakta yeni bir şey yoktu. */
+  private async cek(): Promise<number> {
     let seviye = Number((await this.depo.ayarOku(SU_SEVIYESI)) ?? 0)
+    let uygulanan = 0
     for (;;) {
-      if (this.iptal) return
+      if (this.iptal) return uygulanan
       this.durum.asama = 'çekiliyor'
       this.duyur()
 
       const gelen = await this.sunucu.cek(seviye, PARCA)
-      if (!gelen.length) return
+      if (!gelen.length) return uygulanan
 
       const islemler: SenkronUygulama[] = []
       const notlar: { kayitId: string; metin: string }[] = []
@@ -139,6 +158,7 @@ export class SenkronAkis {
       }
 
       await this.depo.senkronUygula(islemler)
+      uygulanan += islemler.length + notlar.length
       await this.depo.senkronSaatiIlerlet(enBuyukSaat)
 
       /*
@@ -150,17 +170,19 @@ export class SenkronAkis {
 
       seviye = gelen[gelen.length - 1]!.surum
       await this.depo.ayarYaz(SU_SEVIYESI, String(seviye))
-      if (gelen.length < PARCA) return
+      if (gelen.length < PARCA) return uygulanan
     }
   }
 
   /* ── itme ──────────────────────────────────────────────── */
 
-  private async it(): Promise<void> {
+  /** Gönderilen satır sayısı — 0 ise yerelde bekleyen yoktu. */
+  private async it(): Promise<number> {
+    let gonderilen = 0
     for (;;) {
-      if (this.iptal) return
+      if (this.iptal) return gonderilen
       const bekleyen = await this.depo.senkronBekleyen(PARCA)
-      if (!bekleyen.length) return
+      if (!bekleyen.length) return gonderilen
 
       this.durum.asama = `gönderiliyor — ${bekleyen.length}`
       this.duyur()
@@ -183,8 +205,9 @@ export class SenkronAkis {
          kalıyor ve bir daha gönderiliyor. Aynı satırı iki kez göndermek
          zararsız (upsert), göndermemek veri kaybı. */
       await this.depo.senkronGonderildi(isaretler)
+      gonderilen += isaretler.length
       await this.tazele()
-      if (bekleyen.length < PARCA) return
+      if (bekleyen.length < PARCA) return gonderilen
     }
   }
 }

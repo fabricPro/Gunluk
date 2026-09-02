@@ -33,6 +33,8 @@ const kasalar = new Map()
 
 let dizi = 0
 let sayac = 0
+/** Kaç istek geldi — boştaki senkron gürültüsünü ÖLÇMEK için. */
+let istekSayisi = 0
 
 const b64url = (o) => Buffer.from(JSON.stringify(o)).toString('base64url')
 
@@ -105,7 +107,14 @@ const sunucu = createServer(async (istek, cikti) => {
    * uygulamanın içinden bakılamıyor (KARARLAR.md · K-043).
    */
   if (yol === '/sayim')
-    return json(cikti, 200, { hesap: hesaplar.size, kasa: kasalar.size })
+    return json(cikti, 200, {
+      hesap: hesaplar.size,
+      kasa: kasalar.size,
+      istek: istekSayisi,
+    })
+
+  /* Sayım isteğinin kendisi sayılmıyor. */
+  istekSayisi++
 
   /* ── kimlik ────────────────────────────────────────────── */
 

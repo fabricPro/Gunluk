@@ -9,6 +9,82 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-09-02 · K-044 · "Koştu" ile "değişti" aynı değer değil — kendini besleyen senkron
+
+Vercel kaydında senkron ~5 saniyede bir istek atıyordu ve defter açık kaldığı
+sürece durmuyordu. K-041'in sonuna "arıza değil, ayrıca bakılacak" diye
+yazmıştım. Bakınca arıza çıktı.
+
+```
+durum.dinle        → senkronuBorclan()        (4 sn)
+  → senkronTur()   → calistir() → true        ← HER SEFERİNDE
+  → durum.yenile() → dinleyicileri uyarır
+  → durum.dinle    → senkronuBorclan()        → başa dön
+```
+
+`calistir()`in dönüşü **"hata almadan koştu"** demekti; `ana.ts` onu
+**"bir şey değişti"** diye okuyup `durum.yenile()` çağırıyordu. `yenile()` de
+koşulsuz olarak dinleyicileri uyarıyor, dinleyici senkronu yeniden
+borçlandırıyordu. Hiçbir şey değişmezken bile dönen bir çark.
+
+Sayfa görünürlükten çıkınca duruyordu — gözden kaçmasının sebebi bu.
+
+### Bir dönüş değeri iki soruyu cevaplayamaz
+
+Düzeltme, `calistir()`in boolean'ını değiştirmek DEĞİL: o anlam
+(`test/senkronAkis.test.ts`) sabitlenmiş durumda ve doğru. İkinci soru ayrı bir
+alana taşındı: `sonTurDegisti`. `cek()` uyguladığı satırı, `it()` gönderdiği
+satırı sayıyor; ikisi de sıfırsa ekran tazelenmiyor, çark dönmüyor.
+
+İki soruyu tek değere bindirmek K-042'nin aynısıydı: orada `null` dört ayrı
+durumu anlatıyordu, burada `true` iki ayrı şeyi. **Bir değerin kaç soruya
+cevap verdiğini saymak gerekiyor.**
+
+### İkinci masraf: her tur bütün defteri indiriyordu
+
+`senkronTur` her turdan sonra `kullanim()` çağırıyordu; o da
+`/defter_blob?select=govde` ile **bütün satırların şifreli gövdesini**
+indiriyordu — yalnızca ayarlar kâğıdındaki satır sayısı ve boyut için. İki
+kayıtta görünmez, yıllık defterde her turda tüm defterin inmesi demek.
+
+Artık ayarlar açılınca ve sayının gerçekten değiştiği anlarda (hesaba taşıma,
+elle eşitleme) isteniyor. İsteğin kendisi hâlâ gövdeleri indiriyor; sıklığı
+düştü, maliyeti durmuyor. Gövdesiz sayım (`count=exact` + `limit=0`) mümkün
+ama boyut sunucudan ücretsiz gelmiyor; ayrı ele alınacak.
+
+### Muhafız: sayıyla ölçülüyor
+
+`hesap` aşamasına 6. adım: defter açık, **20 saniye hiçbir şey yapmadan bekle**,
+sahte sunucuya gelen istek sayısına bak.
+
+| | istek |
+|---|---|
+| Düzeltmeden önce | **10** |
+| Düzeltmeden sonra | **1** |
+
+Kırma denemesi bu kez tek satır: `durum.yenile()`i koşulsuz hâle getir, sayı
+10'a çıkıyor. Sayı ölçen bir iddianın boş çıkması zor — bu oturumdaki
+muhafızların en sağlamı.
+
+### Yolda çıkan iki şey
+
+**`kasa` aşaması düzeltmeyi yakaladı.** Kullanım sayısını senkron turundan
+alınca ayarlar kâğıdı AÇIKKEN güncellenmez oldu; `kasa` aşaması tam olarak onu
+ölçüyordu ve düştü. Taşıma ve elle eşitleme sonrasına tazeleme eklendi. Deneme
+kendi işini yaptı.
+
+**Hesap sayısı iddiası izolasyonsuzdu.** K-043'te yazdığım "sunucuda tek hesap"
+iddiası MUTLAK sayıya bakıyordu; sahte sunucu aşamalar arasında yaşayıp hesap
+biriktirdiği için arka arkaya koşunca sebepsiz düşüyordu. Artık bu koşuda
+açılan hesabın FARKINA bakıyor — kırma denemesinde yine 2 gösterip düşüyor.
+
+### Doğrulama
+
+637 test; `hesap`, `cikmaz`, `kasa`, `hepsi` — dördü de geçiyor. Her iki
+muhafız da kırılıp düştüğü görülerek doğrulandı.
+
+---
+
 ## 2026-09-02 · K-043 · Oturum kimliğe bağlanmıyordu — K-038'in hesap ayrımı hiç var olmamış
 
 Giriş bir denemede düştü, ikincide açıldı. Aynı istek dizisi, farklı sonuç.
@@ -242,12 +318,13 @@ aralıkta; düzgün rastgele veride beklenen oran 95/256 ≈ %37. Gövdeler
 rastgeleden ayırt edilemiyor. `defter_kasa.kullanici` ile `neon_auth.user.id`
 birebir aynı: RLS doğru kimliğe bağlı.
 
-### Açık uç: senkron turu fazla sık
+### Açık uç: senkron turu fazla sık — ve "arıza değil" yanlıştı
 
-Çalışma kaydında bir tur sırasında ~5 saniyede iki `GET /rest/defter_blob`
-görünüyor; bir seferinde ~50 saniye sürdü. Veri doğru yazılıp okunuyor, yani
-arıza değil — ama borçlandırmalı tur beklenenden sık tetikleniyor ve iki çağrı
-yarıda kesilmiş (`status 0`). Bu kararın kapsamında değil; ayrıca bakılacak.
+Çalışma kaydında ~5 saniyede iki `GET /rest/defter_blob` görünüyor. Buraya
+"veri doğru yazılıp okunuyor, yani arıza değil" diye yazmıştım. **Yanlıştı:**
+tur kendi kendini besleyen bir döngüydü ve defter açık kaldığı sürece dönüyordu
+(K-044). Kayıtta görünen bir tuhaflığı açıklamadan "arıza değil" saymanın
+bedeli bu.
 
 ---
 

@@ -102,6 +102,14 @@ export interface SenkronDenetim {
   kod: () => string | null
   durum: () => { calisiyor: boolean; bekleyen: number; asama: string; hata: string | null; sonSenkron: number | null }
   kullanim: () => { satir: number; bayt: number } | null
+  /**
+   * Sunucudaki kullanımı bir kez tazeler.
+   *
+   * Ayarlar açılınca çağrılıyor, senkron turunda değil: istek defterin
+   * BÜTÜN şifreli gövdelerini indiriyor ve bu sayı yalnızca burada
+   * görünüyor (KARARLAR.md · K-044).
+   */
+  kullanimTazele: () => Promise<void>
   /** Defter bir hesaba bağlı mı — senkron ayrı bir düğme değil. */
   hesapli: () => boolean
   /** Hesap yeni açıldıysa gösterilecek kod; bir kez okunuyor. */
@@ -275,6 +283,8 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       const kod = await senkron.hesabaTasi(ad2, sifre).catch(() => null)
       if (!kod) return void alert(S('ay.hesapOlmadi'))
       await kimlikKarti(kod, false)
+      /* Kâğıt AÇIKKEN taşındı: sayı burada değişiyor, tazelenmeli. */
+      await senkron.kullanimTazele()
     } else if (ad === 'cikis') {
       if (!senkron) return
       if (!confirm(S('ay.cikisOnay'))) return
@@ -282,6 +292,8 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       return
     } else if (ad === 'senkronSimdi') {
       await senkron?.simdi()
+      /* Elle eşitlemenin görünür sonucu bu sayı; hemen tazeleniyor. */
+      await senkron?.kullanimTazele()
       return
     } else if (ad === 'modelSoru') {
       await model?.soruDegistir(!model.soruAcik())
@@ -516,6 +528,8 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
   const ac = async (): Promise<void> => {
     await ciz()
     $('#ayarlar').classList.add('acik')
+    /* Kâğıt açıkken tazeleniyor; sayı gelince `senkronCiz` yeniden çiziyor. */
+    if (senkron?.hesapli()) void senkron.kullanimTazele()
   }
   void kacir
   return { ac }

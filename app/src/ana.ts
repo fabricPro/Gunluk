@@ -403,12 +403,18 @@ async function baslat(): Promise<void> {
 
     const senkronTur = async (): Promise<void> => {
       if (!senkronAkis || kilit.durum === 'kilitli') return
-      const oldu = await senkronAkis.calistir()
-      if (oldu) {
-        senkronKullanim = await senkronSunucu!.kullanim().catch(() => senkronKullanim)
-        /* Uzaktan gelen kayıtlar ekrana düşsün. */
-        await durum.yenile()
-      }
+      await senkronAkis.calistir()
+      /*
+       * Ekran YALNIZCA gerçekten bir şey değiştiyse tazeleniyor.
+       *
+       * Eskiden `calistir()`in "hata almadan koştu" dönüşü "değişti"
+       * diye okunuyordu ve `durum.yenile()` her turda çağrılıyordu.
+       * `yenile()` de dinleyicileri uyarıyor, dinleyici senkronu
+       * yeniden borçlandırıyordu: 4 saniyede bir, defter açık kaldığı
+       * sürece dönen bir döngü. Hiçbir şey değişmezken bile
+       * (KARARLAR.md · K-044).
+       */
+      if (senkronAkis.sonTurDegisti) await durum.yenile()
       senkronDinleyici()
     }
 
@@ -473,6 +479,16 @@ async function baslat(): Promise<void> {
             calisiyor: false, bekleyen: 0, asama: '', hata: null, sonSenkron: null,
           },
         kullanim: () => senkronKullanim,
+        /*
+         * Kullanım sayısı her turda değil, ayarlar kâğıdı açılınca
+         * isteniyor: istek defterin BÜTÜN şifreli gövdelerini indiriyor
+         * ve bu sayı yalnızca orada görünüyor (K-044).
+         */
+        kullanimTazele: async () => {
+          if (!senkronSunucu) return
+          senkronKullanim = await senkronSunucu.kullanim().catch(() => senkronKullanim)
+          senkronDinleyici()
+        },
         /* Hesaplı defterde senkron ayrı bir düğme değil (K-039). */
         hesapli: () => !!senkronKod,
         /** Hesap yeni açıldıysa gösterilecek kod; bir kez okunuyor. */
