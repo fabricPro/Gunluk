@@ -25,10 +25,51 @@
 --  yazdığınız. Metin, tarih, saat, defter adı, başlık, tema, fotoğraf —
 --  hiçbiri değil.
 
+-- ── `auth.user_id()`e erişim: `defter_kim()` sarmalayıcısı ──
+--
+-- `authenticated` rolünün `auth` ŞEMASINA USAGE yetkisi YOK. Fonksiyona
+-- EXECUTE yetkisi var ama şemaya girilemediği için çağrı
+-- `permission denied for schema auth` ile düşüyor: SQLSTATE 42501, ve
+-- Data API bunu 403 olarak döndürüyor.
+--
+-- Canlıda tam olarak şu oluyordu: hesap açılıyor, JWT alınıyor, kasa
+-- OKUNUYOR (tablo boş olduğu için RLS ifadesi hiç değerlendirilmiyor,
+-- yani okuma çalışıyor GİBİ görünüyor), ama ilk yazma 403 ile düşüyordu
+-- — tetik `auth.user_id()`ye dokunduğu anda. Sunucuya bugüne kadar tek
+-- satır yazılamamasının sebebi buydu (KARARLAR.md · K-041).
+--
+-- Yetkiyi doğrudan vermek MÜMKÜN DEĞİL: `auth` şeması `cloud_admin`e
+-- ait ve `neondb_owner` orada `grant` edemiyor — denendi, Postgres
+-- hata değil UYARI verip hiçbir şey yapmıyor. Neon'un Data API'sini
+-- yeniden kurmak (varsayılan grant'lerle) uç nokta adresini
+-- değiştirebilirdi; o adres `app/.env` ve `api/vekil.ts` içinde yazılı.
+--
+-- Bu yüzden köprü kendi şemamızda: `neondb_owner` `auth` şemasını
+-- KULLANABİLİYOR, o yüzden ona ait `security definer` bir sarmalayıcı
+-- çağrıyı taşıyor.
+--
+-- YETKİ YÜKSELTMESİ DEĞİL: `auth.user_id()` oturumdaki JWT'nin `sub`
+-- iddiasını okuyor ve o JWT isteği YAPAN kullanıcınınki. Tanımlayıcı
+-- olarak koşmak hangi JWT'nin okunduğunu değiştirmiyor; herkes yine
+-- yalnızca kendi kimliğini alıyor. `search_path` sabitleniyor ki
+-- arama yolu ele geçirilemesin.
+
+create or replace function defter_kim() returns text
+language sql stable security definer
+set search_path = auth, pg_catalog
+as $$ select auth.user_id() $$;
+
+comment on function defter_kim() is
+  'auth.user_id() köprüsü: authenticated rolünün auth şemasına erişimi yok.';
+
+revoke all on function defter_kim() from public;
+grant execute on function defter_kim() to authenticated;
+
+
 create table if not exists defter_blob (
-  -- auth.user_id(): JWT'nin `sub` iddiası. Trigger her yazmada yeniden
-  -- atıyor, yani istemci başkasının kimliğini yazamıyor.
-  kullanici text        not null default (auth.user_id()),
+  -- defter_kim() = JWT'nin `sub` iddiası (yukarıdaki sarmalayıcı).
+  -- Tetik her yazmada yeniden atıyor: istemci başkasının kimliğini yazamıyor.
+  kullanici text        not null default (defter_kim()),
   -- HMAC(kok, tip|id). Varlığın tipi bile burada görünmüyor.
   satir     text        not null,
   -- Sunucunun attığı, kesin artan, benzersiz sayaç. Çekme su seviyesi bu.
@@ -64,7 +105,7 @@ language plpgsql as $$
 begin
   new.surum     := nextval('defter_surum_dizi');
   new.alindi    := now();
-  new.kullanici := auth.user_id();
+  new.kullanici := defter_kim();
   return new;
 end;
 $$;
@@ -83,8 +124,8 @@ alter table defter_blob force  row level security;
 
 drop policy if exists kendi_satirlari on defter_blob;
 create policy kendi_satirlari on defter_blob for all to authenticated
-  using       (auth.user_id() = kullanici)
-  with check  (auth.user_id() = kullanici);
+  using       (defter_kim() = kullanici)
+  with check  (defter_kim() = kullanici);
 
 create index if not exists defter_blob_cekme on defter_blob (kullanici, surum);
 
@@ -124,9 +165,9 @@ alter table defter_blob drop column if exists silindi;
 --  anahtarı açabiliyor — ama en zayıf halka artık parolanın gücü.
 
 create table if not exists defter_kasa (
-  -- auth.user_id(): kasa hesabının JWT `sub` iddiası. İstemci başkasının
-  -- kasasına yazamıyor; trigger her yazmada yeniden atıyor.
-  kullanici text        not null default (auth.user_id()) primary key,
+  -- defter_kim() = kasa hesabının JWT `sub` iddiası. İstemci başkasının
+  -- kasasına yazamıyor; tetik her yazmada yeniden atıyor.
+  kullanici text        not null default (defter_kim()) primary key,
   iv        text        not null,
   -- base64 AES-GCM(paroladan türeyen anahtar, 16 baytlık gizli).
   govde     text        not null,
@@ -139,7 +180,7 @@ comment on table defter_kasa is
 create or replace function defter_kasa_sahip() returns trigger
 language plpgsql as $$
 begin
-  new.kullanici := auth.user_id();
+  new.kullanici := defter_kim();
   new.alindi    := now();
   return new;
 end;
@@ -157,7 +198,7 @@ alter table defter_kasa force  row level security;
 
 drop policy if exists kendi_kasasi on defter_kasa;
 create policy kendi_kasasi on defter_kasa for all to authenticated
-  using       (auth.user_id() = kullanici)
-  with check  (auth.user_id() = kullanici);
+  using       (defter_kim() = kullanici)
+  with check  (defter_kim() = kullanici);
 
 grant select, insert, update, delete on defter_kasa to authenticated;
