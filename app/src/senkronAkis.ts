@@ -3,6 +3,7 @@ import type { Zarf } from './cekirdek/senkronBicim.js'
 import type { SenkronKimlik } from './cekirdek/senkronKimlik.js'
 import type { Depo, SenkronUygulama } from './veri/depo.js'
 import type { Sunucu } from './veri/senkronDepo.js'
+import { OKUNAMAYAN, SU_SEVIYESI } from './senkronKurulum.js'
 
 /**
  * SENKRON DÖNGÜSÜ — çek, uygula, it.
@@ -19,17 +20,30 @@ export interface SenkronDurum {
   asama: string
   hata: string | null
   sonSenkron: number | null
+  /** Son turda sunucudan inip yerele YAZILAN satır sayısı. */
+  sonCekilen: number
+  /**
+   * Son turda inip AÇILAMAYAN satır sayısı.
+   *
+   * Bu satırlar sessizce atlanıyordu ve su seviyesi üstlerine çıkıyordu:
+   * sunucudaki `surum` bir daha değişmediği için bir daha da hiç
+   * istenmiyorlardı. Kullanıcı defterinin bir kısmının inmediğini
+   * öğrenemiyordu — arıza dışarıdan görünmez oluyordu
+   * (KARARLAR.md · K-042, K-048).
+   */
+  okunamayan: number
 }
 
 /** Bir turda taşınan en fazla satır. Ek'ler büyük olabiliyor. */
 const PARCA = 50
 
-/** Su seviyeleri `ayar` tablosunda — cihaza özgü, senkronlanmıyor. */
-const SU_SEVIYESI = 'senkron.sonGorulen'
-
 export class SenkronAkis {
   private iptal = false
   private suruyor = false
+  /** Bu turda sunucudan inen satır sayısı (açılanlar + açılamayanlar). */
+  private indirilen = 0
+  /** Bu turda açılamayan satır sayısı. */
+  private turdaOkunamayan = 0
   private dinleyiciler: (() => void)[] = []
 
   /**
@@ -53,6 +67,8 @@ export class SenkronAkis {
     asama: '',
     hata: null,
     sonSenkron: null,
+    sonCekilen: 0,
+    okunamayan: 0,
   }
 
   constructor(
@@ -74,6 +90,9 @@ export class SenkronAkis {
 
   async tazele(): Promise<void> {
     this.durum.bekleyen = await this.depo.senkronBekleyenSayisi()
+    /* Açılamayan satır sayısı yeniden yüklemeden sonra da durmalı: kalıcı
+       olmasaydı ayar kağıdı onu yalnızca satırın indiği anda gösterirdi. */
+    this.durum.okunamayan = Number((await this.depo.ayarOku(OKUNAMAYAN)) ?? 0)
     this.duyur()
   }
 
@@ -91,8 +110,21 @@ export class SenkronAkis {
     this.durum.hata = null
     this.duyur()
     this.sonTurDegisti = false
+    this.durum.sonCekilen = 0
+    this.indirilen = 0
+    this.turdaOkunamayan = 0
     try {
       const cekilen = await this.cek()
+      /*
+       * Sayı YALNIZCA gerçekten satır indiren turda yazılıyor.
+       *
+       * Her turda yazılsaydı boş bir tur, bir önceki turun bulduğu
+       * açılamayan satırları sıfırlar ve uyarı kaybolurdu.
+       */
+      if (this.indirilen) {
+        this.durum.okunamayan = this.turdaOkunamayan
+        await this.depo.ayarYaz(OKUNAMAYAN, String(this.turdaOkunamayan))
+      }
       const itilen = this.iptal ? 0 : await this.it()
       this.sonTurDegisti = cekilen + itilen > 0
       this.durum.sonSenkron = Date.now()
@@ -122,6 +154,7 @@ export class SenkronAkis {
 
       const gelen = await this.sunucu.cek(seviye, PARCA)
       if (!gelen.length) return uygulanan
+      this.indirilen += gelen.length
 
       const islemler: SenkronUygulama[] = []
       const notlar: { kayitId: string; metin: string }[] = []
@@ -129,8 +162,17 @@ export class SenkronAkis {
 
       for (const { zarf } of gelen) {
         const uzak = await zarfiAc(zarf, this.kimlik)
-        /* Çözülemeyen satır atlanıyor — senkron çökmüyor. */
-        if (!uzak) continue
+        /*
+         * Çözülemeyen satır atlanıyor — senkron çökmüyor. Ama SAYILIYOR:
+         * seviye birazdan bunun üstüne çıkacak ve satır bu cihazın çekme
+         * akışından kalıcı olarak düşecek. Seviyeyi geri tutmak çare değil,
+         * gerçekten yabancı tek bir satır senkronu sonsuza kadar kilitler;
+         * doğru davranış ilerleyip SÖYLEMEK (KARARLAR.md · K-048).
+         */
+        if (!uzak) {
+          this.turdaOkunamayan++
+          continue
+        }
         enBuyukSaat = Math.max(enBuyukSaat, uzak.guncelleme)
 
         /*
@@ -159,6 +201,7 @@ export class SenkronAkis {
 
       await this.depo.senkronUygula(islemler)
       uygulanan += islemler.length + notlar.length
+      this.durum.sonCekilen = uygulanan
       await this.depo.senkronSaatiIlerlet(enBuyukSaat)
 
       /*

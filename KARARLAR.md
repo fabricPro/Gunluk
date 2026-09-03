@@ -9,6 +9,123 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-09-03 · K-048 · Su seviyesi hesaba özgüdür — ve atladığını söylemek zorundadır
+
+Kullanıcı: *"bilgisayarda kayıt ettiğim yazılar defterden girince gözükmüyor
+ama defterde yazdığım şey pc'de görünüyor."* İki tarayıcı, aynı hesap, aynı
+şifre. **İtme çalışıyor, çekme çalışmıyor.**
+
+Neon ve Vercel kayıtları arızayı üç adımda daralttı: ikinci cihaz hesaba
+giriyor (`POST /auth/sign-in/email` 200), jeton alıyor, **iki
+`GET /rest/defter_blob` yapıyor ve 200 alıyor.** Yani ağ, kimlik, RLS ve şifre
+çözme suçsuz. Cihaz o satırları **istemiyor**.
+
+### Sebep: `senkron.sonGorulen` iki ayrı yerde yalan söylüyor
+
+Bu ayar, sunucudaki `defter_blob.surum` akışındaki konum: "bundan büyüğünü
+görmedim". Sayıyı sunucu atıyor ve `defter_surum_dizi` **bütün hesaplar için
+tek dizi** — yani bu sayı yalnızca TEK BİR hesabın akışında anlamlı.
+
+**1 · Seviye hesaba bağlı değildi.** `hesabaTasi` sıfırlıyordu; `giris` ve
+`ac` yollarının kullandığı `defteriKodla` sıfırlamıyordu. Başka bir hesapta
+6'ya çıkmış bir cihaz, satırları 2–4 olan bir hesaba girince hiçbir şeyi
+"yeni" saymıyor. Ama kendi yazdığını itiyor ve itilen satır YENİ, yüksek bir
+sürüm aldığı için karşı taraf onu görüyor. Bildirilen asimetrinin birebir
+kendisi.
+
+**2 · Atlanan satır "görüldü" sayılıyordu.** Çözülemeyen zarf `continue` ile
+geçiliyor, seviye ise çekilenlerin sonuncusuna taşınıyordu. Sunucudaki `surum`
+bir daha değişmediği için o satır o cihazın çekme akışından **kalıcı olarak**
+düşüyor: başka bir Defter Kimliği'yle şifreli bir satır bir kez indiyse, doğru
+koda geçildikten sonra bile geri gelmiyor.
+
+**3 · İkisi de sessizdi.** `SenkronDurum` yalnızca itilecekleri sayıyordu.
+Ne indiği, kaç satırın açılamadığı, seviyenin kaç olduğu hiçbir yerde
+görünmüyordu — ne ekranda ne konsolda. K-042'nin kuralı ("ayrı durumları tek
+sessiz cevaba katlama") çekme tarafında hiç uygulanmamış. Arızanın dışarıdan
+teşhis edilememesinin sebebi bu; **hangi kusurun ateşlendiğini bugün hâlâ
+kesin bilmiyorum**, çünkü cihaz hiçbir iz bırakmıyor.
+
+### Kural
+
+**Su seviyesi HESABA özgüdür, yalnızca hesap edilmiş satırın üstüne çıkar, ve
+edemediğini SÖYLER.**
+
+`senkronKurulum.ts` · `suSeviyesiniDenkle`, senkron kurulmadan önce koşuyor ve
+hesap değiştiyse seviyeyi sıfırlıyor. Dört yol da (giriş, hesap aç, buluta
+taşı, açılış) `senkronuKur`dan geçtiği için tek yerde duruyor; `hesabaTasi`'daki
+elle sıfırlama kaldırıldı — ikinci bir doğruluk kaynağı olurdu.
+
+Çözülemeyen satırda seviye **yine ilerliyor**. İlerlememek çare değil:
+gerçekten yabancı tek bir satır senkronu sonsuza kadar kilitlerdi. Doğru
+davranış ilerleyip söylemek — `durum.okunamayan` sayıyor, ayar kağıdı
+gösteriyor.
+
+### Sayının kendisi de sessiz kalıyordu — bellekte tutulunca
+
+İlk hâlde `okunamayan` her tur başında sıfırlanıyordu. Boştaki bir defterde
+tur hep boş dönüyor, yani kullanıcı ayar kağıdını açtığında ekranda **0**
+görünürdü: sessizce atlamayı bitirmek için eklenen satırın kendisi sessiz
+kalırdı. Sayı artık `ayar`da (`senkron.okunamayan`) duruyor, yalnızca
+GERÇEKTEN satır indiren turda yazılıyor ve yeniden yüklemeden sonra da
+görünüyor. "Baştan indir" onu sıfırlıyor — yeni çekmede yeniden ölçülecek,
+eskisini taşımak yalan olurdu.
+
+### Bir kerelik onarım, çünkü hesap karşılaştırması yetmiyordu
+
+Arıza ateşlenmiş cihazlarda hesap DEĞİŞMİYOR. Yalnızca karşılaştırma koysaydım
+kullanıcının telefonu olduğu yerde kalırdı. `senkron.tamCekim.1` damgası,
+düzeltmeyi ilk gören her cihazda defteri bir kez baştan indiriyor. Tekrar
+çekmek zararsız: `catismaKarari` aynı içeriği "yerel" diye geçiyor ve yerelde
+daha yeni olan ezilmiyor.
+
+Ayrıca ayar kağıdına **"defteri baştan indir"** düğmesi kondu. Bugüne kadar
+seviyesi yanlış yerde takılan bir cihazı kullanıcının düzeltmesinin **hiçbir
+yolu yoktu**; damga bir kereye mahsus, düğme kalıcı.
+
+### Muhafızlar ve dürüst bir sınır
+
+Birim tarafında üç kırma denemesi de düştü: seviye sıfırlanmasın (2 test
+düştü), hesap karşılaştırması kalksın (1), `okunamayan` sayacı geri alınsın
+(2).
+
+Tarayıcı tarafına `hesap` aşamasının **4b** adımı eklendi: ikinci cihazda
+yazılan kayıt birinci cihazda görünmek zorunda. Buraya kadar yalnızca tek yön
+ölçülüyordu — iki yönlü olduğu varsayılan bir şeyin yarısı hiç sınanmamıştı.
+
+**Dürüst sınır — iki tane:**
+
+1. 4b, K-048'in düzeltmesini kırarak düşürülemiyor. Arıza bayat bir su seviyesi
+   gerektiriyor ve o sayı OPFS'teki SQLite'ın içinde; sayfadan erişilemiyor.
+   K-048'in asıl kırma denemesi birim testlerde. Zayıf bir tarayıcı muhafızı
+   uydurmaktansa nerede durduğunu yazmak doğru.
+2. 4b'yi "çekmiş cihaz artık itmiyor" arızasıyla kırdım; düştü — ama **aynı
+   kırma 4. adımı da düşürdü.** Yani 4b'nin gerçekten dördüncü adımın
+   ötesinde bir şey yakaladığını gösteren bir deneme elimde YOK. 4b bugün
+   ters yönün gerileme muhafızı; K-047'nin dersini kendi muhafızıma
+   uygulayınca ancak bu kadarını iddia edebiliyorum.
+
+### Ölçümün kendisi de iki yerde bozukmuş
+
+4b eklenince `hesap` aşamasında iki adım düştü ve ikisi de **üründe değil
+ölçümde** kusurluydu:
+
+- "senkron sunucuya hiç dokunmadı" — sayaç anlık alınıyordu ve önceki adımdan
+  kalan bir istek bu adıma yazılıyordu. Artık sayaç kımıldamayana kadar
+  bekleniyor.
+- "gösterilen boyut sunucudakiyle uyuşuyor" — `%10` toleransı küçük defterlerde
+  yanlıştı (ekran tam KB'ye yuvarlıyor: 1252 B → "1 KB"), üstelik `blobBayt`
+  sunucudaki BÜTÜN hesapların toplamı olduğu için ikinci koşuda ikiye
+  katlanıyordu. Artık bu koşunun farkı ölçülüyor ve karşılaştırma ekranın kendi
+  biçimlendirmesiyle birebir.
+
+K-047'nin dersinin devamı: bir muhafız geçiyorsa **neyi ölçtüğünü** de sormak
+gerekiyor.
+
+### Doğrulama
+
+644 test; `hesap` aşaması 17 ✓; `kasa`, `cikmaz`, `hepsi`. Kırma denemeleri yukarıda.
+
 ## 2026-09-03 · K-047 · Bir kaynakta iki kimlik olamaz — sonucu rastgeleleştiren yarış
 
 Kullanıcı aynı şifreyle bir denemede **"kasan görünmüyor"**, bir saat sonra

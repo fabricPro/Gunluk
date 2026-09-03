@@ -469,7 +469,21 @@ const TR: Metinler = {
   'ay.senkronHata': '<br>Son deneme başarısız: {hata}',
   'ay.senkronSonSenkron': '<br>Son eşitleme: {zaman}',
   'ay.senkronHicSenkron': '<br>Henüz eşitlenmedi.',
+  'ay.senkronCekilen': '<br>Son turda sunucudan <b>{n}</b> satır indi.',
+  /*
+   * Açılamayan satır SESSİZ GEÇİLMİYOR (KARARLAR.md · K-048).
+   *
+   * Bu satırlar başka bir Defter Kimliği'yle şifreli ve bu cihaz onları
+   * bir daha istemeyecek. Kullanıcı defterinin bir kısmının inmediğini
+   * bilmeli; "eşitlendi" demek yalan olurdu.
+   */
+  'ay.senkronOkunamayan':
+    '<br><b>{n}</b> satır bu kimlikle açılamadı ve atlandı.',
   'ay.senkronSimdi': 'şimdi eşitle',
+  'ay.senkronBastan': 'defteri baştan indir',
+  'ay.senkronBastanOnay':
+    'Sunucudaki her satır bir kez daha indirilecek. Yereldeki hiçbir şey ' +
+    'silinmiyor; yalnızca eksik kalanlar tamamlanıyor. Sürsün mü?',
   'ay.senkronKimlikGoster': 'Defter Kimliğini göster',
   'ay.hesapYok':
     'Bu defter yalnızca bu cihazda. Hesap açarsan her cihazdan ulaşırsın ve ' +
@@ -948,7 +962,14 @@ const EN: Metinler = {
   'ay.senkronHata': '<br>Last attempt failed: {hata}',
   'ay.senkronSonSenkron': '<br>Last sync: {zaman}',
   'ay.senkronHicSenkron': '<br>Not synced yet.',
+  'ay.senkronCekilen': '<br><b>{n}</b> rows came down from the server last round.',
+  'ay.senkronOkunamayan':
+    '<br><b>{n}</b> rows could not be opened with this key and were skipped.',
   'ay.senkronSimdi': 'sync now',
+  'ay.senkronBastan': 'download the notebook again',
+  'ay.senkronBastanOnay':
+    'Every row on the server will be downloaded once more. Nothing local is ' +
+    'deleted; only what is missing gets filled in. Continue?',
   'ay.senkronKimlikGoster': 'show the Notebook Key',
   'ay.hesapYok':
     'This notebook is on this device only. Create an account and you reach it ' +

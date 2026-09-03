@@ -6,6 +6,14 @@ import { kurtarmaUret } from '../src/cekirdek/kurtarma.js'
 import { kimlikTuret, type SenkronKimlik } from '../src/cekirdek/senkronKimlik.js'
 import type { Zarf } from '../src/cekirdek/senkronBicim.js'
 import { SenkronAkis } from '../src/senkronAkis.js'
+import {
+  OKUNAMAYAN,
+  SEVIYE_HESABI,
+  SU_SEVIYESI,
+  TAM_CEKIM,
+  bastanIndir,
+  suSeviyesiniDenkle,
+} from '../src/senkronKurulum.js'
 import { defteriAc } from '../src/veri/db.js'
 import type { SqlSurucu } from '../src/veri/db.js'
 import { Depo } from '../src/veri/depo.js'
@@ -340,5 +348,167 @@ describe('dayanıklılık', () => {
     const b = await cihazAc()
     await b.akis.calistir()
     expect((await kayitlar(b)).length).toBe(120)
+  })
+})
+
+describe('su seviyesi — hesaba özgü ve hesap veriyor', () => {
+  /**
+   * BU DOSYADAKİ EN PAHALI MUHAFIZ.
+   *
+   * `senkron.sonGorulen`, sunucudaki `surum` akışındaki konum: "bundan
+   * büyüğünü görmedim". Sunucudaki dizi BÜTÜN hesaplar için ortak
+   * (`veri/sema/sunucu.sql`), yani sayı yalnızca tek bir hesabın akışında
+   * anlamlı. Başka bir hesapta 6'ya çıkmış bir cihaz, satırları 2–4 olan
+   * bir hesaba girince hiçbir şeyi "yeni" saymıyor.
+   *
+   * Canlıda tam olarak bu görüldü ve tek yönlü senkron gibi göründü:
+   * cihaz yazdığını İTİYOR (itilen satır yeni, yüksek bir sürüm alıyor,
+   * karşı taraf görüyor) ama hiçbir şey ÇEKMİYOR. Kullanıcının cümlesi
+   * "bilgisayarda yazdıklarım telefonda görünmüyor ama telefonda
+   * yazdıklarım bilgisayarda görünüyor" idi (KARARLAR.md · K-048).
+   */
+  it('başka hesaptan kalan seviye satırları GİZLİYOR; denkleşince geliyor', async () => {
+    const a = await cihazAc()
+    await a.depo.kayitEkle({ tarih: '2026-05-04', saat: '09:00', metin: 'bilgisayarda' })
+    await a.akis.calistir()
+
+    const b = await cihazAc()
+    /* B başka bir hesapta seviyesini yükseltmiş; sayı bu hesapta anlamsız. */
+    await b.depo.ayarYaz(SU_SEVIYESI, '9999')
+    await b.depo.ayarYaz(SEVIYE_HESABI, 'eski-hesap')
+    await b.depo.ayarYaz(TAM_CEKIM, '1')
+
+    await b.akis.calistir()
+    /* ARIZANIN KENDİSİ: tur hatasız koştu ve hiçbir şey inmedi. */
+    expect(await kayitlar(b)).toEqual([])
+
+    /* Hesap değişti: seviye sıfırlanmalı. */
+    expect(await suSeviyesiniDenkle(b.depo, 'yeni-hesap')).toBe(true)
+    await b.akis.calistir()
+    expect(await kayitlar(b)).toEqual(['bilgisayarda'])
+  })
+
+  it('aynı hesapta seviye korunuyor — her açılışta defter baştan inmiyor', async () => {
+    const a = await cihazAc()
+    await a.depo.kayitEkle({ tarih: '2026-05-04', saat: '09:00', metin: 'tek sefer' })
+    await a.akis.calistir()
+
+    const b = await cihazAc()
+    expect(await suSeviyesiniDenkle(b.depo, 'hesap')).toBe(true)
+    await b.akis.calistir()
+    const seviye = await b.depo.ayarOku(SU_SEVIYESI)
+    expect(Number(seviye)).toBeGreaterThan(0)
+
+    /* İkinci açılış: aynı hesap, damga da atılmış — dokunulmuyor. */
+    expect(await suSeviyesiniDenkle(b.depo, 'hesap')).toBe(false)
+    expect(await b.depo.ayarOku(SU_SEVIYESI)).toBe(seviye)
+  })
+
+  it('bir kerelik onarım: hesap AYNI olsa bile ilk kez sıfırlanıyor', async () => {
+    /*
+     * Arıza ateşlenmiş cihazlarda hesap değişmiyor; yalnızca hesap
+     * karşılaştırması onları kurtarmazdı. Damga, düzeltmeyi ilk gören her
+     * cihazda defteri bir kez baştan indiriyor.
+     */
+    const a = await cihazAc()
+    await a.depo.kayitEkle({ tarih: '2026-05-04', saat: '09:00', metin: 'geri gelmeli' })
+    await a.akis.calistir()
+
+    const b = await cihazAc()
+    await b.depo.ayarYaz(SU_SEVIYESI, '9999')
+    await b.depo.ayarYaz(SEVIYE_HESABI, 'hesap')
+    /* TAM_CEKIM damgası YOK: cihaz düzeltmeyi ilk kez görüyor. */
+    await b.akis.calistir()
+    expect(await kayitlar(b)).toEqual([])
+
+    expect(await suSeviyesiniDenkle(b.depo, 'hesap')).toBe(true)
+    await b.akis.calistir()
+    expect(await kayitlar(b)).toEqual(['geri gelmeli'])
+  })
+
+  it('"baştan indir" seviyeyi sıfırlıyor — kullanıcının elindeki yol', async () => {
+    const a = await cihazAc()
+    await a.depo.kayitEkle({ tarih: '2026-05-04', saat: '09:00', metin: 'eksik kalan' })
+    await a.akis.calistir()
+
+    const b = await cihazAc()
+    await b.depo.ayarYaz(SU_SEVIYESI, '9999')
+    await b.akis.calistir()
+    expect(await kayitlar(b)).toEqual([])
+
+    await bastanIndir(b.depo)
+    await b.akis.calistir()
+    expect(await kayitlar(b)).toEqual(['eksik kalan'])
+  })
+})
+
+describe('açılamayan satır sessiz geçilmiyor', () => {
+  /**
+   * Çözülemeyen satır atlanıyor ve seviye ONUN ÜSTÜNE çıkıyor. Sunucudaki
+   * `surum` bir daha değişmediği için o satır bu cihazın çekme akışından
+   * KALICI olarak düşüyor — doğru koda geçilse bile geri gelmiyor.
+   *
+   * Seviyeyi geri tutmak çare değil: gerçekten yabancı tek bir satır
+   * senkronu sonsuza kadar kilitlerdi. Doğru davranış ilerleyip SÖYLEMEK.
+   */
+  it('açılamayan satır sayılıyor, açılabilenler yine iniyor', async () => {
+    const c = await cihazAc()
+    await c.depo.kayitEkle({ tarih: '2026-05-04', saat: '09:00', metin: 'benim' })
+    await c.akis.calistir()
+
+    const d = await cihazAc()
+    /* Sunucuya BAŞKA bir kimlikle şifrelenmiş bir satır düşmüş. */
+    await sunucu.hesap(kimlik.kimlik).it([
+      { satir: 'yabanci-satir', iv: 'aa'.repeat(12), govde: 'Y2O5cA==' },
+    ])
+
+    expect(await d.akis.calistir()).toBe(true)
+    expect(d.akis.durum.okunamayan).toBe(1)
+    expect(d.akis.durum.sonCekilen).toBeGreaterThan(0)
+    expect(await kayitlar(d)).toEqual(['benim'])
+  })
+
+  it('hepsi açılamıyorsa tur DEĞİŞMEDİ diyor ve sayı görünüyor', async () => {
+    await sunucu.hesap(kimlik.kimlik).it([
+      { satir: 'yabanci-1', iv: 'aa'.repeat(12), govde: 'Y2O5cA==' },
+      { satir: 'yabanci-2', iv: 'bb'.repeat(12), govde: 'Y2O5cA==' },
+    ])
+    const b = await cihazAc()
+    expect(await b.akis.calistir()).toBe(true)
+    expect(b.akis.durum.okunamayan).toBe(2)
+    expect(b.akis.durum.sonCekilen).toBe(0)
+    /* "Hata almadan koştu" ile "bir şey değişti" ayrı şeyler (K-044). */
+    expect(b.akis.sonTurDegisti).toBe(false)
+  })
+
+  it('sayı KALICI: boş tur sıfırlamıyor, yeniden yükleme unutmuyor', async () => {
+    /*
+     * Bellekte tutulan sayı hiçbir işe yaramıyordu: her tur başında
+     * sıfırlanıyor, boştaki defterde tur hep boş dönüyor ve ayar kağıdı
+     * açıldığında ekranda 0 görünüyordu. Yani "sessizce atlama"yı
+     * bitirmek için eklenen satırın kendisi sessiz kalırdı.
+     */
+    await sunucu.hesap(kimlik.kimlik).it([
+      { satir: 'yabanci-1', iv: 'aa'.repeat(12), govde: 'Y2O5cA==' },
+    ])
+    const b = await cihazAc()
+    await b.akis.calistir()
+    expect(b.akis.durum.okunamayan).toBe(1)
+    expect(await b.depo.ayarOku(OKUNAMAYAN)).toBe('1')
+
+    /* Sunucuda yeni bir şey yok: boş tur sayıyı SİLMEMELİ. */
+    await b.akis.calistir()
+    expect(b.akis.durum.okunamayan).toBe(1)
+
+    /* Yeniden yükleme taklidi: yeni akış nesnesi sayıyı depodan okuyor. */
+    const yeni = new SenkronAkis(b.depo, sunucu.hesap(kimlik.kimlik), kimlik)
+    await yeni.tazele()
+    expect(yeni.durum.okunamayan).toBe(1)
+
+    /* "Baştan indir" sayıyı sıfırlıyor ve satır yine açılamıyor. */
+    await bastanIndir(b.depo)
+    expect(await b.depo.ayarOku(OKUNAMAYAN)).toBe('0')
+    await b.akis.calistir()
+    expect(b.akis.durum.okunamayan).toBe(1)
   })
 })

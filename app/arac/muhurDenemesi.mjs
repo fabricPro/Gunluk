@@ -359,6 +359,14 @@ const asamaHesap = async () => {
    */
   const basHesap = await (async () =>
     (await (await fetch(`${SAHTE}/sayim`)).json()).hesap)()
+  /*
+   * Bayt toplamı da BİRİKİYOR: `/sayim`ın `blobBayt`ı bütün hesapların
+   * toplamı. Mutlak sayıya bakan sürüm ikinci koşuda "1 KB ≠ 2 KB" diye
+   * düşüyordu — ölçtüğü şey bu koşunun defteri değil, sunucuda birikmiş
+   * her şeydi. Hesap sayısında olduğu gibi burada da FARK ölçülüyor.
+   */
+  const basBayt = await (async () =>
+    (await (await fetch(`${SAHTE}/sayim`)).json()).blobBayt)()
 
   console.log('\n1. Birinci cihaz: hesap açılıyor')
   const bir = await tarayici.newContext()
@@ -420,6 +428,41 @@ const asamaHesap = async () => {
   }
   de(geldi, 'BİRİNCİ CİHAZDA YAZILAN KAYIT İKİNCİ CİHAZDA — kod yazılmadı, senkron açılmadı')
 
+  console.log('\n4b. KARŞI YÖN: ikinci cihazda yazılan birincide')
+  /*
+   * Buraya kadar yalnızca TEK yön ölçülüyordu: birincide yazılan
+   * ikincide. Kullanıcının bildirdiği arıza tam olarak öteki yöndeydi —
+   * "bilgisayarda yazdıklarım telefonda görünmüyor ama telefonda
+   * yazdıklarım bilgisayarda görünüyor" (KARARLAR.md · K-048).
+   *
+   * Tek yönü ölçen bir deneme, iki yönlü olduğu varsayılan bir şeyin
+   * yarısını hiç sınamıyor demek.
+   *
+   * DÜRÜST OLMAK GEREKİRSE: bu adım K-048'in düzeltmesini KIRARAK
+   * düşürülemiyor. Arıza bayat bir su seviyesi gerektiriyor ve o sayı
+   * OPFS'teki SQLite'ın içinde — sayfadan erişilemiyor. K-048'in kırma
+   * denemesi `test/senkronAkis.test.ts`te, `suSeviyesiniDenkle` ve
+   * `okunamayan` üstünde. Burası o yönün gerileme muhafızı.
+   */
+  const ISARET2 = 'IKINCI-CIHAZDAN-YAZILAN-3d7a91-KARSI-YONE-GECMELI'
+  await s2.click('nav button[data-ekran="defter"]')
+  await bekle(s2, 400)
+  await s2.fill('#kalem', ISARET2)
+  await s2.click('#birak')
+  await bekle(s2, 6000)
+
+  await s1.reload()
+  await s1.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
+  await s1.fill('#kilPin', PAROLA)
+  await s1.press('#kilPin', 'Enter')
+  await defterAcildi(s1, 60000).catch(() => {})
+  let geriGeldi = false
+  for (let i = 0; i < 30 && !geriGeldi; i++) {
+    await bekle(s1, 1000)
+    geriGeldi = (await s1.textContent('body')).includes(ISARET2)
+  }
+  de(geriGeldi, 'İKİNCİ CİHAZDA YAZILAN KAYIT BİRİNCİ CİHAZDA — senkron İKİ YÖNLÜ')
+
   console.log('\n5. Yenilendikten sonra senkron AYNI hesapta kalıyor')
   /*
    * Asıl muhafız bu.
@@ -469,6 +512,27 @@ const asamaHesap = async () => {
    * Ölçülen şey sunucudaki hesap sayısı: kimlik silinip yenilendiğinde
    * ARTMAMALI.
    */
+  /*
+   * ÖNCE SUNUCU SESSİZLEŞSİN.
+   *
+   * Sayaç anlık alınırsa ÖNCEKİ adımdan kalan bir istek bu adıma
+   * yazılıyor: iki sayfa da açık ve yeniden yüklenen sayfanın açılış
+   * turu saniyeler sonra düşebiliyor. Ölçüm o zaman "senkron dokundu"
+   * diyor ama dokunan başka bir adım. Sayacı üç saniye kımıldamayana
+   * kadar bekleniyor; muhafız zayıflamıyor, yalnızca kendi adımını
+   * ölçüyor.
+   */
+  const sessizlesene = async (sayfa) => {
+    let onceki = -1
+    for (let i = 0; i < 12; i++) {
+      const simdi = await istekSayisi()
+      if (simdi === onceki) return
+      onceki = simdi
+      await bekle(sayfa, 3000)
+    }
+  }
+  await sessizlesene(s2)
+
   const kimlikOnce = await sayim()
   const istekOnce = await istekSayisi()
   await s2.evaluate(() => localStorage.removeItem('defter.hesap.kimlik'))
@@ -559,13 +623,22 @@ const asamaHesap = async () => {
 
   const sonSayim = await sayimJson()
   const kullanimBayt = toplamBayt(sonSayim) - oncekiBayt
-  const gercek = sonSayim.blobBayt
+  const gercek = sonSayim.blobBayt - basBayt
 
   const durumMetni = await s1.textContent('#aySenkronDurum')
   /* Birimiyle okunuyor: "880 B" ile "880 KB" aynı sayı değil. */
   const m = /([\d.]+)\s*(KB|MB|B)\b/.exec(durumMetni)
-  const carpan = { B: 1, KB: 1024, MB: 1048576 }[m?.[2] ?? 'B']
-  const bildirilen = Number(m?.[1] ?? 0) * carpan
+  /*
+   * Karşılaştırma YÜZDEYLE değil, ekranın KENDİ biçimlendirmesiyle.
+   *
+   * Yüzde toleransı küçük defterlerde yanlış cevap veriyordu: ekran
+   * `boyutYaz` ile tam KB'ye yuvarlıyor, 1252 B "1 KB" olarak
+   * görünüyor ve %10 toleransı geçmiyor. Kusur ekranda değil ölçümdeydi.
+   * Beklenen dize sunucunun kendi toplamından üretiliyor: hem sıkı hem
+   * doğru — yanlış bir sayı hâlâ düşürüyor.
+   */
+  const boyutYaz = (b) =>
+    b < 1024 ? `${b} B` : b < 1024 * 1024 ? `${Math.round(b / 1024)} KB` : `${(b / 1048576).toFixed(1)} MB`
 
   de(kullanimBayt > 0, `ayarları açmak bir istek attı (${kullanimBayt} B indi)`)
   de(
@@ -573,8 +646,8 @@ const asamaHesap = async () => {
     `ayarları açmak GÖVDE indirmiyor (${kullanimBayt} B, sunucuda ${gercek} B var)`,
   )
   de(
-    gercek > 0 && Math.abs(bildirilen - gercek) <= gercek * 0.1,
-    `gösterilen boyut sunucudakiyle uyuşuyor (${m?.[0] ?? '?'} ≈ ${gercek} B)`,
+    gercek > 0 && m?.[0] === boyutYaz(gercek),
+    `gösterilen boyut sunucudakiyle uyuşuyor (${m?.[0] ?? '?'} = ${boyutYaz(gercek)})`,
   )
 
   await tarayici.close()

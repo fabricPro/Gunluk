@@ -417,6 +417,23 @@ async function baslat(): Promise<void> {
         console.warn('[defter] senkron kurulmadı: bu cihazda hesap kimliği yok')
         return
       }
+      /*
+       * Su seviyesi HESABA özgü — kurulumdan önce denkleştiriliyor.
+       *
+       * `senkron.sonGorulen` sunucudaki sürüm akışındaki konum, ve o dizi
+       * bütün hesaplar için ortak. Başka bir hesapta yükselmiş bir seviye
+       * yeni hesapta hiçbir satırı "yeni" saymıyor: cihaz yazdığını itiyor
+       * ama hiçbir şey çekmiyordu — senkron tek yönlü görünüyordu
+       * (KARARLAR.md · K-048).
+       *
+       * Buraya konuyor çünkü dört yol da (giriş, hesap aç, buluta taşı,
+       * açılış) buradan geçiyor; `hesabaTasi`da tek başına durduğunda
+       * ötekiler açıkta kalmıştı.
+       */
+      const { suSeviyesiniDenkle } = await import('./senkronKurulum.js')
+      const hesapAnahtari = oturumKimligi.eposta.split('@')[0]!
+      if (await suSeviyesiniDenkle(depo, hesapAnahtari))
+        console.info('[defter] senkron: su seviyesi sıfırlandı, defter baştan iniyor')
       /* Cihazda doğrudan Neon, tarayıcıda kendi kaynağımızdan (K-037). */
       senkronSunucu = new SenkronDepo(sunucuAyari(), kimlik, oturumKimligi)
       senkronAkis = new SenkronAkis(depo, senkronSunucu, kimlik)
@@ -500,6 +517,7 @@ async function baslat(): Promise<void> {
         durum: () =>
           senkronAkis?.durum ?? {
             calisiyor: false, bekleyen: 0, asama: '', hata: null, sonSenkron: null,
+            sonCekilen: 0, okunamayan: 0,
           },
         kullanim: () => senkronKullanim,
         /*
@@ -549,7 +567,8 @@ async function baslat(): Promise<void> {
           await hesapKimligiYaz(ad, sifre)
           hesapKimligiVar = true
           senkronKod = kod
-          await depo.ayarYaz('senkron.sonGorulen', '0')
+          /* Su seviyesini `senkronuKur` sıfırlıyor: hesap değişti (K-048).
+             Burada da yapmak ikinci bir doğruluk kaynağı olurdu. */
           await depo.senkronHepsiniIsaretle()
           await senkronuKur(kod)
           void senkronTur()
@@ -577,6 +596,12 @@ async function baslat(): Promise<void> {
           location.reload()
         },
         simdi: senkronTur,
+        /* Seviye yanlış yerde takıldıysa kullanıcının elindeki tek yol. */
+        bastanIndir: async () => {
+          const { bastanIndir } = await import('./senkronKurulum.js')
+          await bastanIndir(depo)
+          await senkronTur()
+        },
         dinle: (f) => {
           senkronDinleyici = f
         },

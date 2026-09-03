@@ -100,7 +100,15 @@ const DIL_ADI: Record<Dil, string> = { tr: 'Türkçe', en: 'English' }
 export interface SenkronDenetim {
   acikMi: () => boolean
   kod: () => string | null
-  durum: () => { calisiyor: boolean; bekleyen: number; asama: string; hata: string | null; sonSenkron: number | null }
+  durum: () => {
+    calisiyor: boolean
+    bekleyen: number
+    asama: string
+    hata: string | null
+    sonSenkron: number | null
+    sonCekilen: number
+    okunamayan: number
+  }
   kullanim: () => { satir: number; bayt: number } | null
   /**
    * Sunucudaki kullanımı bir kez tazeler.
@@ -119,6 +127,16 @@ export interface SenkronDenetim {
   /** Çıkış: cihazda iz kalmıyor, sunucudaki kopya duruyor. */
   cikis: () => Promise<void>
   simdi: () => Promise<void>
+  /**
+   * Su seviyesini sıfırlayıp defteri baştan indirir.
+   *
+   * Seviye "bundan büyük sürümleri görmedim" demek ve yanlış yerde
+   * takılabiliyor: başka bir hesabın akışından kalmışsa ya da bir kez
+   * açılamayan satırın üstüne çıkmışsa o satırlar bir daha hiç
+   * istenmiyor. Kullanıcının bunu düzeltebileceği bir yol yoktu
+   * (KARARLAR.md · K-048).
+   */
+  bastanIndir: () => Promise<void>
   dinle: (f: () => void) => void
 }
 
@@ -290,6 +308,12 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       if (!confirm(S('ay.cikisOnay'))) return
       await senkron.cikis()
       return
+    } else if (ad === 'senkronBastan') {
+      if (!senkron) return
+      if (!confirm(S('ay.senkronBastanOnay'))) return
+      await senkron.bastanIndir()
+      await senkron.kullanimTazele()
+      return
     } else if (ad === 'senkronSimdi') {
       await senkron?.simdi()
       /* Elle eşitlemenin görünür sonucu bu sayı; hemen tazeleniyor. */
@@ -388,12 +412,16 @@ export function ayarlariBagla(b: AyarBaglam): { ac: () => Promise<void> } {
       if (d.calisiyor) m += S('ay.senkronCalisiyor', { asama: kacir(d.asama) })
       else if (d.bekleyen) m += S('ay.senkronBekleyen', { n: d.bekleyen })
       if (d.hata) m += S('ay.senkronHata', { hata: kacir(d.hata) })
+      if (d.sonCekilen) m += S('ay.senkronCekilen', { n: d.sonCekilen })
+      /* Açılamayan satır sessiz geçilmiyor: defterin bir kısmı inmedi. */
+      if (d.okunamayan) m += S('ay.senkronOkunamayan', { n: d.okunamayan })
       m += d.sonSenkron
         ? S('ay.senkronSonSenkron', { zaman: new Date(d.sonSenkron).toLocaleTimeString() })
         : S('ay.senkronHicSenkron')
       $('#aySenkronDurum').innerHTML = m
       $('#aySenkronDugmeler').innerHTML =
         `<button data-eylem="senkronSimdi"${d.calisiyor ? ' disabled' : ''}>${S('ay.senkronSimdi')}</button>` +
+        `<button data-eylem="senkronBastan"${d.calisiyor ? ' disabled' : ''}>${S('ay.senkronBastan')}</button>` +
         `<button data-eylem="senkronKimlik">${S('ay.senkronKimlikGoster')}</button>` +
         `<button data-eylem="cikis">${S('ay.cikis')}</button>`
     }
