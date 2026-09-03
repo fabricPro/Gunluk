@@ -9,6 +9,66 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-09-03 · K-047 · Bir kaynakta iki kimlik olamaz — sonucu rastgeleleştiren yarış
+
+Kullanıcı aynı şifreyle bir denemede **"kasan görünmüyor"**, bir saat sonra
+**"kasa açılamadı"** aldı. Sunucu durumu ikisinin arasında değişmedi, yeni hesap
+açılmadı. Aynı hesap, aynı şifre, farklı cevap — mantık hatası değil, **yarış**.
+
+### Sebep: K-043'te bıraktığım geri düşüş
+
+```ts
+const oturumKimligi = (await hesapKimligiOku()) ?? kimlik
+```
+
+Hesap kimliği cihazda yoksa senkron **koddan türeyen kimliğe** düşüyordu. O
+cihazda `Kasa` bir kimlikle, `SenkronDepo` başka bir kimlikle oturum açıyor.
+
+**Çerez kavanozu KAYNAĞA ait, tek tane.** K-043'te her `Oturum`un ilk jetondan
+önce kendi oturumunu açmasını sağlamıştım — doğruydu, ama iki nesne farklı
+kimliklerle açınca birbirinin çerezini eziyor. Kasa giriş yapıyor, senkron
+araya girip oturumu değiştiriyor, kasanın `GET`i BAŞKA hesap olarak koşuyor →
+RLS boş döndürüyor → "kasan yok". Yarış ters yönde gidince satır geliyor →
+"kasa açılamadı".
+
+K-043'ün eksiği şuydu: oturumu kimliğe bağladım ama **aynı anda iki kimliğin
+var olamayacağını** kabul etmedim. Tek çerez, tek kimlik.
+
+### Düzeltme
+
+Geri düşüş kaldırıldı: hesap kimliği yoksa **senkron hiç kurulmuyor**. Defter
+yerelde açılmaya devam ediyor, kullanıcı ayarlardan hesabına bağlıyor
+(`hesapli()` artık kod + kimlik demek olduğu için o düğme görünüyor).
+
+### Muhafızın ilk hâli boştu — ve sebebi öğretici
+
+İlk iddiam "hesap kimliği yokken YENİ hesap açılmamalı" idi. Kırma denemesinde
+**geçti**: hesap açmayı zaten bir önceki düzeltme (`yarat = false`) engelliyor.
+Yani doğru bir cümleyi ölçüyordum ama YANLIŞ değişikliğin muhafızıydı — geri
+düşüş dursa da geçiyordu.
+
+Geri düşüşün asıl bedeli hesap açmak değil, **denemek**: koddan türeyen
+kimlikle oturum açmaya çalışmak, 401'ler, çerez kavgası. Ölçülmesi gereken şey
+o. Yeni iddia: hesap kimliği yokken senkron **sunucuya tek istek bile
+atmamalı**. Kırma denemesinde 2 istek görünüp düşüyor, düzeltmeyle 0.
+
+Ders K-040'ın bir adım ötesi: bir muhafız kırıldığında düşmeli — ama **hangi
+değişikliği kırdığında**? Doğru cümleyi ölçüp yanlış şeyi koruyabiliyor.
+
+### Bu, kasanın bozukluğunu çözmüyor
+
+K-046'daki asıl arıza duruyor: `9e93f72e`nin kasası, o hesabın şifresinden
+başka bir şifreyle şifreli. Bu düzeltme yalnızca sonucun rastgele olmasını
+bitiriyor. Çıkış yolu aynı: defteri parolayla aç, ayarlardan **farklı** bir
+şifreyle hesaba bağla.
+
+### Doğrulama
+
+637 test; `hesap` (15 ✓), `kasa`, `cikmaz`, `hepsi`. Muhafız iki yönde de
+sınandı.
+
+---
+
 ## 2026-09-02 · K-046 · Kasa yanlış şifreyle şifrelenmiş — ve bir mesajın olmayan kapıyı göstermesi
 
 Kullanıcı "Kasa bulundu ama bu şifreyle açılamadı" alıyordu. Üç denemede de

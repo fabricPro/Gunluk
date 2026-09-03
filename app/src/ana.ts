@@ -392,10 +392,31 @@ async function baslat(): Promise<void> {
        * koddan türeyen ayrı bir hesapla girseydi onları göremez, boş
        * bir defter açardı (KARARLAR.md · K-043).
        *
-       * Hesap kimliği yoksa (kodla kurulmuş eski cihaz) koddan türeyen
-       * kimlik kullanılıyor — eski davranış.
+       * HESAP KİMLİĞİ YOKSA SENKRON HİÇ KURULMUYOR.
+       *
+       * Burada eskiden koddan türeyen kimliğe düşülüyordu ve iki ayrı
+       * şey birden bozuluyordu (K-047):
+       *
+       *   · Yanlış hesaba yazma. Koddan türeyen kimlikle oturum
+       *     açılınca sunucuda AYRI bir hesap oluşuyor ve defterin
+       *     tamamı oraya gidiyordu; kullanıcı kendi ad/şifresiyle
+       *     girince onu göremiyordu.
+       *   · Çerez kavgası. Çerez kavanozu KAYNAĞA ait, tek tane. Kasa
+       *     bir kimlikle, senkron başka bir kimlikle oturum açınca
+       *     birbirlerinin çerezini eziyorlar: kasa girişi yapıyor,
+       *     senkron araya girip oturumu değiştiriyor ve kasanın
+       *     isteği BAŞKA hesap olarak koşuyor. Aynı şifre bir denemede
+       *     "kasan yok", ötekinde "kasa açılmadı" veriyordu — mantık
+       *     hatası değil, yarış.
+       *
+       * Bir anda tek kimlik etkin olabilir. Kimlik yoksa defter yerelde
+       * açılmaya devam ediyor; kullanıcı ayarlardan hesabına bağlıyor.
        */
-      const oturumKimligi = (await hesapKimligiOku()) ?? kimlik
+      const oturumKimligi = await hesapKimligiOku()
+      if (!oturumKimligi) {
+        console.warn('[defter] senkron kurulmadı: bu cihazda hesap kimliği yok')
+        return
+      }
       /* Cihazda doğrudan Neon, tarayıcıda kendi kaynağımızdan (K-037). */
       senkronSunucu = new SenkronDepo(sunucuAyari(), kimlik, oturumKimligi)
       senkronAkis = new SenkronAkis(depo, senkronSunucu, kimlik)

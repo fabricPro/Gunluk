@@ -434,6 +434,7 @@ const asamaHesap = async () => {
    */
   /* Node'dan soruluyor: sayfadan sorunca CORS engelliyor. */
   const sayim = async () => (await (await fetch(`${SAHTE}/sayim`)).json()).hesap
+  const istekSayisi = async () => (await (await fetch(`${SAHTE}/sayim`)).json()).istek
 
   await s2.reload()
   /* Yenilemeden sonra defter kilitli; parolayla açılıyor (K-040). */
@@ -457,6 +458,53 @@ const asamaHesap = async () => {
    * tek kullanıcı, sunucuda TEK hesap. Senkron koddan türeyen kendi
    * hesabını açsaydı bu sayı büyürdü (KARARLAR.md · K-043).
    */
+  console.log('\n5b. Hesap kimliği YOKKEN senkron hesap açmıyor')
+  /*
+   * K-043 öncesi giriş yapmış cihazın taklidi: kod var, hesap kimliği
+   * yok. Eskiden senkron koddan türeyen kimliğiyle oturum açıp AYRI bir
+   * hesap yaratıyor, defteri oraya itiyordu; üstelik kasa ile senkron
+   * farklı kimliklerle aynı çerezi ezip sonucu rastgeleleştiriyordu
+   * (KARARLAR.md · K-047).
+   *
+   * Ölçülen şey sunucudaki hesap sayısı: kimlik silinip yenilendiğinde
+   * ARTMAMALI.
+   */
+  const kimlikOnce = await sayim()
+  const istekOnce = await istekSayisi()
+  await s2.evaluate(() => localStorage.removeItem('defter.hesap.kimlik'))
+  await s2.reload()
+  await s2.waitForSelector('#kilitEkrani.acik', { timeout: 15000 })
+  await s2.fill('#kilPin', PAROLA)
+  await s2.press('#kilPin', 'Enter')
+  await defterAcildi(s2, 60000).catch(() => {})
+  /* Senkron kurulacaksa bu sürede kurulurdu. */
+  await bekle(s2, 8000)
+  const kimlikSonra = await sayim()
+  const istekFarki = (await istekSayisi()) - istekOnce
+  de(
+    kimlikSonra === kimlikOnce,
+    `hesap kimliği yokken YENİ hesap açılmadı (${kimlikOnce} → ${kimlikSonra})`,
+  )
+  /*
+   * ASIL İDDİA: senkron HİÇ KURULMUYOR, yani sunucuya tek istek bile
+   * gitmiyor.
+   *
+   * "Yeni hesap açılmadı" tek başına boştu — hesap açmayı zaten
+   * `yarat = false` engelliyor (K-046) ve kırma denemesi geçiyordu.
+   * Geri düşüş açıkken senkron koddan türeyen kimliğiyle oturum açmayı
+   * DENİYOR: 401'ler geliyor, çerez kavgası başlıyor ve kasa
+   * isteklerinin sonucu rastgeleleşiyor (K-047). Ölçülmesi gereken şey
+   * o denemenin hiç yapılmaması.
+   */
+  de(istekFarki === 0, `senkron sunucuya hiç dokunmadı (${istekFarki} istek)`)
+  /*
+   * "Defter yerelde hâlâ duruyor" burada ÖLÇÜLEMİYOR ve iddia edilmiyor.
+   * İkinci cihazın deposu bu ortamda kalıcı değil ("Tarayici depoyu
+   * kalici saymadi"); oradaki kayıtlar zaten her açılışta senkronla
+   * geliyor. Senkron kapalıyken boş olması ortamın özelliği, ürünün
+   * değil — yanlış bir şeyi ölçmektense hiç ölçmemek doğru.
+   */
+
   const acilan = (await sayim()) - basHesap
   de(acilan === 1, `bu koşuda TEK hesap açıldı (${acilan})`)
 
