@@ -20,7 +20,20 @@ const sunucuKok = new URL('../api/', import.meta.url).pathname
 
 const dosyalar = (d: string): string[] =>
   readdirSync(d, { withFileTypes: true }).flatMap((e) =>
-    e.isDirectory() ? dosyalar(join(d, e.name)) : e.name.endsWith('.ts') ? [join(d, e.name)] : [],
+    e.isDirectory()
+      ? dosyalar(join(d, e.name))
+      : /*
+         * `.js` de taranıyor.
+         *
+         * Tarama yalnızca `.ts`ye bakarken `src/sw.js` görünmez oldu — ve
+         * o dosya, ekleyebileceğimiz EN AĞ DOKUNAKLI kod: her isteği
+         * görüyor ve önbelleğe alabiliyor. "Ağa çıkan dosyaların tam
+         * listesi" iddiası, bakmadığı bir uzantı varken doğru olamaz
+         * (KARARLAR.md · K-049).
+         */
+        e.name.endsWith('.ts') || e.name.endsWith('.js')
+        ? [join(d, e.name)]
+        : [],
   )
 
 /** Yorumları at — tarama koda baksın, kodu anlatan cümlelere değil. */
@@ -39,6 +52,7 @@ const AGA_CIKANLAR = [
   'veri/model.ts', // kullanıcının kendi anahtarıyla Anthropic (K-031)
   'veri/gomu-isci.ts', // model indirmesi — yalnızca indirir (K-029)
   'veri/senkronDepo.ts', // uçtan uca şifreli senkron (K-036)
+  'sw.js', // servis işçisi: YENİ adres açmıyor, var olanı geçiriyor (K-049)
 ]
 
 describe('ağa çıkabilen dosyalar sabit', () => {
@@ -55,7 +69,7 @@ describe('ağa çıkabilen dosyalar sabit', () => {
     expect(kacaklar, `ağa çıkan yeni dosya: ${kacaklar.join(', ')}`).toEqual([])
   })
 
-  it('listedeki üç dosya gerçekten var', () => {
+  it('listedeki dosyalar gerçekten var', () => {
     const hepsi = dosyalar(kok).map(goreli)
     for (const a of AGA_CIKANLAR) expect(hepsi).toContain(a)
   })
@@ -161,5 +175,55 @@ describe('senkronlanmayanlar', () => {
     const dokum = readFileSync(join(kok, 'veri/dokum.ts'), 'utf8')
     /* "Bu cihaz neyi göndermedi" bilgisi yedeğin içeriği değil. */
     expect(dokum).toMatch(/senkron_/)
+  })
+})
+
+/**
+ * SERVİS İŞÇİSİ — ağa çıkabilen dördüncü dosya, ve en tehlikelisi.
+ *
+ * Diğer üçü belirli bir adrese gidiyor; bu, sayfanın YAPTIĞI HER İSTEĞİ
+ * görüyor ve istediğini diske yazabiliyor. Bir günlükte bunun sınırı
+ * yorumda kalamaz — burada sabitleniyor (KARARLAR.md · K-049).
+ */
+describe('servis işçisi neyi önbelleğe ALMIYOR', () => {
+  const isci = readFileSync(join(kok, 'sw.js'), 'utf8')
+
+  it('hesap ve senkron yolları işçiye hiç uğramıyor', () => {
+    /*
+     * `/auth` ve `/rest` şifreli defterin ve oturumun geçtiği yer. Bir
+     * yanıtın önbelleğe düşmesi, defterin diske ikinci bir kopyasının
+     * çıkması demek olurdu (PROJE.md · 2.3).
+     */
+    expect(isci).toContain("const GECILEN = ['/auth', '/rest', '/api']")
+    /* Liste yalnızca durmuyor, KULLANILIYOR: erken dönüş var. */
+    expect(yorumsuz(isci)).toMatch(/GECILEN\.some\([\s\S]{0,120}?\)\)\s*return/)
+  })
+
+  it('başka kaynaklara ait hiçbir şey önbelleğe alınmıyor', () => {
+    /* Gömü modeli CDN'den iniyor ve ~145 MB (K-029). */
+    expect(yorumsuz(isci)).toMatch(/adres\.origin !== self\.location\.origin\)?\s*return/)
+  })
+
+  it('yalnızca 200 ve kendi kaynağımızdan olan yanıt saklanıyor', () => {
+    /* 206 `ok` sayılıyor; saklansaydı dosya yarım kalır ve sessizce
+       bozulurdu. */
+    expect(yorumsuz(isci)).toContain("istek.headers.has('range')")
+    expect(yorumsuz(isci)).toContain("yanit.status === 200 && yanit.type === 'basic'")
+  })
+
+  it('kabuk ÖNCE AĞDAN alınıyor — eski sürüme çakılmak yok', () => {
+    /*
+     * Önce önbellek olsaydı yayınlanan bir düzeltme kullanıcıya
+     * ulaşmazdı. K-048'de tam olarak bunun bedeli ödendi.
+     */
+    const govde = yorumsuz(isci)
+    const gezinme = govde.slice(govde.indexOf("istek.mode === 'navigate'"))
+    const agIndeksi = gezinme.indexOf('await fetch(istek)')
+    /* Kapanış parantezi aranmıyor: `caches.match('/', BAK)` da geçerli
+       ve dize eşleşmesi yüzünden düşen bir test kusuru gösterir, arıza
+       değil. */
+    const onbellekIndeksi = gezinme.indexOf("caches.match('/'")
+    expect(agIndeksi).toBeGreaterThan(-1)
+    expect(onbellekIndeksi).toBeGreaterThan(agIndeksi)
   })
 })

@@ -9,6 +9,110 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-09-03 · K-049 · Ana ekrana kurulabilir defter — ve servis işçisinin neyi ASLA almadığı
+
+Kullanıcı "PWA olarak indirilebilir bir uygulama olsun" dedi. Eksik olan şey
+göründüğünden azdı: defterin kendisi zaten cihazda (OPFS + SQLite) ve
+çevrimdışı çalışıyordu; **açılamayan tek şey kabuğun kendisiydi.** Tarayıcıda
+ağ yokken sayfa hiç gelmiyordu.
+
+### Ne eklendi
+
+`public/manifest.webmanifest`, üç ikon + iOS ikonu (`arac/ikonUret.mjs` ile
+üretiliyor — elle çizilen bir PNG bir daha üretilemez), `src/sw.js` ve
+`src/pwa.ts`. Varlık listesini `vite.config.ts`teki küçük bir eklenti
+derleme çıktısından yazıyor: elle tutulan bir liste ilk kaçırdığı dosyada
+uygulamayı çevrimdışı bozardı.
+
+**Workbox alınmadı.** Yapılan iş bir dosya listesi ve üç kural. Bir üretici
+eklemek K-036'nın kazandığı şeyi — "metnim nereye gidiyor" sorusunun tek
+dosyada cevaplanabilmesini — geri verirdi.
+
+### Neyin önbelleğe ALINMADIĞI, bir ilke
+
+`/auth`, `/rest` ve `/api` işçiye **hiç uğramıyor**: `respondWith`
+çağrılmıyor, tarayıcı doğrudan ağa gidiyor. Bir senkron yanıtının önbelleğe
+düşmesi, kullanıcının şifreli defterinin diske ikinci bir kopyasının çıkması
+demek olurdu (PROJE.md · 2.3). Başka kaynaklar da alınmıyor — gömü modeli
+CDN'den iniyor ve ~145 MB (K-029).
+
+Bu, yorumda kalamayacak kadar önemli: `test/senkronGizlilik.test.ts` artık
+bunu sabitliyor.
+
+### Gizlilik taramasındaki delik
+
+O tarama "ağa çıkabilen dosyaların TAM listesi"ni sabitliyordu ama yalnızca
+`.ts` uzantısına bakıyordu. `src/sw.js` görünmez olurdu — ve o dosya
+ekleyebileceğimiz **en ağ dokunaklı kod**: sayfanın yaptığı her isteği
+görüyor ve istediğini diske yazabiliyor. Tarama `.js`yi de kapsıyor artık;
+liste dört dosya oldu.
+
+Bakmadığı bir uzantı varken "tam liste" demek, listenin kendisinden daha
+tehlikeliydi.
+
+### Kabuk NEDEN önce ağdan
+
+Gezinme isteği önce ağa gidiyor, ağ yoksa önbellekteki kabuk veriliyor.
+Tersi olsaydı yayınlanan bir düzeltme kullanıcıya ulaşmazdı — K-048'de tam
+olarak bunun bedeli ödendi. Aynı sebeple `skipWaiting` + `clients.claim`:
+beklemek "bütün sekmeler kapanana kadar eski sürüm" demek.
+
+### `Vary: Origin` — ve tarayıcı aşamasının varlık sebebi
+
+Bütün birim testleri geçerken çevrimdışı açılış ÖLÜYORDU. Sebep:
+sunucu varlıkları `Vary: Origin` ile veriyor; `addAll` kurulumda `Origin`
+başlığı olmadan istiyor, sayfa ise aynı dosyayı `crossorigin` ile (Vite
+modül betiklerine ve stil dosyasına onu koyuyor) yani `Origin` başlığıyla
+istiyor. İki istek eşleşmiyor, `caches.match` boş dönüyor, ağ yokken CSS ve
+JS düşüyor: kabuk geliyor ama uygulama açılmıyor. Çözüm `ignoreVary: true`,
+ve burada güvenli — önbellekte yalnızca kendi çıktımız var, her adresin tek
+karşılığı bulunuyor.
+
+**Bunu hiçbir birim testi yakalayamazdı.** `arac/muhurDenemesi.mjs`teki yeni
+`pwa` aşaması yakaladı: ağı kesip defterin açılmasını, sqlite wasm'ın
+inmesini ve kaydın yerinde durmasını istiyor.
+
+### Üç muhafız da kırılarak sınandı — ve ikisi ilk hâlinde kusurluydu
+
+- İkon boyutu yalan söylesin → düştü. (`sizes` bir iddia, PNG'nin IHDR'si
+  gerçek. Ayrışırsa Chrome ikonu reddediyor ve kurulum düğmesi hiç
+  çıkmıyor; hiçbir yerde hata görünmüyor.)
+- `/auth` `/rest` geçilmesin → düştü. Kabuk önce önbellekten gelsin → düştü.
+- Servis işçisi hiç kurulmasın → `pwa` aşaması düştü.
+
+İki kusur kendi muhafızımdaydı:
+
+1. **Donan muhafız.** İşçi kurulmayınca `navigator.serviceWorker.ready`
+   reddetmiyor, sonsuza kadar bekliyor: aşama düşmek yerine asılı kaldı.
+   Donan bir muhafız, olmayan bir muhafızdan beter — hangi tarafın haklı
+   olduğu hiç öğrenilmiyor. Süre kondu.
+2. **Boş muhafız.** "Ağ dönünce kabuk için istek çıktı" diye ölçüyordum;
+   Playwright işçinin ÖNBELLEKTEN verdiği isteği de bildiriyor, yani kırma
+   denemesinde de geçiyordu. Ölçüm artık dolaylı değil: önbellekteki
+   kabuğun yerine sahte bir sayfa konuyor ve o sayfa ekranda GÖRÜNMEMELİ.
+
+K-047'nin dersi üçüncü kez: bir muhafız geçiyorsa neyi ölçtüğünü de sormak
+gerekiyor.
+
+### Kararsız bir iddia da düzeltildi
+
+"Çevrimdışı: kayıt yerinde duruyor" ara sıra düşüyordu. Sebep üründe değil
+denemede: mühür borçlandırmalı yazılıyor (K-037) ve 1,5 saniye beklemek
+bazen yetmiyordu. Ölçülen şey mühür zamanlaması değil ağsız açılış; bekleme
+uzatıldı.
+
+### Cihazda kurulmuyor
+
+Capacitor kabuğunda varlıklar zaten pakette; araya bir önbellek katmanı
+koymak yalnızca bir sürüm uyuşmazlığı kaynağı olurdu.
+
+### Doğrulama
+
+655 test; `pwa` aşaması art arda iki temiz koşu; `hesap` · `kasa` · `cikmaz`
+· `hepsi`. Kırma denemeleri yukarıda.
+
+---
+
 ## 2026-09-03 · K-048 · Su seviyesi hesaba özgüdür — ve atladığını söylemek zorundadır
 
 Kullanıcı: *"bilgisayarda kayıt ettiğim yazılar defterden girince gözükmüyor

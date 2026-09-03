@@ -117,7 +117,7 @@ const PROFIL = process.env.DEFTER_PROFIL ?? '/tmp/defter-muhur-profil'
 const baglamAc = async () => {
   const secenek = { executablePath: process.env.CHROMIUM }
   /* Taşıma denemesinde OPFS iki koşu arasında yaşamak zorunda. */
-  if (ASAMA === 'hepsi' || ASAMA === 'kasa' || ASAMA === 'cikmaz') {
+  if (ASAMA === 'hepsi' || ASAMA === 'kasa' || ASAMA === 'cikmaz' || ASAMA === 'pwa') {
     const t = await chromium.launch(secenek)
     return { baglam: await t.newContext(), kapat: () => t.close() }
   }
@@ -780,11 +780,140 @@ const asamaKasa = async () => {
 }
 
 const calis = async () => {
+/**
+ * Aşama `pwa` — "indirilebilir uygulama" sözünün tek gerçek sınavı.
+ *
+ * Manifest ve ikonlar `test/pwa.test.ts`te sabitleniyor; orada
+ * ölçülemeyen tek şey şu: **ağ yokken defter açılıyor mu.** Servis
+ * işçisi kurulmuş ama bir varlığı listeye almamış olsa, birim testlerin
+ * hepsi geçer ve kullanıcı uçakta boş bir ekran görür.
+ *
+ *   node arac/sahteNeon.mjs 8788 &   (gerekmiyor; bu aşama ağa çıkmıyor)
+ *   npx vite preview --port 4180
+ *   DEFTER_ADRES=http://localhost:4180 node arac/muhurDenemesi.mjs pwa
+ */
+const asamaPwa = async () => {
+  const tarayici = await chromium.launch({ executablePath: process.env.CHROMIUM })
+  const baglam = await tarayici.newContext()
+  const sayfa = await sayfaAc(baglam)
+  const ISARETP = 'CEVRIMDISI-ACILMALI-5c1e77'
+
+  console.log('\n1. Derleme çıktısı: işçi gerçekten dolduruldu mu')
+  /*
+   * `dist/sw.js` yer tutucularla çıkarsa tarayıcı onu yükleyemez ve
+   * hata hiçbir yerde görünmez — yalnızca çevrimdışı açılış ölür.
+   */
+  const { readFileSync } = await import('node:fs')
+  const iscYol = new URL('../dist/sw.js', import.meta.url).pathname
+  const isci = readFileSync(iscYol, 'utf8')
+  de(!isci.includes('__DEFTER_'), 'sw.js yer tutucu taşımıyor')
+  de(/addEventListener\('fetch'/.test(isci), 'sw.js bir fetch işleyicisi var (kurulabilirlik şartı)')
+  const varlikSayisi = (isci.match(/"\/assets\//g) ?? []).length
+  de(varlikSayisi > 20, `varlık listesi dolu (${varlikSayisi} dosya)`)
+
+  console.log('\n2. Defter kuruluyor ve bir kayıt bırakılıyor')
+  await sayfa.goto(ADRES)
+  await kilitKur(sayfa, PAROLA)
+  const acildi = await defterAcildi(sayfa, 60000).then(() => true).catch(() => false)
+  de(acildi, 'defter açıldı')
+  await sayfa.click('nav button[data-ekran="defter"]')
+  await bekle(sayfa, 400)
+  await sayfa.fill('#kalem', ISARETP)
+  await sayfa.click('#birak')
+  /*
+   * Mühür borçlandırmalı yazılıyor (son yazmadan ~1.5 sn sonra, K-037).
+   * 1,5 saniye beklemek KARARSIZ çıktı: kayıt bazen diske inmeden
+   * yeniden yükleme geliyor ve aşama, çevrimdışı açılışla ilgisi olmayan
+   * bir sebeple düşüyordu. Burada ölçülen şey mühür zamanlaması değil,
+   * ağsız açılış — o yüzden bekleniyor.
+   */
+  await bekle(sayfa, 4000)
+
+  console.log('\n3. Servis işçisi kuruldu mu')
+  /*
+   * SÜRELİ. `navigator.serviceWorker.ready` kayıt hiç yapılmadıysa
+   * REDDETMİYOR, sonsuza kadar bekliyor: kırma denemesinde aşama
+   * düşmek yerine asılı kaldı. Donan bir muhafız, olmayan bir
+   * muhafızdan beter — hangi tarafın haklı olduğu hiç öğrenilmiyor.
+   */
+  const hazir = await sayfa
+    .evaluate(
+      () =>
+        new Promise((coz) => {
+          const sure = setTimeout(() => coz(false), 20000)
+          void navigator.serviceWorker.ready.then(() => {
+            clearTimeout(sure)
+            coz(!!navigator.serviceWorker.controller)
+          })
+        }),
+    )
+    .catch(() => false)
+  de(hazir, 'servis işçisi etkin ve sayfayı devraldı')
+
+  console.log('\n4. AĞ KESİLİYOR — defter yine de açılmalı')
+  await baglam.setOffline(true)
+  await sayfa.reload({ waitUntil: 'domcontentloaded' }).catch(() => {})
+  const kilitGeldi = await sayfa
+    .waitForSelector('#kilitEkrani.acik', { timeout: 20000 })
+    .then(() => true)
+    .catch(() => false)
+  de(kilitGeldi, 'ÇEVRİMDIŞI: kabuk önbellekten geldi, kilit ekranı açıldı')
+  if (!kilitGeldi) {
+    await tarayici.close()
+    console.log(`\nDÜŞEN: ${hata + 1}\n`)
+    process.exit(1)
+  }
+
+  await sayfa.fill('#kilPin', PAROLA)
+  await sayfa.press('#kilPin', 'Enter')
+  const acildi2 = await defterAcildi(sayfa, 60000).then(() => true).catch(() => false)
+  de(acildi2, 'ÇEVRİMDIŞI: defter açıldı (sqlite wasm de önbellekten)')
+  let gorundu = false
+  for (let i = 0; i < 20 && !gorundu; i++) {
+    await bekle(sayfa, 500)
+    gorundu = (await sayfa.textContent('body')).includes(ISARETP)
+  }
+  de(gorundu, 'ÇEVRİMDIŞI: kayıt yerinde duruyor')
+
+  console.log('\n5. Ağ dönünce kabuk YİNE AĞDAN alınıyor')
+  /*
+   * Önce önbellek olsaydı yayınlanan bir düzeltme kullanıcıya
+   * ulaşmazdı — K-048'de tam olarak bunun bedeli ödendi.
+   *
+   * İlk yazdığımda ölçüm "gezinme isteği çıktı mı" idi ve BOŞTU:
+   * Playwright, işçinin önbellekten verdiği isteği de bildiriyor, yani
+   * kırma denemesinde de geçiyordu. Ölçüm artık dolaylı değil:
+   * önbellekteki kabuğun yerine sahte bir sayfa konuyor. Önce ağ ise
+   * gerçek defter geliyor ve sahte hiç görünmüyor; önce önbellek ise
+   * ekranda sahte kabuk duruyor.
+   */
+  const SAHTE_KABUK = 'BAYAT-KABUK-GELDI-9f2b'
+  await sayfa.evaluate(async (isaret) => {
+    const kap = await caches.open((await caches.keys())[0])
+    await kap.put(
+      '/',
+      new Response(`<!DOCTYPE html><title>${isaret}</title><body>${isaret}`, {
+        headers: { 'Content-Type': 'text/html' },
+      }),
+    )
+  }, SAHTE_KABUK)
+  await baglam.setOffline(false)
+  await sayfa.reload({ waitUntil: 'domcontentloaded' })
+  await bekle(sayfa, 2500)
+  const bayat = (await sayfa.content()).includes(SAHTE_KABUK)
+  de(!bayat, 'ağ dönünce GERÇEK kabuk geldi — bayat önbellek servis edilmedi')
+
+  await tarayici.close()
+  console.log(hata ? `\nDÜŞEN: ${hata}\n` : '\nPWA denemesi geçti.\n')
+  process.exit(hata ? 1 : 0)
+}
+
   if (ASAMA === 'yaz') return asamaYaz()
   if (ASAMA === 'tasi') return asamaTasi()
   if (ASAMA === 'kasa') return asamaKasa()
   if (ASAMA === 'hesap') return asamaHesap()
   if (ASAMA === 'cikmaz') return asamaCikmaz()
+  if (ASAMA === 'pwa') return asamaPwa()
   const { baglam, kapat } = await baglamAc()
   const sayfa = await sayfaAc(baglam)
 

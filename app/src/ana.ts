@@ -8,6 +8,7 @@ import type { Sunucu as SunucuTip } from './veri/senkronDepo.js'
 import type { KasaYapici as KasaYapiciTip } from './hesapAkis.js'
 import { belgeOneki, sorguOneki } from './cekirdek/gomuModel.js'
 import { Kilit } from './kilitAkis.js'
+import { servisIscisiniKur } from './pwa.js'
 import { arsiviBagla } from './ekran/arsiv.js'
 import { ayarlariBagla } from './ekran/ayarlar.js'
 import { defteriBagla } from './ekran/defter.js'
@@ -59,6 +60,9 @@ async function baslat(): Promise<void> {
    */
   const nativeMi = !!(window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
     ?.isNativePlatform?.()
+  /* Çevrimdışı açılış ve "ana ekrana ekle" bunun üstünde (K-049). */
+  servisIscisiniKur(nativeMi)
+
   const kilit = new Kilit(nativeMi ? await cihazDepo() : tarayiciDepo())
   await kilit.yukle()
 
