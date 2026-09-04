@@ -1,4 +1,4 @@
-import { SAYFA_HACIM } from '../cekirdek/sayfa.js'
+import { SAYFA_HACIM, serimBasi } from '../cekirdek/sayfa.js'
 import { govdeler, ortakGovde } from '../cekirdek/govde.js'
 import { krizIsareti } from '../cekirdek/kriz.js'
 import type { Ek, KenarNotu, Sayfa } from '../cekirdek/tipler.js'
@@ -134,7 +134,7 @@ export function defteriBagla(
    * söyleyeceği kalmamıştır — ve sayfanın yarısını kaplayıp yazılanı
    * aşağı itiyordu.
    */
-  const bosSayfaHtml = (): string => {
+  const bosSayfaHtml = (taraf: string): string => {
     const basladi = !!taslak || !!bekleyenEk
     const not = basladi
       ? ''
@@ -142,13 +142,24 @@ export function defteriBagla(
         <p>Defter boş. İlk sayfa aşağıda başlıyor.</p>
         <small>yaz, sonra bırak</small>
       </div>`
-    return `<div class="kagit"><div class="kagit-ic">${not}${krizKartiHtml()}${altHtml()}
+    return `<div class="kagit ${taraf}"><div class="kagit-ic">${not}${krizKartiHtml()}${altHtml()}
     </div><div class="kagit-alt">1</div></div>`
   }
 
-  const sayfaHtml = (i: number): string => {
+  /**
+   * Serimin boş duran yarısı.
+   *
+   * Son sayfa solda kalınca sağ taraf boş bir kağıt oluyor — gerçek bir
+   * defterde de öyle. Kapatıp yerine tek kağıt koymak, sayfa çevirdikçe
+   * defterin genişliğinin değişmesi demekti.
+   */
+  const bosYuzHtml = (taraf: string): string =>
+    `<div class="kagit ${taraf} bos-yuz"><div class="kagit-ic"></div>
+      <div class="kagit-alt"></div></div>`
+
+  const kagitHtml = (i: number, taraf: string): string => {
     const s = durum.sayfalar[i]
-    if (!s) return bosSayfaHtml()
+    if (!s) return bosSayfaHtml(taraf)
     const baslik = durum.baslik(s)
     let ic = `<div class="syf-baslik" data-anahtar="${s.anahtar ?? ''}">
       ${baslik ? `<h3>${kacir(baslik)}</h3>` : ''}
@@ -193,8 +204,23 @@ export function defteriBagla(
       }
     }
     if (i === durum.sonSayfa) ic += krizKartiHtml() + altHtml()
-    return `<div class="kagit"><div class="kagit-ic">${ic}</div>
+    return `<div class="kagit ${taraf}"><div class="kagit-ic">${ic}</div>
       <div class="kagit-alt">${s.ciltSayfa}</div></div>`
+  }
+
+  /**
+   * Açık defterin görünen yüzü: bir ya da iki kağıt, bir cildin içinde.
+   *
+   * `sol` her zaman serimin başı — `Durum.aktifSayfa` ayarlayıcısı bunu
+   * garanti ediyor (KARARLAR.md · K-050).
+   */
+  const serimHtml = (sol: number): string => {
+    const ic =
+      durum.sayfaBasi === 1
+        ? kagitHtml(sol, 'tek')
+        : kagitHtml(sol, 'sol') +
+          (sol + 1 <= durum.sonSayfa ? kagitHtml(sol + 1, 'sag') : bosYuzHtml('sag'))
+    return `<div class="cilt"><div class="yapraklar">${ic}</div></div>`
   }
 
   const ciz = (): void => {
@@ -221,11 +247,18 @@ export function defteriBagla(
             : S('defter.dolduKisa')
         : ''
 
-    $('#kagit-kap').innerHTML = sayfaHtml(durum.aktifSayfa)
+    $('#kagit-kap').innerHTML = serimHtml(durum.aktifSayfa)
     $<HTMLButtonElement>('#geri').disabled = durum.aktifSayfa === 0
-    $<HTMLButtonElement>('#ileri').disabled = durum.aktifSayfa >= durum.sonSayfa
+    $<HTMLButtonElement>('#ileri').disabled =
+      durum.aktifSayfa + durum.sayfaBasi > durum.sonSayfa
 
-    const son = durum.aktifSayfa === durum.sonSayfa
+    /*
+     * Yazma alanı SON SAYFADA duruyor ve o sayfa serimin sağ yarısında da
+     * olabilir. `aktifSayfa === sonSayfa` demek, iki sayfalı kipte çift
+     * sayıda sayfası olan bir defterde `bırak` düğmesini gizlerdi:
+     * kullanıcı yazabildiği bir sayfaya bakıp bırakamazdı.
+     */
+    const son = durum.gorunenSayfalar.includes(durum.sonSayfa)
     $('#birak').style.display = son && durum.yazilabilir ? '' : 'none'
     $('#dikte').style.display = son && durum.yazilabilir ? '' : 'none'
     $('#ekIlistir').style.display = son && durum.yazilabilir ? '' : 'none'
@@ -433,33 +466,67 @@ export function defteriBagla(
   const sayfayaGit = (i: number, anim = true): void => {
     if (i < 0 || i > durum.sonSayfa) return
     /*
+     * Hedef sayfa serimin sağ yarısında olabilir; gidilecek yer o sayfa
+     * değil, onu İÇEREN serim (KARARLAR.md · K-050).
+     */
+    const hedef = serimBasi(i, durum.sayfaBasi)
+    /*
      * Aynı sayfaya "gitmek" de bir iş yapar: arşivden bir kayda tıklandığında
      * arama terimi değişmiş olabilir. Eskiden burada kayıtsız dönülüyordu ve
      * kayıt zaten açık sayfadaysa vurgu hiç görünmüyordu — kullanıcı neden
      * o kaydın geldiğini göremiyordu.
      */
-    if (i === durum.aktifSayfa) {
+    if (hedef === durum.aktifSayfa) {
       ciz()
       return
     }
-    const yon = i > durum.aktifSayfa ? 'ileri' : 'geri'
-    if (anim) {
-      const eski = $('#kagit-kap .kagit')
-      if (eski) {
-        const kl = eski.cloneNode(true) as HTMLElement
-        kl.classList.add('cevir-' + yon)
-        $('#kagit-kap').appendChild(kl)
-        setTimeout(() => kl.remove(), 700)
+    const yon = hedef > durum.aktifSayfa ? 'ileri' : 'geri'
+    /*
+     * SIRT ETRAFINDA ÇEVRİLEN YAPRAK.
+     *
+     * Açık bir defterde çevrilen şey defterin tamamı değil, tek bir
+     * yaprak: ileri giderken sağ sayfa sırtın etrafında sola, geri
+     * giderken sol sayfa sağa dönüyor. Tek sayfalı kipte dönen şey
+     * kağıdın kendisi.
+     *
+     * KLON ÇİZİMDEN SONRA EKLENİYOR — ve bu bir düzeltme. Eskiden klon
+     * `ciz()`ten ÖNCE ekleniyordu; `ciz()` ise `#kagit-kap`ın bütün
+     * içeriğini yeniden yazıyor, yani klonu daha ilk karede siliyordu.
+     * Animasyon kodu duruyordu ama hiç görünmüyordu (KARARLAR.md · K-050).
+     *
+     * Arka yüz sorunu (yaprağın tersinde ne yazdığı) sönümlemeyle
+     * çözülüyor: gerçek bir arka yüz çizmek, çevrilen yaprağın öteki
+     * sayfasını da kurmak demekti ve kimse o kareyi görmüyor.
+     */
+    const secici = durum.sayfaBasi === 1 ? '.kagit' : yon === 'ileri' ? '.kagit.sag' : '.kagit.sol'
+    const eskiHtml = anim
+      ? (document.querySelector<HTMLElement>('#kagit-kap ' + secici)?.outerHTML ?? null)
+      : null
+
+    durum.aktifSayfa = hedef
+    ciz()
+
+    if (eskiHtml) {
+      const yapraklar = document.querySelector<HTMLElement>('#kagit-kap .yapraklar')
+      const kap = document.createElement('div')
+      kap.innerHTML = eskiHtml
+      const yaprak = kap.firstElementChild as HTMLElement | null
+      if (yapraklar && yaprak) {
+        yaprak.classList.add('cevrilen', 'cevir-' + yon)
+        yapraklar.appendChild(yaprak)
+        setTimeout(() => yaprak.remove(), 700)
       }
     }
-    durum.aktifSayfa = i
-    ciz()
   }
 
   /* ── sayfa başlığı — kayıt kimliğine bağlı (K-005) ─────── */
   function baslikBagla(): void {
-    const kap = $('#kagit-kap .syf-baslik')
-    if (!kap) return
+    /* Serimde iki başlık şeridi var; yalnızca ilkini bağlamak sağ sayfaya
+       ad verilememesi demekti. */
+    for (const kap of $$('#kagit-kap .syf-baslik')) baslikSeridiBagla(kap)
+  }
+
+  function baslikSeridiBagla(kap: HTMLElement): void {
     const anahtar = kap.dataset.anahtar
     const ekle = kap.querySelector<HTMLButtonElement>('.ekle')
     if (!ekle || !anahtar) return
@@ -492,7 +559,7 @@ export function defteriBagla(
       for (const s of durum.sayfalar.filter((x) => x.cilt === c.no)) {
         const w = 7 + Math.round((s.hacim / SAYFA_HACIM) * 26)
         const ad = durum.baslik(s)
-        h += `<div class="syf${s.no - 1 === durum.aktifSayfa ? ' aktif' : ''}${ad ? ' baslikli' : ''}"
+        h += `<div class="syf${durum.gorunenSayfalar.includes(s.no - 1) ? ' aktif' : ''}${ad ? ' baslikli' : ''}"
           data-i="${s.no - 1}" title="${kacir(ad ?? S('defter.sayfaEt', { n: s.ciltSayfa }))}"><i style="width:${w}px"></i></div>`
       }
     }
@@ -561,6 +628,9 @@ export function defteriBagla(
     if (!m) return
     const gun = bugun()
     const ek = bekleyenEk
+    /* Bırakılan kaydın kimliği: aşağıda hangi sayfaya düştüğünü bulmak
+       için gerekiyor. */
+    let yeniId = ''
     /* Kayıt ve eki tek işlemde: yarısı yazılmış bir sayfa kalmasın. */
     await depo.islem(async () => {
       const kayit = await depo.kayitEkle({
@@ -570,6 +640,7 @@ export function defteriBagla(
         temalar: durum.temalariCikar(m),
         soru: durum.aktifSoru,
       })
+      yeniId = kayit.id
       if (ek) await depo.ekYaz({ ...ek, kayitId: kayit.id })
     })
     /*
@@ -586,7 +657,23 @@ export function defteriBagla(
     await durum.yonlendirmeyiIlerlet(gun)
     await durum.yenile()
     durum.soruyuTazele(gun)
-    durum.aktifSayfa = durum.sonSayfa
+    /*
+     * BIRAKILAN KAYDIN DURDUĞU SAYFAYA GİDİLİYOR — son sayfaya değil.
+     *
+     * Yazma alanı son sayfanın altında duruyor. Kayıt sayfayı tam
+     * doldurduğunda alan bir SONRAKİ sayfaya taşıyor ve son sayfada
+     * yalnızca o alan kalıyor. `sonSayfa`ya gitmek o durumda "bırak"a
+     * basan kullanıcıya yazdığının görünmediği bir sayfa açıyordu; iki
+     * sayfalı serimde yazdığı şey bütün bir serim geride kalıyor
+     * (KARARLAR.md · K-050).
+     *
+     * Olağan durumda kayıt zaten son sayfada ve hiçbir şey değişmiyor;
+     * kalem de yerinde kalıyor.
+     */
+    const kayitSayfasi = durum.sayfalar.findIndex((sy) =>
+      sy.ogeler.some((o) => o.tip === 'kayit' && o.kayitId === yeniId),
+    )
+    durum.aktifSayfa = kayitSayfasi >= 0 ? kayitSayfasi : durum.sonSayfa
     ciz()
     /* Bırakınca odak yeni kalemde kalsın: kullanıcı hemen devam edebilsin. */
     const yeni = $<HTMLTextAreaElement>('#kalem')
@@ -769,8 +856,10 @@ export function defteriBagla(
       d.textContent = eski
     }
   }
-  $('#geri').onclick = () => sayfayaGit(durum.aktifSayfa - 1)
-  $('#ileri').onclick = () => sayfayaGit(durum.aktifSayfa + 1)
+  /* Adım serim kadar: iki sayfalı kipte tek sayfa atlamak yaprağı değil
+     defteri yarım kaydırırdı. */
+  $('#geri').onclick = () => sayfayaGit(durum.aktifSayfa - durum.sayfaBasi)
+  $('#ileri').onclick = () => sayfayaGit(durum.aktifSayfa + durum.sayfaBasi)
   $('#bugune').onclick = () => sayfayaGit(durum.sonSayfa)
   $('#soruIste').onclick = async () => {
     await durum.baskaSoruIste()
@@ -793,8 +882,8 @@ export function defteriBagla(
     if ($('#kitaplik').classList.contains('acik') || $('#yak').classList.contains('acik')) return
     const a = document.activeElement
     if (a && ['TEXTAREA', 'INPUT'].includes(a.tagName)) return
-    if (e.key === 'ArrowLeft') sayfayaGit(durum.aktifSayfa - 1)
-    if (e.key === 'ArrowRight') sayfayaGit(durum.aktifSayfa + 1)
+    if (e.key === 'ArrowLeft') sayfayaGit(durum.aktifSayfa - durum.sayfaBasi)
+    if (e.key === 'ArrowRight') sayfayaGit(durum.aktifSayfa + durum.sayfaBasi)
   })
 
   let dx0: number | null = null

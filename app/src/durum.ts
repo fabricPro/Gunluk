@@ -1,4 +1,4 @@
-import { CILT_SAYFA, VARSAYILAN_OLCU, ciltleriKur, sayfalariKur } from './cekirdek/sayfa.js'
+import { CILT_SAYFA, VARSAYILAN_OLCU, ciltleriKur, sayfalariKur, serimBasi } from './cekirdek/sayfa.js'
 import type { SayfaOlcu } from './cekirdek/sayfa.js'
 import { BASLANGIC, gununSorusu, havuzdanSor, havuzuIlerlet, ilkHaftaBitti, kayitYazildi } from './cekirdek/yonlendirme.js'
 import type { YonlendirmeDurum } from './cekirdek/yonlendirme.js'
@@ -30,7 +30,44 @@ export class Durum {
   temalar: TemaTanim[] = []
   /** Açık defter — kitaplıktan seçilen. */
   aktifDefter: DefterBilgi | null = null
-  aktifSayfa = 0
+
+  /**
+   * Aynı anda görünen sayfa sayısı — 1 ya da 2 (KARARLAR.md · K-050).
+   *
+   * Ekran katmanı ölçtükten sonra yazıyor; çekirdek buna göre değil,
+   * kendi ölçüsüne göre sayfalıyor. Buradaki tek işi `aktifSayfa`yı
+   * normalleştirmek.
+   */
+  private _sayfaBasi: 1 | 2 = 1
+  get sayfaBasi(): 1 | 2 {
+    return this._sayfaBasi
+  }
+  set sayfaBasi(n: 1 | 2) {
+    this._sayfaBasi = n
+    /* Serim değişince eldeki indeks tek sayılı kalabilir; yeniden
+       normalleştiriliyor. Ayarlayıcı olmasaydı bunu her çağıranın
+       hatırlaması gerekirdi. */
+    this.aktifSayfa = this._aktifSayfa
+  }
+
+  /**
+   * SERİMİN SOL SAYFASI — her zaman.
+   *
+   * Ayarlayıcı, çünkü bu değer üç ayrı yerden yazılıyor: "bugüne dön",
+   * kayıt bırakma, ve `yenile()` sonundaki kırpma. İki sayfalı serimde
+   * tek sayılı bir indeks yazılırsa çizim o sayfayı SAĞ yarıya koyar ve
+   * sol yarıya bir öncekini — son sayfaya yazılırken yazma alanı sağda
+   * kalır ve serim bir sonrakine kaymış gibi görünürdü. Normalleştirmeyi
+   * üç çağırana da bırakmak, birini unutmak demekti.
+   */
+  private _aktifSayfa = 0
+  get aktifSayfa(): number {
+    return this._aktifSayfa
+  }
+  set aktifSayfa(i: number) {
+    this._aktifSayfa = serimBasi(i, this.sayfaBasi)
+  }
+
   aramaTerim = ''
   /**
    * Arşivden gelen sorgunun aday gövdeleri. Vurgulama bunlarla yapılıyor:
@@ -97,6 +134,15 @@ export class Durum {
 
   get sonSayfa(): number {
     return Math.max(0, this.sayfalar.length - 1)
+  }
+
+  /** Serimde şu an GÖRÜNEN sayfa indeksleri — biri ya da ikisi. */
+  get gorunenSayfalar(): number[] {
+    const bas = this.aktifSayfa
+    const son = Math.min(this.sonSayfa, bas + this.sayfaBasi - 1)
+    const liste: number[] = []
+    for (let i = bas; i <= son; i++) liste.push(i)
+    return liste
   }
 
   /** Depodan okur, sayfaları yeniden akıtır, dinleyicileri uyarır. */

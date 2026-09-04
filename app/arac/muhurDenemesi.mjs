@@ -117,7 +117,7 @@ const PROFIL = process.env.DEFTER_PROFIL ?? '/tmp/defter-muhur-profil'
 const baglamAc = async () => {
   const secenek = { executablePath: process.env.CHROMIUM }
   /* Taşıma denemesinde OPFS iki koşu arasında yaşamak zorunda. */
-  if (ASAMA === 'hepsi' || ASAMA === 'kasa' || ASAMA === 'cikmaz' || ASAMA === 'pwa') {
+  if (['hepsi', 'kasa', 'cikmaz', 'pwa', 'serim'].includes(ASAMA)) {
     const t = await chromium.launch(secenek)
     return { baglam: await t.newContext(), kapat: () => t.close() }
   }
@@ -908,12 +908,92 @@ const asamaPwa = async () => {
   process.exit(hata ? 1 : 0)
 }
 
+/**
+ * Aşama `serim` — açık defter gerçekten iki sayfa mı (KARARLAR.md · K-050).
+ *
+ * Birim testler `aktifSayfa`nın normalleştiğini sabitliyor; orada
+ * ölçülemeyen üç şey burada: kaç kağıt çiziliyor, defter ekranın ne
+ * kadarını kaplıyor, ve çevrilen yaprak GERÇEKTEN görünüyor mu.
+ *
+ *   npx vite preview --port 4180
+ *   DEFTER_ADRES=http://localhost:4180 node arac/muhurDenemesi.mjs serim
+ */
+const asamaSerim = async () => {
+  const tarayici = await chromium.launch({ executablePath: process.env.CHROMIUM })
+
+  const defteriAc = async (en, boy) => {
+    const baglam = await tarayici.newContext({ viewport: { width: en, height: boy } })
+    const sayfa = await sayfaAc(baglam)
+    await sayfa.goto(ADRES + '?tohum=1')
+    await kilitKur(sayfa, PAROLA)
+    const acildi = await defterAcildi(sayfa, 60000).then(() => true).catch(() => false)
+    /* Ölçüm ve yeniden akıtma bir tur sürüyor. */
+    await bekle(sayfa, 3000)
+    return { baglam, sayfa, acildi }
+  }
+
+  console.log('\n1. Geniş ekran: iki sayfa yan yana')
+  const g = await defteriAc(1280, 800)
+  de(g.acildi, 'defter açıldı')
+  const genis = await g.sayfa.evaluate(() => ({
+    kagit: document.querySelectorAll('#kagit-kap .kagit').length,
+    sol: !!document.querySelector('#kagit-kap .kagit.sol'),
+    sag: !!document.querySelector('#kagit-kap .kagit.sag'),
+    ciltEn: Math.round(document.querySelector('#kagit-kap .cilt')?.getBoundingClientRect().width ?? 0),
+  }))
+  de(genis.kagit === 2, `iki kağıt çizildi (${genis.kagit})`)
+  de(genis.sol && genis.sag, 'biri sol biri sağ yaprak')
+  /*
+   * ASIL BOŞLUK İDDİASI. Defter `max-width:680px`e kilitliydi ve 1280 px
+   * ekranda iki yanı boş duruyordu — kullanıcının şikayeti buydu.
+   */
+  de(genis.ciltEn >= 900, `defter ekranı kullanıyor (${genis.ciltEn} px, eski kilit 680)`)
+
+  console.log('\n2. Çevrilen yaprak GÖRÜNÜYOR')
+  /*
+   * Klon eskiden `ciz()`ten önce ekleniyordu; `ciz()` kabı baştan yazdığı
+   * için animasyon ilk karede siliniyordu. Kod duruyordu, hareket yoktu.
+   */
+  await g.sayfa.click('#geri')
+  await bekle(g.sayfa, 120)
+  const cevrilen = await g.sayfa.evaluate(
+    () => document.querySelectorAll('#kagit-kap .cevrilen').length,
+  )
+  de(cevrilen === 1, `çevrilen yaprak sahnede (${cevrilen})`)
+
+  console.log('\n3. İki sayfalı kipte yazmak çalışıyor')
+  const ISARETS = 'SERIMDE-YAZILAN-4b81f2'
+  await g.sayfa.click('#bugune')
+  await bekle(g.sayfa, 600)
+  await g.sayfa.fill('#kalem', ISARETS)
+  await g.sayfa.click('#birak')
+  await bekle(g.sayfa, 2500)
+  de((await g.sayfa.textContent('body')).includes(ISARETS), 'kayıt bırakıldı ve sayfada duruyor')
+  await g.baglam.close()
+
+  console.log('\n4. Dar ve dikey ekran: tek sayfa')
+  const d = await defteriAc(420, 900)
+  de(d.acildi, 'defter açıldı')
+  const dar = await d.sayfa.evaluate(() => ({
+    kagit: document.querySelectorAll('#kagit-kap .kagit').length,
+    serim: document.body.classList.contains('serim'),
+  }))
+  de(dar.kagit === 1, `tek kağıt çizildi (${dar.kagit})`)
+  de(!dar.serim, 'serim kipi kapalı')
+  await d.baglam.close()
+
+  await tarayici.close()
+  console.log(hata ? `\nDÜŞEN: ${hata}\n` : '\nSerim denemesi geçti.\n')
+  process.exit(hata ? 1 : 0)
+}
+
   if (ASAMA === 'yaz') return asamaYaz()
   if (ASAMA === 'tasi') return asamaTasi()
   if (ASAMA === 'kasa') return asamaKasa()
   if (ASAMA === 'hesap') return asamaHesap()
   if (ASAMA === 'cikmaz') return asamaCikmaz()
   if (ASAMA === 'pwa') return asamaPwa()
+  if (ASAMA === 'serim') return asamaSerim()
   const { baglam, kapat } = await baglamAc()
   const sayfa = await sayfaAc(baglam)
 

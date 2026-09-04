@@ -17,7 +17,7 @@ import { kilidiBagla } from './ekran/kilit.js'
 import { ACILMADI, kilitEkraniBagla, type HesapDurum } from './ekran/kilitEkrani.js'
 import { kitapligiBagla } from './ekran/kitaplik.js'
 import { kapsuleBagla } from './ekran/kapsul.js'
-import { sayfaOlc } from './ekran/olcum.js'
+import { sayfaOlc, serimiKur } from './ekran/olcum.js'
 import { dilKur } from './ekran/ortak.js'
 import { toreniBagla } from './ekran/toren.js'
 import { yakmayiBagla } from './ekran/yak.js'
@@ -672,9 +672,20 @@ async function baslat(): Promise<void> {
     await kapsul.ciz()
 
     const olcVeYenile = async (): Promise<void> => {
+      /*
+       * Serim ÖLÇÜMDEN ÖNCE kuruluyor: kaç sayfa çizileceği kağıdın
+       * genişliğini belirliyor, kapasite de o genişlikten çıkıyor. Ters
+       * sırada tek sütun ölçülüp iki sütun çizilir ve sayfa taşardı
+       * (KARARLAR.md · K-050).
+       */
+      const serim = serimiKur()
+      const serimDegisti = serim !== durum.sayfaBasi
+      durum.sayfaBasi = serim
+
       const yeni = sayfaOlc()
       const eski = durum.olcu
       if (
+        !serimDegisti &&
         yeni.hacim === eski.hacim &&
         yeni.gunBasligi === eski.gunBasligi &&
         yeni.kayitSabit === eski.kayitSabit &&
@@ -684,7 +695,8 @@ async function baslat(): Promise<void> {
       )
         return
       durum.olcu = yeni
-      const sondaydi = durum.aktifSayfa === durum.sonSayfa
+      /* Son sayfa serimin sağ yarısında da olabilir. */
+      const sondaydi = durum.gorunenSayfalar.includes(durum.sonSayfa)
       await durum.yenile()
       if (sondaydi) durum.aktifSayfa = durum.sonSayfa
       defter.ciz()

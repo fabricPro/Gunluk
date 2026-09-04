@@ -17,36 +17,108 @@
 
 #defter-orta{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;
   padding:14px 22px 0;overflow:hidden}
-.defter-ust{width:100%;max-width:680px;display:flex;align-items:baseline;gap:12px;
+/*
+ * Üst şerit ve araç çubuğu defterin GERÇEK genişliğinde.
+ *
+ * `--defter-en`i `ekran/olcum.ts` ölçüp yazıyor. Sabit bir 680 px'e
+ * bağlıydılar; defter artık en-boy oranıyla büyüdüğü için geniş ekranda
+ * kağıdın hizası kaçıyordu (KARARLAR.md · K-050).
+ */
+.defter-ust{width:100%;max-width:var(--defter-en,680px);display:flex;align-items:baseline;gap:12px;
   padding-bottom:10px;flex:none;transition:opacity .9s}
 body.odak .defter-ust{opacity:.08}
 .defter-ust b{font-family:var(--ui);font-size:12px;font-weight:500;color:var(--ust)}
 .defter-ust span{font-family:var(--ui);font-size:11px;color:var(--ust3)}
 .defter-ust .kalan{margin-left:auto;font-family:var(--ui);font-size:11px;color:var(--altin)}
 
-#kagit-kap{width:100%;max-width:680px;flex:1;min-height:0;position:relative;perspective:2200px}
-.kagit{position:absolute;inset:0;border-radius:2px 6px 6px 2px;overflow:hidden;
+#kagit-kap{width:100%;flex:1;min-height:0;display:flex;justify-content:center}
+
+/*
+ * ── CİLT · masaya açılmış defter (KARARLAR.md · K-050) ─────
+ *
+ * Kağıdın çevresini saran ince kapak kenarı. Kalın bir cilt ya da
+ * istiflenmiş sayfa katmanları denenmedi bile: ekranda yer yiyor ve
+ * gürültü ekliyor. Burada yapılan iş "kağıt masada duruyor" ile "defter
+ * açık duruyor" arasındaki farkı vermek, dekor değil.
+ *
+ * En-boy oranı defterin geniş ekranda büyümesini sağlıyor: yükseklik
+ * doluyor, genişlik orandan çıkıyor. Bugün burada `max-width:680px`
+ * vardı ve 27 inç bir ekranda defter iki yanı bomboş bir şerit
+ * olarak duruyordu. Dar ekranda `max-width:100%` devreye giriyor ve
+ * kağıt eskisi gibi genişliği dolduruyor.
+ */
+.cilt{height:100%;width:auto;aspect-ratio:var(--defter-oran,.74);max-width:100%;
+  margin-inline:auto;padding:8px;border-radius:5px;display:flex;
+  background:linear-gradient(155deg,#2A2117 0%,#171108 55%,#221A11 100%);
+  box-shadow:0 36px 84px -30px rgba(0,0,0,.95), 0 0 0 1px rgba(222,210,184,.055),
+    inset 0 1px 0 rgba(222,210,184,.07)}
+.yapraklar{flex:1;min-width:0;display:grid;grid-template-columns:1fr;
+  position:relative;perspective:2600px;border-radius:3px}
+body.serim .yapraklar{grid-template-columns:1fr 1fr}
+/*
+ * SIRT — iki sayfayı bir defter yapan tek şey.
+ *
+ * Ortada iki yöne açılan gölge: kağıt sırta doğru içe kıvrılıyormuş gibi.
+ * Yalnızca serimde var; tek sayfada ortada bir gölge anlamsız olurdu.
+ */
+body.serim .yapraklar::after{content:'';position:absolute;left:50%;top:0;bottom:0;width:52px;
+  transform:translateX(-50%);pointer-events:none;z-index:4;
+  background:linear-gradient(90deg,transparent,rgba(74,50,24,.16) 30%,rgba(52,34,14,.42) 48%,
+    rgba(30,20,8,.5) 50%,rgba(52,34,14,.42) 52%,rgba(74,50,24,.16) 70%,transparent)}
+
+.kagit{position:relative;min-width:0;overflow:hidden;
+  --isik-x:88%;
   background:
-    radial-gradient(ellipse 120% 80% at 88% 8%,rgba(255,255,255,.28),transparent 55%),
+    radial-gradient(ellipse 120% 80% at var(--isik-x) 8%,rgba(255,255,255,.28),transparent 55%),
     linear-gradient(158deg,var(--kagit) 0%,var(--kagit2) 62%,var(--kagit3) 100%);
   filter:brightness(var(--parlak));
-  box-shadow:0 30px 70px -34px rgba(0,0,0,.95), 0 2px 0 rgba(255,255,255,.05),
-    inset 26px 0 40px -34px rgba(70,48,24,.9), inset -1px -1px 0 rgba(255,255,255,.16);
+  box-shadow:0 2px 0 rgba(255,255,255,.05), inset -1px -1px 0 rgba(255,255,255,.16);
   display:flex;flex-direction:column;transition:filter 1.5s ease}
+/* Köşeler dışa yuvarlak, sırta bakan kenar düz. */
+.kagit.tek{border-radius:2px 6px 6px 2px}
+/* Parlama sayfanın DIŞ üst köşesinde: sırtta parlama olmaz, orada gölge var. */
+.kagit.sol{border-radius:6px 1px 1px 6px;--isik-x:12%}
+.kagit.sag{border-radius:1px 6px 6px 1px}
+/*
+ * Boş duran karşı yaprak: son sayfa solda kalınca sağ taraf gerçekten boş.
+ * Kağıdın KENDİSİ — ilk denemede daha koyu bir tonla ayrılmıştı ve başka
+ * bir malzeme gibi duruyordu; boş bir sayfa boş bir sayfadır.
+ */
 .kagit::before{content:'';position:absolute;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='4'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)' opacity='.28'/%3E%3C/svg%3E")}
-.kagit::after{content:'';position:absolute;left:0;top:0;bottom:0;width:13px;pointer-events:none;
-  background:linear-gradient(90deg,rgba(74,50,24,.30),transparent)}
+/* Kıvrım gölgesi sırta bakan kenarda: solda sağda, sağda solda. */
+.kagit::after{content:'';position:absolute;top:0;bottom:0;width:16px;pointer-events:none;z-index:1}
+.kagit.tek::after,.kagit.sag::after{left:0;background:linear-gradient(90deg,rgba(74,50,24,.30),transparent)}
+.kagit.sol::after{right:0;background:linear-gradient(270deg,rgba(74,50,24,.30),transparent)}
 .kagit-ic{flex:1;overflow-y:auto;padding:30px 42px 8px;position:relative;z-index:2;color:var(--murekkep)}
 .kagit-ic::-webkit-scrollbar-thumb{background:rgba(44,33,24,.2)}
+/* Sayfa numarası dış kenarda — gerçek bir defterde olduğu gibi. */
 .kagit-alt{flex:none;text-align:center;font-family:var(--yazi);font-size:12.5px;color:var(--soluk);
-  padding:6px 0 13px;position:relative;z-index:2;font-style:italic}
-.cevir-ileri{animation:cevIleri .68s cubic-bezier(.42,0,.42,1) forwards;transform-origin:left center;z-index:5}
-.cevir-geri{animation:cevGeri .68s cubic-bezier(.42,0,.42,1) forwards;transform-origin:left center;z-index:5}
+  padding:6px 26px 13px;position:relative;z-index:2;font-style:italic}
+.kagit.sol .kagit-alt{text-align:left}
+.kagit.sag .kagit-alt{text-align:right}
+
+/*
+ * ── ÇEVRİLEN YAPRAK ────────────────────────────────────────
+ *
+ * Klon, yeni serim çizildikten SONRA üstüne konuyor ve dönüp gidiyor.
+ * Eskiden çizimden önce ekleniyordu; `ciz()` kabı baştan yazdığı için
+ * animasyon hiç görünmüyordu (K-050).
+ *
+ * İleri: yaprak sırtın etrafında sola. Geri: sağa. İki sayfalı kipte
+ * klon yalnızca ilgili yarıyı kaplıyor.
+ */
+.cevrilen{position:absolute;top:0;bottom:0;left:0;right:0;z-index:6;pointer-events:none}
+body.serim .cevrilen.cevir-ileri{left:50%}
+body.serim .cevrilen.cevir-geri{right:50%}
+.cevir-ileri{animation:cevIleri .68s cubic-bezier(.42,0,.42,1) forwards;transform-origin:left center}
+.cevir-geri{animation:cevGeri .68s cubic-bezier(.42,0,.42,1) forwards;transform-origin:right center}
 @keyframes cevIleri{
   35%{box-shadow:34px 0 70px -20px rgba(0,0,0,.85)}
-  to{transform:rotateY(-158deg);opacity:.06;box-shadow:44px 0 80px -18px rgba(0,0,0,.9)}}
-@keyframes cevGeri{from{transform:rotateY(-158deg);opacity:.06}to{transform:none;opacity:1}}
+  to{transform:rotateY(-162deg);opacity:.05;box-shadow:44px 0 80px -18px rgba(0,0,0,.9)}}
+@keyframes cevGeri{
+  35%{box-shadow:-34px 0 70px -20px rgba(0,0,0,.85)}
+  to{transform:rotateY(162deg);opacity:.05;box-shadow:-44px 0 80px -18px rgba(0,0,0,.9)}}
 
 /* sayfa başlığı */
 .syf-baslik{margin:0 0 20px;padding-bottom:10px;border-bottom:1px solid var(--cizgi);
@@ -159,7 +231,7 @@ body.odak .defter-ust{opacity:.08}
   min-height:74px;padding:6px 0 0;caret-color:var(--kirmizi)}
 #kalem::placeholder{color:var(--soluk);opacity:.75;font-style:italic}
 
-.arac{width:100%;max-width:680px;flex:none;display:flex;align-items:center;gap:6px;
+.arac{width:100%;max-width:var(--defter-en,680px);flex:none;display:flex;align-items:center;gap:6px;
   padding:11px 0 15px;transition:opacity .9s}
 body.odak .arac{opacity:.1}
 .arac button{font-family:var(--ui);font-size:11.5px;color:var(--ust2);border:1px solid var(--hat);

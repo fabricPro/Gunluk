@@ -9,6 +9,108 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-09-04 · K-050 · Açık defter: yan yana iki sayfa, ince cilt, ve ekranın kullanılması
+
+Kullanıcı defterin daha çok defter gibi durmasını istedi ve masaya açılmış,
+yan yana iki sayfalı bir günlük görseli verdi. Üç iş: **serim** (aynı anda iki
+sayfa), **ince cilt kenarı**, ve **tablet/masaüstünde boşa duran alan** —
+`#kagit-kap` 680 px'e kilitliydi ve 1600 px'lik bir ekranda defter, iki yanı
+bomboş bir şerit olarak duruyordu.
+
+Telefonda dikey tek sayfa, yatayda iki sayfa; kararı kullanıcı verdi. Arka
+plan yalnızca tazelendi: masaya nesne, fotoğraf ya da doku görseli
+KONULMADI — PROJE.md §4'ün "tek aydınlık yüzey sayfadır" kuralı duruyor.
+
+### Kaç sayfa gösterileceğine JS karar veriyor, CSS değil
+
+Yalnızca medya sorgusuyla verilseydi ölçüm katmanı kaç sütun çizildiğini
+bilmezdi: sayfa kapasitesi kağıdın GERÇEK genişliğinden çıkıyor (K-014). Tek
+sütun ölçüp iki sütun çizmek sayfayı sessizce taşırırdı. `ekran/olcum.ts`
+karar veriyor, gövdeye sınıf koyuyor, CSS ona bakıyor.
+
+### Sabit en-boy oranı iki uçta da yanlıştı
+
+İlk hâlde defterin oranı sabitti (serimde 1.48). Ölçtüm:
+
+| ekran | sabit oranla | kutudan türeyen oranla |
+|---|---|---|
+| masaüstü 1600×900 | 1114 px | **1295 px** |
+| tablet 1180×820 | 996 px | **1070 px** |
+| yatay telefon 844×390 | 389 px | **734 px** |
+
+Sabit oran yüksekliğe bağlı olduğu için alçak ekranda defteri küçültüyor,
+geniş ekranda ise kutuyu doldurmuyordu. Oran artık kutunun kendi oranından
+çıkıyor, kitaba benzemeyi bırakmasın diye sınırlanıyor — ve sınır sayfayı
+320 px'in altına indirecekse kalkıyor: "kitap gibi dursun" demek "okunamasın"
+demek değil.
+
+### Sayfa çevirme animasyonu HİÇ ÇALIŞMIYORMUŞ
+
+Kod duruyordu: klon `#kagit-kap`a ekleniyor, hemen ardından `ciz()`
+çağrılıyordu — ve `ciz()` kabın bütün içeriğini yeniden yazıyor. Klon daha
+ilk karede siliniyordu. Klon artık çizimden SONRA konuyor ve hareket
+gerçekten görünüyor. Serimde çevrilen şey defterin tamamı değil tek bir
+yaprak: ileri giderken sağ sayfa sırtın etrafında sola, geri giderken sol
+sayfa sağa.
+
+### `aktifSayfa` artık bir ayarlayıcı
+
+İki sayfalı serimde tek sayılı bir indeks etkin olursa çizim o sayfayı sola
+koyar ve bir öncekini hiç göstermez. Değer üç ayrı yerden yazılıyor ("bugüne
+dön", kayıt bırakma, `yenile()` kırpması); normalleştirmeyi çağıranlara
+bırakmak birini unutmak demekti. Tek yer: `Durum.aktifSayfa` ayarlayıcısı,
+`cekirdek/sayfa.ts` · `serimBasi()` ile.
+
+### Serimin ortaya çıkardığı gerçek kusur: yazdığın şey görünmüyordu
+
+Yazma alanı son sayfanın altında duruyor. Bir kayıt sayfayı TAM doldurunca
+alan bir sonraki sayfaya taşıyor ve son sayfada yalnızca o alan kalıyor.
+`bırak`tan sonra `aktifSayfa = sonSayfa` deniyordu — yani kullanıcı "bırak"a
+basıyor ve yazdığının GÖRÜNMEDİĞİ bir sayfaya bakıyordu. Tek sayfada bir
+sayfa, serimde bütün bir serim geride kalıyor.
+
+Artık bırakılan kaydın DURDUĞU sayfaya gidiliyor. Olağan durumda kayıt zaten
+son sayfada ve hiçbir şey değişmiyor — kalem de yerinde kalıyor. Sayfa tam
+dolduğunda kullanıcı yazdığını görüyor; karşılığında kalem o karede görünen
+serimde olmuyor ve devam etmek için "bugüne dön" gerekiyor. İkisinden birini
+seçmek gerekiyordu: **basılan düğmenin bir şey yaptığını görmek** daha ağır
+bastı.
+
+### Alçak ekranda sayfa sayısının şişmesi
+
+Yan çevrilmiş telefonda (844×390) üst şerit, defter adı ve araç çubuğu 174 px
+yiyordu; kağıda 216 px kalıyordu. Sonuç ölçüldü: aynı defter masaüstünde 70,
+orada **693** sayfa — ve "defterin doldu" diyor. Alçak ekran için sıkı bir
+yerleşim eklendi (kısa üst şerit, tek satırda kayan araç çubuğu, dar
+boşluklar) ve sayı **389**'a indi.
+
+**Kalan fark kapanmadı ve kapatılmadı.** Sayfa sayısının cihaza göre değişmesi
+ölçüme dayalı sayfalamanın doğal sonucu (K-014) ve bu değişiklikten önce de
+vardı — tablet dikeyde 44, telefon dikeyde 119 sayfa. Bunu tümden çözmek
+"cilt sınırı cihazdan bağımsız olmalı mı" sorusunu açar ve o bir ürün kararı;
+burada ölçüp yazıldı, çözülmedi.
+
+### Muhafızlar
+
+Birim (`test/serim.test.ts`): `serimBasi` ve `aktifSayfa` normalleşmesi.
+**Kırma denemesi:** normalleştirmeyi kaldır → tek sayılı son sayfada iki test
+düşüyor.
+
+Tarayıcı (yeni `serim` aşaması): geniş ekranda iki kağıt ve `.cilt` ≥ 900 px,
+dar ekranda tek kağıt, çevrilen yaprağın SAHNEDE olması, ve iki sayfalı kipte
+yazmanın çalışması. **Kırma denemeleri:** serimi 1'e sabitle → üç iddia
+düşüyor (genişlik 620 px'e iniyor); klonu yine `ciz()`ten önce ekle →
+çevrilen yaprak iddiası düşüyor.
+
+Göz kontrolü ayrıca yapıldı: dört ölçüde ekran görüntüsü alınıp bakıldı. Test
+geçmesi "iyi duruyor" demek değil.
+
+### Doğrulama
+
+662 test; `serim` · `hepsi` · `pwa` aşamaları. Kırma denemeleri yukarıda.
+
+---
+
 ## 2026-09-03 · K-049 · Ana ekrana kurulabilir defter — ve servis işçisinin neyi ASLA almadığı
 
 Kullanıcı "PWA olarak indirilebilir bir uygulama olsun" dedi. Eksik olan şey

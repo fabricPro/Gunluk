@@ -10,12 +10,21 @@ button{background:none;border:none;cursor:pointer;color:inherit}
 ::-webkit-scrollbar-thumb{background:rgba(222,210,184,.16);border-radius:6px}
 ::-webkit-scrollbar-track{background:transparent}
 
-/* masa ışığı */
+/*
+ * Masa ışığı — defterin üstüne düşen tek lamba.
+ *
+ * Işık biraz daha dar ve sıcak, vinyet biraz daha derin: göz kenarlara
+ * değil kağıda gidiyor. PROJE.md §4 duruyor — masaya nesne, fotoğraf ya
+ * da doku görseli KONULMUYOR; aydınlık tek yüzey hâlâ sayfa
+ * (KARARLAR.md · K-050).
+ */
 #isik{position:fixed;inset:0;pointer-events:none;z-index:0;transition:background 1.5s ease;
-  background:radial-gradient(ellipse 85% 62% at 50% 34%,rgba(214,164,92,.10),transparent 72%)}
-#ahsap{position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.5;
-  background:repeating-linear-gradient(94deg,rgba(0,0,0,0) 0 3px,rgba(0,0,0,.16) 3px 4px),
-             radial-gradient(ellipse 120% 90% at 50% 40%,transparent 40%,rgba(0,0,0,.6) 110%)}
+  background:radial-gradient(ellipse 68% 56% at 50% 30%,rgba(214,164,92,.13),transparent 70%)}
+#ahsap{position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.55;
+  background:
+    repeating-linear-gradient(93deg,rgba(0,0,0,0) 0 5px,rgba(0,0,0,.10) 5px 6px),
+    repeating-linear-gradient(93deg,rgba(0,0,0,0) 0 23px,rgba(214,164,92,.022) 23px 25px),
+    radial-gradient(ellipse 105% 80% at 50% 38%,transparent 34%,rgba(0,0,0,.72) 108%)}
 
 header{position:fixed;top:0;left:0;right:0;height:50px;z-index:30;display:flex;
   align-items:center;padding:0 20px;gap:14px;transition:opacity .9s ease}

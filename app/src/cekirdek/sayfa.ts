@@ -6,6 +6,26 @@ export const SAYFA_HACIM = 620
 export const CILT_SAYFA = 45
 
 /**
+ * Serimin (aynı anda görünen sayfaların) SOL sayfası.
+ *
+ * Açık bir defterde sayfalar ikişer ikişer görünüyor. Kullanıcı bir kayda
+ * gittiğinde ya da yeni bir sayfaya yazdığında hedef sayfa serimin sağ
+ * yarısında kalabilir; o zaman gösterilecek şey o sayfa değil, onu İÇEREN
+ * serim.
+ *
+ * Burada duruyor çünkü saf: `ekran/` de `durum.ts` de aynı cevabı vermek
+ * zorunda ve ikisinde iki kopya olsaydı biri kayardı. `cekirdek/` DOM
+ * bilmiyor (KARARLAR.md · K-004).
+ *
+ *   serimBasi(7, 2) → 6      serimBasi(7, 1) → 7
+ */
+export const serimBasi = (sayfa: number, sayfaBasi: number): number => {
+  const n = Math.max(1, Math.floor(sayfaBasi))
+  const i = Math.max(0, Math.floor(sayfa))
+  return i - (i % n)
+}
+
+/**
  * Sayfanın taşıma kapasitesi ve öğelerin maliyeti.
  *
  * Sabit değil: aynı metin 680px'lik bir kağıtta ve 320px'lik bir telefon

@@ -13,6 +13,70 @@ import { S } from './ortak.js'
  * doğru sonuç verir.
  */
 
+/**
+ * SERİM — aynı anda kaç sayfa görünüyor (KARARLAR.md · K-050).
+ *
+ * Kararı CSS medya sorgusu DEĞİL burası veriyor, ve sebebi ölçüm: sayfa
+ * kapasitesi kağıdın gerçek genişliğinden çıkıyor. Yalnızca CSS bilseydi
+ * `sayfaOlc` kaç sütun çizildiğini bilmez, iki sütunluk bir kağıdı tek
+ * sütun sanıp sayfayı taşırırdı. Tek doğruluk kaynağı burada; CSS gövdedeki
+ * sınıfa bakıyor.
+ *
+ * Kural: **yatay ekran ve en az 720 px.** Dar bir sütunda satır ~15
+ * karaktere düşüyor ve okunmuyor; telefon dikey tutulurken tek sayfa
+ * kalıyor — yazarken klavye açıkken doğru duruş da o.
+ */
+const SERIM_EN_AZ = 720
+
+export function serimSayfasi(): 1 | 2 {
+  const en = window.innerWidth
+  const boy = window.innerHeight
+  return en >= SERIM_EN_AZ && en > boy ? 2 : 1
+}
+
+/** Bir sayfanın okunabilir kaldığı en dar genişlik. */
+const EN_DAR_SAYFA = 320
+
+/**
+ * Defterin en-boy oranı — SABİT DEĞİL, kutudan çıkıyor.
+ *
+ * Sabit bir oran iki uçta da yanlış cevap veriyordu:
+ *
+ *   · Geniş masaüstünde (1600×900) oran yüksekliği doldurup 1114 px'de
+ *     kalıyor, iki yanda yüzlerce piksel boş duruyordu — kullanıcının
+ *     şikayeti tam olarak buydu.
+ *   · Yan çevrilmiş telefonda (844×390) yükseklik çok az olduğu için
+ *     defter 389 px'e düşüyor ve ekranın yarısı boş kalıyordu.
+ *
+ * Kural: kutunun kendi oranı alınıyor, kitaba benzemeyi bırakmasın diye
+ * sınırlanıyor. Sınır sayfayı okunmaz yapacaksa (yükseklik çok az) sınır
+ * kalkıyor: o durumda "kitap gibi dursun" demek, "okunamasın" demektir.
+ */
+function defterOrani(sayfaBasi: 1 | 2): number {
+  const kap = document.querySelector<HTMLElement>('#kagit-kap')
+  const k = kap?.getBoundingClientRect()
+  if (!k || k.height < 40 || k.width < 40) return sayfaBasi === 2 ? 1.6 : 0.74
+  const kutu = k.width / k.height
+  const [enAz, enCok] = sayfaBasi === 2 ? [1.35, 1.72] : [0.6, 0.95]
+  const sinirli = Math.min(enCok, Math.max(enAz, kutu))
+  /* Sınırlı oran sayfaları okunmaz inceltiyorsa kutuyu doldur. */
+  const sayfaEni = (k.height * sinirli) / sayfaBasi
+  return sayfaEni < EN_DAR_SAYFA ? kutu : sinirli
+}
+
+/**
+ * Serimi gövdeye yazar ve kaç sayfa olduğunu döner.
+ *
+ * Ölçümden ÖNCE çağrılmak zorunda: sınıf konmadan ölçülen kağıt yanlış
+ * genişlikte olur.
+ */
+export function serimiKur(): 1 | 2 {
+  const n = serimSayfasi()
+  document.body.classList.toggle('serim', n === 2)
+  document.documentElement.style.setProperty('--defter-oran', defterOrani(n).toFixed(3))
+  return n
+}
+
 /** Ekin görseli sayfanın kullanılabilir yüksekliğinin en fazla bu kadarı. */
 const EK_SAYFA_PAYI = 0.42
 /**
@@ -115,6 +179,22 @@ export function sayfaOlc(): SayfaOlcu {
     return Number.isFinite(y) ? y : 24
   })
   const satirKarakter = satirYukseklik * karakterPiksel
+
+  /*
+   * Defterin gerçek genişliği üst şeride ve araç çubuğuna geçiyor.
+   *
+   * Kağıt kutusu artık en-boy oranıyla, yani YÜKSEKLİKTEN türeyen bir
+   * genişlikte. Üstteki ad ile alttaki düğmeler sabit bir `max-width`e
+   * bağlı kalsaydı geniş ekranda kağıtla hizası kaçardı. `--ek-tavan` ile
+   * aynı desen: ölçülen piksel doğrudan CSS'e.
+   */
+  /* Ölçülen şey cildin kendisi: `#kagit-kap` bütün genişliği kaplayan kap,
+     defter onun içinde ortalanmış duruyor. */
+  const kap = document.querySelector<HTMLElement>('#kagit-kap .cilt')
+  if (kap) {
+    const en = Math.round(kap.getBoundingClientRect().width)
+    if (en > 0) document.documentElement.style.setProperty('--defter-en', en + 'px')
+  }
 
   const ktr = (piksel: number) => Math.max(0, Math.round(piksel * karakterPiksel))
   const hacim = Math.max(

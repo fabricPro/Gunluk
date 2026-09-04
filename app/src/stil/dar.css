@@ -28,6 +28,7 @@
 
   #defter-orta { padding: 12px 12px 0 }
   .kagit-ic { padding: 24px 22px 8px }
+  .cilt { padding: 5px }
   /* Cilt kesiti dar ekranda daralıyor ama kalıyor: defterin kaç cilde
      ulaştığını gösteren tek şey o. */
   #kesit-sut { width: 46px }
@@ -65,4 +66,36 @@
 @media (max-width: 380px) {
   nav button { padding: 7px 7px; font-size: 11.5px }
   .ust-btn { padding: 6px 8px; font-size: 10.5px }
+}
+
+/*
+ * ── ALÇAK EKRAN · yan çevrilmiş telefon ─────────────────
+ *
+ * Burada kıt olan şey genişlik değil YÜKSEKLİK. 844×390'lık bir ekranda
+ * üst şerit, defter adı ve araç çubuğu 174 px yiyor ve kağıda 216 px
+ * kalıyordu. Sonucu ölçüldü: aynı defter masaüstünde 70, burada **693**
+ * sayfaya çıkıyor ve "defterin doldu" diyor. Sayfa sayısının cihaza göre
+ * değişmesi ölçüme dayalı sayfalamanın (K-014) doğal sonucu; bu kadar
+ * değişmesi ise yalnızca boşa giden dikey alan.
+ *
+ * Burada da yalnızca YERLEŞİM değişiyor: yazı tipi, ton, hiyerarşi aynı
+ * (KARARLAR.md · K-050).
+ */
+@media (max-height: 500px) {
+  header { height: 40px }
+  main { top: 40px }
+  #defter-orta { padding-top: 6px }
+  .defter-ust { padding-bottom: 4px; font-size: 0 }
+  .defter-ust b, .defter-ust span { font-size: 11px }
+  .kagit-ic { padding: 16px 20px 4px }
+  .kagit-alt { padding: 2px 18px 6px; font-size: 11px }
+  .cilt { padding: 4px }
+  .arac { padding: 6px 0 8px }
+  .arac button { padding: 6px 11px }
+  .arac .ok { padding: 6px 12px }
+  /* Alçak ekranda araç çubuğu sarılırsa kağıdı yer; tek satırda kalıyor
+     ve gerekirse yatay kayıyor. */
+  .arac { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none }
+  .arac::-webkit-scrollbar { height: 0 }
+  .arac #birak { flex: none; order: 0; margin-left: auto }
 }
