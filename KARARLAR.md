@@ -9,6 +9,133 @@ Yeni karar en üste eklenir.
 
 ---
 
+## 2026-09-04 · K-051 · Sayfa cihazdan bağımsız — ve K-014'ün geri alınması
+
+K-050'de ölçtüm: aynı defter masaüstünde 70, tablet dikeyde 44, telefon
+dikeyde 119, yatay telefonda 389 sayfa. Cildin ne zaman dolduğu kullanıcının
+o an hangi cihazı tuttuğuna bağlıydı; telefonu yan çevirmek "defterin doldu"
+diyebiliyordu. Kullanıcı bunun düzeltilmesini istedi.
+
+Sorun cilt sınırından büyüktü. **Sayfa numarası bu üründe kullanıcıya
+GÖSTERİLEN bir kimlik:** arşiv cevabı kullanılan kaydı "cilt + sayfa
+numarasıyla" göstermek zorunda (PROJE.md · 2.4), fihrist sayfa numarasıyla
+listeliyor, kapanmış cilt özeti sayfa numarası saklıyor. "Cilt II, sayfa 17"
+telefonda ve masaüstünde başka bir yeri gösteriyordu.
+
+### K-014'ün gerekçesi nerede çürüdü
+
+K-014 sabit "620 karakter" varsayımını kaldırmıştı ve haklıydı: aynı metin
+680 px'lik kağıtta ve 320 px'lik telefon kağıdında farklı yer kaplıyor,
+telefonda sayfa TAŞIYORDU. Çürüyen şey sabit sayının kendisi değil, sabit
+sayının taşmaya karşı hiçbir karşılığının olmamasıydı.
+
+Şimdi karşılığı var: **sayfa sabit, yazı ölçekli.** Ölçüm de kalkmadı —
+K-014'ün asıl kazanımı ("tahmin etme, ölç") duruyor; ölçülen soru değişti:
+
+> "bu kağıda kaç karakter sığar" → "sabit sayfanın bu kağıda sığması için
+> yazı ne kadar olmalı"
+
+`SABIT_OLCU` tahmin değil: referans cihazda (telefon dikey 390×844, kağıt içi
+310×543) gerçekten ölçüldü ve donduruldu. Referans telefon, çünkü ürünün
+birincil cihazı o — orada ölçek 1, yani görünüm değişmiyor.
+
+### Nasıl
+
+`.kagit-ic{zoom:var(--yazi-olcek)}`. `transform: scale` değil `zoom`, çünkü
+zoom yeniden yerleşim yapıyor: yazı keskin kalıyor ve satır kırılmaları
+gerçek. Ölçeği `ekran/olcum.ts` çözüyor; `zoom = k` altında yerleşim kutusu
+`fiziksel / k` olduğu için kapasite `1/k²` ile değişiyor ve
+`k *= sqrt(ölçülen / hedef)` bir adımda neredeyse oturuyor.
+
+**`zoom` altında birimler ayrışıyor** ve bu tuzağı önce ölçtüm:
+`clientHeight`/`offsetHeight` yerleşim birimini, `getBoundingClientRect`
+ekrana basılan pikseli veriyor (1.5 ölçekte 200 ve 300). Ölçüm yardımcısı
+bu yüzden `getBoundingClientRect` yerine `offsetHeight` kullanıyor;
+karıştırmak kapasiteyi ölçek kadar yanlış hesaplardı.
+
+### Sonuç — ölçülmüş
+
+| ekran | ölçek | sayfa/cilt |
+|---|---|---|
+| telefon dikey 390×844 | 1.000 | 119 / 3 |
+| telefon yatay 844×390 | 0.719 | 119 / 3 |
+| tablet dikey 820×1180 | 1.933 | 119 / 3 |
+| tablet yatay 1180×820 | 1.381 | 119 / 3 |
+| masaüstü 1600×900 | 1.584 | 119 / 3 |
+
+Yalnızca yatay telefonda sabit sayfa kağıda sığmıyor ve `.kagit-ic`
+kaydırılabiliyor — bugün de var olan emniyet supabı. Alternatifi okunmayacak
+kadar küçük bir yazıydı.
+
+Üst sınır önce 1.75 kondu; tablet dikeyde 2.01 isteyip sınıra dayanınca
+sayfanın üçte biri boş kalıyordu. Görüntüye bakıp 2.05'e çekildi ve sayfa
+doldu. Sayı gözle seçildi, hesapla değil — ve nedenini yazmak gerekiyor:
+ölçek sınırı bir okunabilirlik kararı, bir formül değil.
+
+### Yan kazanç: pencere boyutu artık sayfaları kaydırmıyor
+
+Sayfalama ölçüm almadığı için `olcVeYenile` yeniden akıtma tetiklemiyor.
+Eskiden pencereyi yeniden boyutlandırmak sayfa numaralarını kaydırıyordu.
+
+### Sabitleri dondurmak eski bir kuralın çiğnendiğini ortaya çıkardı
+
+Ürünün kuralı: bir ek sayfanın yarısından fazlasını yiyemez
+(`test/ek.test.ts`). Ölçülen değerlerle 56 + 222 = 278, yani 444'lük sayfanın
+%63'ü. Kural bugüne kadar yalnızca demo sabitlerine karşı sınanıyordu;
+cihazların GERÇEKTEN kullandığı değer onu çiğniyordu ve hiçbir yerde
+görünmüyordu. Sabitler dondurulunca test ısırdı ve `ekTavan` 160'a çekildi.
+
+Ders: bir testin sabitleri üretimin sabitleri değilse, test kendi kurgusunu
+sınıyor demektir.
+
+### Muhafızlar
+
+Birim: sayfa ölçüsü dondurulmuş değerlerde ve ek sayfanın yarısını geçmiyor;
+`test/sayfa.test.ts`teki bağımsız referans akış artık `SABIT_OLCU`yu izliyor
+(sihirli sayı kalmadı).
+
+Tarayıcı (`serim` aşaması, yeni **3b** adımı): aynı tohumlu defter dört
+ölçüde açılıyor ve sayfa/cilt sayısı dördünde de aynı olmak zorunda; ayrıca
+ölçeklerin birbirinden ayrıştığı (uçlar arası oran > 1.5) sınanıyor — hepsi 1
+çıksaydı ölçekleme hiç çalışmıyor demekti. Ölçeği sabit 1 yapınca ikinci
+iddia düşüyor (`1 · 1 · 1 · 1`), sayfa sayıları ise geçmeye devam ediyor:
+iki muhafız gerçekten ayrı şeyleri ölçüyor.
+
+### İlk iki kırma denemem HİÇBİR ŞEYİ KIRMADI
+
+Muhafızı "ölçümü yeniden sayfalamaya bağla" diye kırmayı denedim ve deneme
+GEÇTİ. İki kez. Sebep her ikisinde de aynıydı: ölçüm sayfalamaya gerçekten
+ulaşmıyordu.
+
+  1. Ölçülen değeri `window`a yazıp `yenile()`de okudum — ama `yenile()`
+     çizimden ÖNCE koşuyor, o an değer henüz yazılmamış.
+  2. Doğrudan `.kagit-ic`ten ölçtüm — ama sayfalama koşarken o düğüm daha
+     DOM'da yok.
+
+Eski mimarinin cihaza bağlılığı tek bir satırdan değil, **sıradan**
+geliyordu: ölç → yeniden akıt → çiz. Üçüncü denemede `olcVeYenile`ye o
+ikinci akıtmayı geri koydum ve sayılar ayrıştı: 115 / 114 / 111 / 114, üç
+iddia düştü.
+
+Ders K-047'nin üçüncü tekrarı, bu sefer kendi kırma denememde: bir kırma
+denemesi geçiyorsa önce "gerçekten kırdım mı" diye sormak gerekiyor. Geçen
+bir kırma denemesini muhafızın zayıflığına yormak, iki kez yanlış cevap
+verirdi.
+
+### Kabul edilen bedeller
+
+- Var olan defterler bir kez yeniden aktı; sayfa numaraları değişti.
+  Kapanmış cilt özetlerindeki numaralar eskidi (kullanıcı onayladı).
+- Büyük ekranda yazı belirgin büyüyor (masaüstünde 1.58×). Seçilen tasarım
+  bu; alternatifi sayfanın yarısının boş kalmasıydı.
+
+### Doğrulama
+
+662 test; `serim` · `hepsi` · `pwa` aşamaları. Dört ölçüde görüntü alınıp
+bakıldı.
+
+---
+
 ## 2026-09-04 · K-050 · Açık defter: yan yana iki sayfa, ince cilt, ve ekranın kullanılması
 
 Kullanıcı defterin daha çok defter gibi durmasını istedi ve masaya açılmış,

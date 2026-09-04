@@ -90,7 +90,19 @@ body.serim .yapraklar::after{content:'';position:absolute;left:50%;top:0;bottom:
 .kagit::after{content:'';position:absolute;top:0;bottom:0;width:16px;pointer-events:none;z-index:1}
 .kagit.tek::after,.kagit.sag::after{left:0;background:linear-gradient(90deg,rgba(74,50,24,.30),transparent)}
 .kagit.sol::after{right:0;background:linear-gradient(270deg,rgba(74,50,24,.30),transparent)}
-.kagit-ic{flex:1;overflow-y:auto;padding:30px 42px 8px;position:relative;z-index:2;color:var(--murekkep)}
+/*
+ * ── SAYFA SABİT, YAZI ÖLÇEKLİ (KARARLAR.md · K-051) ────────
+ *
+ * `zoom` sayfanın içindekilerin tamamını — yazı, boşluk, çizgi — tek
+ * oranla büyütüp küçültüyor. `transform: scale` yerine `zoom`, çünkü zoom
+ * yeniden yerleşim yapıyor: yazı keskin kalıyor, satır kırılmaları gerçek.
+ *
+ * Ölçeği `ekran/olcum.ts` çözüyor: sabit sayfanın (444 karakter) bu kağıda
+ * sığacağı oran. Telefon dikeyde 1, masaüstünde daha büyük, yatay telefonda
+ * daha küçük — ama SAYFA her yerde aynı sayfa.
+ */
+.kagit-ic{flex:1;overflow-y:auto;padding:30px 42px 8px;position:relative;z-index:2;color:var(--murekkep);
+  zoom:var(--yazi-olcek,1)}
 .kagit-ic::-webkit-scrollbar-thumb{background:rgba(44,33,24,.2)}
 /* Sayfa numarası dış kenarda — gerçek bir defterde olduğu gibi. */
 .kagit-alt{flex:none;text-align:center;font-family:var(--yazi);font-size:12.5px;color:var(--soluk);

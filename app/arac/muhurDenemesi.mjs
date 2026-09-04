@@ -921,10 +921,10 @@ const asamaPwa = async () => {
 const asamaSerim = async () => {
   const tarayici = await chromium.launch({ executablePath: process.env.CHROMIUM })
 
-  const defteriAc = async (en, boy) => {
+  const defteriAc = async (en, boy, sorgu = '?tohum=1') => {
     const baglam = await tarayici.newContext({ viewport: { width: en, height: boy } })
     const sayfa = await sayfaAc(baglam)
-    await sayfa.goto(ADRES + '?tohum=1')
+    await sayfa.goto(ADRES + sorgu)
     await kilitKur(sayfa, PAROLA)
     const acildi = await defterAcildi(sayfa, 60000).then(() => true).catch(() => false)
     /* Ölçüm ve yeniden akıtma bir tur sürüyor. */
@@ -970,6 +970,56 @@ const asamaSerim = async () => {
   await bekle(g.sayfa, 2500)
   de((await g.sayfa.textContent('body')).includes(ISARETS), 'kayıt bırakıldı ve sayfada duruyor')
   await g.baglam.close()
+
+  console.log('\n3b. SAYFA SAYISI CİHAZDAN BAĞIMSIZ')
+  /*
+   * K-051'in asıl iddiası ve bu dosyadaki en pahalı muhafız.
+   *
+   * Aynı tohumlu defter dört ölçüde açılıyor; sayfa ve cilt sayısı
+   * dördünde de AYNI olmak zorunda. Bu değişiklikten önceki değerler
+   * 119 / 389 / 44 / 70 idi — yani sayfa numarası kullanıcının o an
+   * hangi cihazı tuttuğuna bağlıydı ve cilt farklı zamanlarda doluyordu.
+   *
+   * Ölçek de raporlanıyor: sabit sayfanın kağıda oturması için yazının
+   * ne kadar büyüyüp küçüldüğü. Hepsi 1 çıkıyorsa ölçekleme hiç
+   * çalışmıyor demektir.
+   */
+  const OLCULER = [
+    { ad: 'telefon dikey', en: 390, boy: 844 },
+    { ad: 'telefon yatay', en: 844, boy: 390 },
+    { ad: 'tablet dikey', en: 820, boy: 1180 },
+    { ad: 'masaüstü', en: 1600, boy: 900 },
+  ]
+  const sayimlar = []
+  for (const o of OLCULER) {
+    const d = await defteriAc(o.en, o.boy, '?tohum=1')
+    const b = await d.sayfa.evaluate(() => {
+      const kesit = (document.querySelector('#kesit-alt')?.textContent ?? '').replace(/\s+/g, ' ')
+      const n = kesit.match(/\d+/g) ?? []
+      return {
+        sayfa: Number(n[0] ?? 0),
+        cilt: Number(n[1] ?? 0),
+        olcek: Number(
+          getComputedStyle(document.documentElement).getPropertyValue('--yazi-olcek') || 1,
+        ),
+      }
+    })
+    sayimlar.push({ ...o, ...b })
+    await d.baglam.close()
+  }
+  const ilk = sayimlar[0]
+  de(ilk.sayfa > 20, `tohum defteri yeterince büyük (${ilk.sayfa} sayfa)`)
+  for (const x of sayimlar.slice(1))
+    de(
+      x.sayfa === ilk.sayfa && x.cilt === ilk.cilt,
+      `${x.ad}: ${x.sayfa} sayfa / ${x.cilt} cilt — telefon dikeyle aynı (${ilk.sayfa}/${ilk.cilt})`,
+    )
+  /* Ölçekleme gerçekten çalışıyor mu: uçlar birbirinden ayrışmalı. */
+  const olcekler = sayimlar.map((x) => x.olcek)
+  de(
+    Math.max(...olcekler) / Math.min(...olcekler) > 1.5,
+    `yazı ölçeği ekrana göre değişiyor (${olcekler.join(' · ')})`,
+  )
 
   console.log('\n4. Dar ve dikey ekran: tek sayfa')
   const d = await defteriAc(420, 900)

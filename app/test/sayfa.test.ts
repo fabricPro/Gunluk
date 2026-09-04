@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  CILT_SAYFA, SAYFA_HACIM, ciltleriKur, sayfaBul, sayfalariKur, sozcuktenKes,
+  CILT_SAYFA, SABIT_OLCU, SAYFA_HACIM, ciltleriKur, sayfaBul, sayfalariKur, sozcuktenKes,
 } from '../src/cekirdek/sayfa.js'
 import type { Gun, KenarNotu, Sayfa } from '../src/cekirdek/tipler.js'
 
@@ -23,13 +23,19 @@ function demoAkisi(
     let basYok = true
     g.kayitlar.forEach((k, ki) => {
       const kn = kenar[g.tarih + '|' + ki]
-      const govde = k.metin.length + 22 + (kn ? kn.metin.length + 20 : 0)
-      if (s.hacim + govde + (basYok ? 44 : 0) > 620 && s.ogeler.length) {
+      const govde =
+        k.metin.length +
+        SABIT_OLCU.kayitSabit +
+        (kn ? kn.metin.length + SABIT_OLCU.kenarSabit : 0)
+      if (
+        s.hacim + govde + (basYok ? SABIT_OLCU.gunBasligi : 0) > SABIT_OLCU.hacim &&
+        s.ogeler.length
+      ) {
         SAYFALAR.push(s)
         s = { ogeler: [], hacim: 0 }
         basYok = true
       }
-      const maliyet = govde + (basYok ? 44 : 0)
+      const maliyet = govde + (basYok ? SABIT_OLCU.gunBasligi : 0)
       if (basYok) basYok = false
       s.ogeler.push(g.tarih + '|' + ki)
       s.hacim += maliyet
@@ -95,9 +101,20 @@ describe('sayfalariKur — demoyla aynı bölünme', () => {
     expect(sayfalar.map(kayitlariAl).filter((k) => k.length)).toEqual(demoAkisi(ham, demoKenar))
   })
 
-  it('sabitler demodan değişmedi', () => {
-    expect(SAYFA_HACIM).toBe(620)
+  /**
+   * Sabitler artık demonun değil, REFERANS CİHAZIN ölçüsü (K-051).
+   *
+   * Bir kez ölçülüp donduruldular; buradaki sayılar o dondurmayı
+   * sabitliyor. Değişirlerse var olan defterlerin sayfa numaraları kayar,
+   * yani bu bir "kolayca güncellenecek" test değil — değiştirmek bilinçli
+   * bir karar olmak zorunda.
+   */
+  it('sayfa ölçüsü dondurulmuş değerlerde', () => {
+    expect(SAYFA_HACIM).toBe(444)
+    expect(SABIT_OLCU.hacim).toBe(SAYFA_HACIM)
     expect(CILT_SAYFA).toBe(45)
+    /* Bir ek sayfanın yarısından fazlasını yiyemez. */
+    expect(SABIT_OLCU.ekSabit + SABIT_OLCU.ekTavan).toBeLessThan(SABIT_OLCU.hacim / 2)
   })
 })
 

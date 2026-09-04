@@ -1,7 +1,12 @@
 import type { Cilt, EkBilgi, Gun, KenarNotu, Sayfa, SayfaOgesi } from './tipler.js'
 
-/** Bir sayfaya sığan yaklaşık karakter maliyeti — ölçüm yokken. */
-export const SAYFA_HACIM = 620
+/**
+ * Bir sayfanın taşıdığı karakter — HER CİHAZDA AYNI (KARARLAR.md · K-051).
+ *
+ * Bu sayı `SABIT_OLCU.hacim` ile birebir; kesit çizgilerinin genişliği de
+ * buradan ölçekleniyor.
+ */
+export const SAYFA_HACIM = 444
 /** Bir cildin sayfa sayısı. Defteri defter yapan sınır. */
 export const CILT_SAYFA = 45
 
@@ -67,17 +72,53 @@ export const ekMaliyeti = (ek: EkBilgi, olcu: SayfaOlcu): number =>
   olcu.ekSabit +
   Math.min(olcu.ekTavan, Math.round((olcu.ekKare * ek.boy) / Math.max(1, ek.en)))
 
-/** Ölçüm yapılamadığında kullanılan demo değerleri. */
-export const VARSAYILAN_OLCU: SayfaOlcu = {
+/**
+ * SAYFANIN ÖLÇÜSÜ — sabit, ve sabit olması ŞART (KARARLAR.md · K-051).
+ *
+ * Bu sayılar bir kez, referans cihazda (telefon dikey, 390×844; kağıt içi
+ * 310×543) gerçekten ÖLÇÜLDÜ ve donduruldu. Tahmin değiller — K-014'ün
+ * "tahmin etme, ölç" kuralı duruyor; değişen şey ölçümün ne zaman
+ * yapıldığı: her cihazda değil, bir kez.
+ *
+ * Neden sabit: sayfa numarası bu üründe kullanıcıya GÖSTERİLEN bir kimlik.
+ * Arşiv cevabı kullanılan kaydı "cilt + sayfa numarasıyla" gösteriyor
+ * (PROJE.md · 2.4), fihrist sayfa numarasıyla listeliyor, kapanmış cilt
+ * özeti sayfa numarası saklıyor. Ölçüm cihaz başına yapılınca aynı kayıt
+ * telefonda 17., masaüstünde 9. sayfada oluyordu — ve cilt de farklı
+ * zamanlarda doluyordu: aynı defter masaüstünde 70, yatay telefonda 389
+ * sayfa. Telefonu yan çevirmek "defterin doldu" diyebiliyordu.
+ *
+ * Ekranın farkını yazının ÖLÇEĞİ karşılıyor (`ekran/olcum.ts`): sayfa
+ * sabit, yazı o sayfanın kağıda sığacağı orana göre büyüyüp küçülüyor.
+ * Gerçek bir kitabın mantığı — sayfa sayfadır, büyüteç onu değiştirmez.
+ *
+ * Referans cihaz telefon dikey, çünkü ürünün birincil cihazı o
+ * (bkz. `stil/dar.css` başlığı): orada ölçek 1, yani bugünkü görünüm.
+ */
+export const SABIT_OLCU: SayfaOlcu = {
   hacim: SAYFA_HACIM,
-  gunBasligi: 44,
-  kayitSabit: 22,
-  kenarSabit: 20,
-  soruSabit: 26,
-  yazmaAlani: 90,
-  ekSabit: 24,
-  ekKare: 260,
-  ekTavan: 260,
+  gunBasligi: 22,
+  kayitSabit: 63,
+  kenarSabit: 52,
+  soruSabit: 24,
+  yazmaAlani: 101,
+  ekSabit: 56,
+  ekKare: 160,
+  /*
+   * Ekin tavanı 222 ÖLÇÜLDÜ ama 160'a çekildi.
+   *
+   * Ürünün kuralı şu: bir ek sayfanın yarısından fazlasını yiyemez
+   * (`test/ek.test.ts`). Ölçülen değerle çerçeve payıyla birlikte
+   * 56 + 222 = 278, yani 444'lük sayfanın %63'ü. Kural bugüne kadar
+   * yalnızca demo sabitlerine karşı sınanıyordu; cihazların GERÇEKTEN
+   * kullandığı değer onu çiğniyordu ve kimse görmüyordu. Sabitler
+   * dondurulunca test ısırdı (KARARLAR.md · K-051).
+   *
+   * 56 + 160 = 216 < 222. Yatay ve kare fotoğraf tavanın altında kalıyor,
+   * yani K-023'ün "dikey fotoğraf yatayın iki katı yer kaplar" ayrımı
+   * duruyor; yalnızca çok uzun dikey görseller kırpılıyor.
+   */
+  ekTavan: 160,
 }
 
 /**
@@ -99,7 +140,11 @@ export interface AkisGirdi {
    * hesaplanır. Boşsa her şey yeniden akıtılır.
    */
   donmusSayfalar?: Sayfa[]
-  /** Ölçülmüş sayfa kapasitesi; verilmezse demo değerleri kullanılır. */
+  /**
+   * Sayfa ölçüsü. Uygulama BURAYA HİÇBİR ŞEY GEÇMİYOR — `SABIT_OLCU`
+   * kullanılıyor ve sayfalama böylece yapısal olarak cihazdan bağımsız
+   * (K-051). Parametre yalnızca testlerin kurgu senaryoları için duruyor.
+   */
   olcu?: SayfaOlcu
 }
 
@@ -140,7 +185,7 @@ export function sayfalariKur({
   kenarlar,
   ekler = new Map(),
   donmusSayfalar = [],
-  olcu = VARSAYILAN_OLCU,
+  olcu = SABIT_OLCU,
 }: AkisGirdi): Akis {
   const SAYFA = olcu.hacim
   const GUN_BASLIGI_MALIYET = olcu.gunBasligi

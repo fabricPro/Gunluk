@@ -1,16 +1,17 @@
-import type { SayfaOlcu } from '../cekirdek/sayfa.js'
-import { VARSAYILAN_OLCU } from '../cekirdek/sayfa.js'
+import { SABIT_OLCU } from '../cekirdek/sayfa.js'
 import { S } from './ortak.js'
 
 /**
- * Sayfanın gerçek taşıma kapasitesini ölçer.
+ * SAYFA SABİT, YAZI ÖLÇEKLİ (KARARLAR.md · K-051).
  *
- * Sabit bir "620 karakter" varsayımı yanlıştı: aynı metin 680px'lik bir
- * kağıtta ve 320px'lik bir telefon kağıdında bambaşka yer kaplıyor, telefonda
- * sayfa taşıyordu. Burada tahmin yok — kağıdın içine bilinen uzunlukta bir
- * metin konup gerçek yüksekliği ölçülüyor, oradan "piksel başına karakter"
- * çıkarılıyor. Yazı tipi, satır aralığı, ekran genişliği ne olursa olsun
- * doğru sonuç verir.
+ * Bu dosya eskiden "bu kağıda kaç karakter sığar" diye ölçüp cevabı
+ * sayfalamaya veriyordu. Sonucu: sayfa numarası ekrana bağlıydı ve aynı
+ * defter masaüstünde 70, yatay telefonda 389 sayfa oluyordu.
+ *
+ * Şimdi ölçülen şey ters yönde: **sabit sayfanın bu kağıda sığması için
+ * yazı ne kadar olmalı.** K-014'ün kazanımı duruyor — tahmin yok, kağıdın
+ * içine bilinen uzunlukta metin konup gerçek yüksekliği ölçülüyor; yalnızca
+ * sonuç sayfalamaya değil ÖLÇEĞE gidiyor.
  */
 
 /**
@@ -77,14 +78,6 @@ export function serimiKur(): 1 | 2 {
   return n
 }
 
-/** Ekin görseli sayfanın kullanılabilir yüksekliğinin en fazla bu kadarı. */
-const EK_SAYFA_PAYI = 0.42
-/**
- * `.ek`'in dikey marjı. getBoundingClientRect marjı saymaz; sayılmazsa
- * her ek sayfayı 20px taşırır.
- */
-const EK_MARJIN = 20
-
 /*
  * Ölçüm metni aktif dilde: harf dağılımı ve sözcük uzunluğu gerçekçi
  * olsun. Türkçe ölçüp İngilizce dizmek sayfa kapasitesini kaydırıyordu
@@ -92,7 +85,16 @@ const EK_MARJIN = 20
  */
 const ornek = (): string => S('olcum.ornek').repeat(6)
 
-/** Ölçüm için sayfanın içine geçici bir kopya kurar, ölçer, kaldırır. */
+/**
+ * Ölçüm için sayfanın içine geçici bir kopya kurar, ölçer, kaldırır.
+ *
+ * Yükseklik `offsetHeight` ile alınıyor, `getBoundingClientRect` ile
+ * DEĞİL. Sebebi `zoom`: kağıt bir ölçekle çiziliyor ve iki ölçü ayrı
+ * birimde dönüyor — `clientHeight`/`offsetHeight` yerleşim birimini,
+ * `getBoundingClientRect` ekrana basılan (ölçeklenmiş) pikseli veriyor.
+ * İkisini karıştırmak kapasiteyi ölçek kadar yanlış hesaplardı
+ * (KARARLAR.md · K-051).
+ */
 function olc<T = number>(
   kagitIc: HTMLElement,
   html: string,
@@ -102,115 +104,114 @@ function olc<T = number>(
   kap.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;left:0;right:0'
   kap.innerHTML = html
   kagitIc.appendChild(kap)
-  const sonuc = (f ? f(kap) : kap.getBoundingClientRect().height) as T
+  const sonuc = (f ? f(kap) : kap.offsetHeight) as T
   kap.remove()
   return sonuc
 }
 
-/** Açık sayfayı ölçer. Sayfa DOM'da yoksa demo değerleri döner. */
-export function sayfaOlc(): SayfaOlcu {
+/**
+ * Yazı ölçeğinin sınırları.
+ *
+ * Alt sınıra dayanınca (yatay telefon) sabit sayfa kağıda sığmıyor ve
+ * `.kagit-ic` kaydırılabiliyor — bugün de var olan emniyet supabı.
+ * Sınırsız bırakmak orada okunmayacak kadar küçük bir yazı demekti.
+ * Üst sınır çok büyük ekranda yazının afişe dönmesini engelliyor.
+ */
+const EN_KUCUK_OLCEK = 0.62
+const EN_BUYUK_OLCEK = 2.05
+
+const kis = (k: number): number => Math.min(EN_BUYUK_OLCEK, Math.max(EN_KUCUK_OLCEK, k))
+
+const olcekYaz = (k: number): void => {
+  document.documentElement.style.setProperty('--yazi-olcek', String(Math.round(k * 1000) / 1000))
+}
+
+/**
+ * Şu anki ölçekte bir sayfanın taşıdığı karakter — ve ekin tavanı.
+ *
+ * `null` dönüyorsa kağıt henüz ölçülebilir değil.
+ *
+ * Bütün ölçüler YERLEŞİM biriminde: `zoom` altında `clientHeight` ve
+ * `offsetHeight` yerleşim birimini, `getBoundingClientRect` ekrana basılan
+ * pikseli veriyor. `olc()` bu yüzden `offsetHeight` kullanıyor.
+ */
+function hacimOlc(): { hacim: number; karakterPiksel: number; kullanilabilir: number } | null {
   const kagitIc = document.querySelector<HTMLElement>('.kagit-ic')
-  if (!kagitIc || !kagitIc.clientHeight) return VARSAYILAN_OLCU
+  if (!kagitIc || !kagitIc.clientHeight) return null
 
   const stil = getComputedStyle(kagitIc)
   const kullanilabilir =
     kagitIc.clientHeight - parseFloat(stil.paddingTop) - parseFloat(stil.paddingBottom)
-  if (kullanilabilir < 40) return VARSAYILAN_OLCU
+  if (kullanilabilir < 40) return null
 
-  /* 1 — gövde metninin piksel başına kaç karakter taşıdığı. */
   const metin = ornek()
   const govdeYukseklik = olc(
     kagitIc,
     `<div class="satir"><time>00:00</time><p>${metin}</p></div>`,
   )
-  if (govdeYukseklik < 1) return VARSAYILAN_OLCU
+  if (govdeYukseklik < 1) return null
   const karakterPiksel = metin.length / govdeYukseklik
 
-  /* 2 — boş bir kayıt satırının kendi payı (dolgu, boşluk). */
-  const bosSatir = olc(kagitIc, '<div class="satir"><time>00:00</time><p>x</p></div>')
-  /* 3 — gün başlığı ve kenar notunun yüksekliği. */
-  const gunBasligi = olc(kagitIc, `<div class="g-bas">${S('olcum.gunBasligi')}</div>`)
-  const kenar = olc(kagitIc, '<div class="kenar">x<span>kenar notu · 1 ocak</span></div>')
-  /* 4 — sayfa başlığı şeridi her sayfanın tepesinde duruyor. */
+  /* Sayfa başlığı şeridi her sayfanın tepesinde duruyor. */
   const syfBaslik = olc(
     kagitIc,
     `<div class="syf-baslik"><button class="ekle">${S('defter.baslikEkle')}</button></div>`,
   )
-  /* 5 — kayda eşlik eden sorunun kendi payı. */
-  const soru = olc(kagitIc, '<div class="kayit-soru">x</div>')
-  /*
-   * 6 — ek. İki ayrı ölçü gerekiyor çünkü maliyet orana bağlı: aynı
-   * genişlikte dikey bir fotoğraf yatay olanın iki katı yer kaplar.
-   * Önce çerçevenin kendi payı, sonra KARE bir görselin yüksekliği.
-   */
-  const ekSabitPiksel =
-    olc(kagitIc, '<div class="ek" style="--ek-tavan:0"><i></i></div>') + EK_MARJIN
-  const ekKarePiksel =
-    olc(kagitIc, '<div class="ek" style="--ek-tavan:99999px"><i style="aspect-ratio:1"></i></div>') -
-    ekSabitPiksel +
-    EK_MARJIN
-
-  /*
-   * Ekin görseli sayfanın bundan fazlasını yiyemez. Aynı piksel hem CSS'e
-   * (`--ek-tavan`) hem maliyet hesabına gidiyor; ikisi ayrılırsa sayfa
-   * sessizce taşıyor.
-   */
-  const ekTavanPiksel = Math.round(kullanilabilir * EK_SAYFA_PAYI)
-  document.documentElement.style.setProperty('--ek-tavan', ekTavanPiksel + 'px')
-
-  /* 7 — son sayfadaki yazma alanı. */
-  const yazma = olc(
-    kagitIc,
-    '<div style="display:flex;gap:14px;padding:4px 0 26px">' +
-      '<div style="width:34px;flex:none"></div>' +
-      '<div style="flex:1;min-height:74px;padding:6px 0 0"></div></div>',
-  )
-
   /*
    * Satır yüksekliği — doğrusal modelin kaçırdığı kayıp buradan geliyor.
    * Metin satır satır dizildiği için her kaydın son satırı yarım kalır;
-   * dar ekranda (satırda ~20 karakter) bu kayıp sayfayı taşıracak kadar
-   * büyür. Kayda ortalama yarım satır ekleniyor, sayfadan da bir satır
-   * emniyet payı düşülüyor.
+   * sayfadan bir satır emniyet payı düşülüyor.
    */
   const satirYukseklik = olc(kagitIc, '<div class="satir"><time>0</time><p>x</p></div>', (el) => {
     const p = el.querySelector('p')!
     const y = parseFloat(getComputedStyle(p).lineHeight)
     return Number.isFinite(y) ? y : 24
   })
-  const satirKarakter = satirYukseklik * karakterPiksel
+
+  const hacim = Math.max(
+    1,
+    Math.round((kullanilabilir - syfBaslik) * karakterPiksel - satirYukseklik * karakterPiksel),
+  )
+  return { hacim, karakterPiksel, kullanilabilir }
+}
+
+/**
+ * Sabit sayfanın kağıda sığacağı yazı ölçeğini bulur ve uygular.
+ *
+ * Yakınsama: `zoom = k` altında yerleşim kutusu `fiziksel / k` oluyor, yani
+ * kapasite `1/k²` ile değişiyor. Ölçülen kapasite hedeften büyükse ölçek
+ * `sqrt(ölçülen / hedef)` kadar büyütülüyor — bir adımda neredeyse tam
+ * oturuyor, birkaç yineleme sabit maliyetlerin (başlık şeridi, satır payı)
+ * doğrusal olmayan kısmını topluyor.
+ */
+export function yaziOlceginiKur(): number {
+  let k = 1
+  let son: ReturnType<typeof hacimOlc> = null
+  for (let i = 0; i < 4; i++) {
+    olcekYaz(k)
+    son = hacimOlc()
+    if (!son) {
+      olcekYaz(1)
+      return 1
+    }
+    const oran = son.hacim / SABIT_OLCU.hacim
+    if (Math.abs(oran - 1) < 0.02) break
+    const yeni = kis(k * Math.sqrt(oran))
+    if (yeni === k) break
+    k = yeni
+  }
+  olcekYaz(k)
 
   /*
-   * Defterin gerçek genişliği üst şeride ve araç çubuğuna geçiyor.
-   *
-   * Kağıt kutusu artık en-boy oranıyla, yani YÜKSEKLİKTEN türeyen bir
-   * genişlikte. Üstteki ad ile alttaki düğmeler sabit bir `max-width`e
-   * bağlı kalsaydı geniş ekranda kağıtla hizası kaçardı. `--ek-tavan` ile
-   * aynı desen: ölçülen piksel doğrudan CSS'e.
+   * Ekin tavanı da sabit ölçüden çıkıyor: `SABIT_OLCU.ekTavan` karakterlik
+   * yer, bu ölçekte kaç yerleşim pikseli ediyorsa o. Maliyet ile görselin
+   * AYNI sayıdan gelmesi K-014'ün şartıydı ve duruyor; yalnızca kaynak
+   * ölçüm değil sabit oldu.
    */
-  /* Ölçülen şey cildin kendisi: `#kagit-kap` bütün genişliği kaplayan kap,
-     defter onun içinde ortalanmış duruyor. */
-  const kap = document.querySelector<HTMLElement>('#kagit-kap .cilt')
-  if (kap) {
-    const en = Math.round(kap.getBoundingClientRect().width)
-    if (en > 0) document.documentElement.style.setProperty('--defter-en', en + 'px')
+  const olcum = hacimOlc()
+  if (olcum) {
+    const tavan = Math.round(SABIT_OLCU.ekTavan / olcum.karakterPiksel)
+    document.documentElement.style.setProperty('--ek-tavan', tavan + 'px')
   }
-
-  const ktr = (piksel: number) => Math.max(0, Math.round(piksel * karakterPiksel))
-  const hacim = Math.max(
-    120,
-    Math.round((kullanilabilir - syfBaslik) * karakterPiksel - satirKarakter),
-  )
-
-  return {
-    hacim,
-    gunBasligi: ktr(gunBasligi),
-    kayitSabit: ktr(bosSatir) + Math.round(satirKarakter / 2),
-    kenarSabit: ktr(kenar),
-    soruSabit: ktr(soru),
-    yazmaAlani: ktr(yazma),
-    ekSabit: ktr(ekSabitPiksel),
-    ekKare: Math.max(1, ktr(ekKarePiksel)),
-    ekTavan: Math.max(1, ktr(ekTavanPiksel)),
-  }
+  return k
 }

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { Depo } from '../src/veri/depo.js'
 import { defteriAc } from '../src/veri/db.js'
 import type { SqlSurucu } from '../src/veri/db.js'
-import { VARSAYILAN_OLCU, ekMaliyeti, sayfalariKur } from '../src/cekirdek/sayfa.js'
+import { SABIT_OLCU, ekMaliyeti, sayfalariKur } from '../src/cekirdek/sayfa.js'
 import type { Ek, EkBilgi, Gun, KenarNotu } from '../src/cekirdek/tipler.js'
 import { markdownAktar } from '../src/cekirdek/disaAktar.js'
 import { testSurucusu } from './surucu.js'
@@ -85,25 +85,31 @@ const bilgi = (en: number, boy: number): EkBilgi =>
 
 describe('ek · sayfa akışı', () => {
   it('dikey ek yatay ekten fazla yer kaplıyor', () => {
-    const yatay = ekMaliyeti(bilgi(1600, 900), VARSAYILAN_OLCU)
-    const dikey = ekMaliyeti(bilgi(900, 1600), VARSAYILAN_OLCU)
+    const yatay = ekMaliyeti(bilgi(1600, 900), SABIT_OLCU)
+    const dikey = ekMaliyeti(bilgi(900, 1600), SABIT_OLCU)
     expect(dikey).toBeGreaterThan(yatay)
   })
 
   it('çok uzun görselin maliyeti tavanda duruyor', () => {
-    const uzun = ekMaliyeti(bilgi(1000, 100000), VARSAYILAN_OLCU)
-    expect(uzun).toBe(VARSAYILAN_OLCU.ekSabit + VARSAYILAN_OLCU.ekTavan)
+    const uzun = ekMaliyeti(bilgi(1000, 100000), SABIT_OLCU)
+    expect(uzun).toBe(SABIT_OLCU.ekSabit + SABIT_OLCU.ekTavan)
   })
 
   /* Tavan CSS'le aynı sayı olmalı: maliyet kırpılıp görsel kırpılmayınca
      sayfa sessizce taşıyordu. */
   it('tavan sayfanın yarısını geçmiyor', () => {
-    const enBuyuk = ekMaliyeti(bilgi(1, 10000), VARSAYILAN_OLCU)
-    expect(enBuyuk).toBeLessThan(VARSAYILAN_OLCU.hacim / 2)
+    const enBuyuk = ekMaliyeti(bilgi(1, 10000), SABIT_OLCU)
+    expect(enBuyuk).toBeLessThan(SABIT_OLCU.hacim / 2)
   })
 
   it('ek sayfa bütçesinden pay alıyor', () => {
-    const metin = 'a '.repeat(200)
+    /*
+     * Metin, kayıt VE ek tek sayfaya sığacak kadar kısa olmak zorunda:
+     * ikisi de taşarsa iki sayfanın da hacmi tavana oturur ve karşılaştırma
+     * hiçbir şey ölçmez. Sayfa 444 karakter, ek 216 (56 + 160), gün başlığı
+     * ve kayıt sabiti 85 → metne ~140 kalıyor (KARARLAR.md · K-051).
+     */
+    const metin = 'a '.repeat(50)
     const eksiz = sayfalariKur({ gunler: gun(metin), kenarlar: new Map() })
     const ekli = sayfalariKur({
       gunler: gun(metin),
@@ -133,7 +139,7 @@ describe('ek · sayfa akışı', () => {
       kenarlar: new Map(),
       ekler: new Map([['k1', bilgi(900, 1600)]]),
     })
-    for (const s of akis.sayfalar) expect(s.hacim).toBeLessThanOrEqual(VARSAYILAN_OLCU.hacim)
+    for (const s of akis.sayfalar) expect(s.hacim).toBeLessThanOrEqual(SABIT_OLCU.hacim)
   })
 
   it('eksiz akış bugünküyle birebir aynı — regresyon', () => {

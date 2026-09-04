@@ -1,5 +1,4 @@
-import { CILT_SAYFA, VARSAYILAN_OLCU, ciltleriKur, sayfalariKur, serimBasi } from './cekirdek/sayfa.js'
-import type { SayfaOlcu } from './cekirdek/sayfa.js'
+import { CILT_SAYFA, ciltleriKur, sayfalariKur, serimBasi } from './cekirdek/sayfa.js'
 import { BASLANGIC, gununSorusu, havuzdanSor, havuzuIlerlet, ilkHaftaBitti, kayitYazildi } from './cekirdek/yonlendirme.js'
 import type { YonlendirmeDurum } from './cekirdek/yonlendirme.js'
 import type { TemaTanim } from './cekirdek/sorgu.js'
@@ -89,8 +88,6 @@ export class Durum {
    * değiştirilince sayfa yeniden yükleniyor (KARARLAR.md · K-035).
    */
   dil: Dil = 'tr'
-  /** Ölçülmüş sayfa kapasitesi; ekran katmanı doldurur. */
-  olcu: SayfaOlcu = VARSAYILAN_OLCU
   /** İlk hafta yönlendirmesinin durumu. */
   yonlendirme: YonlendirmeDurum = BASLANGIC
   /** Şu an ekranda duran soru — yazılınca kayda iliştirilir. */
@@ -172,11 +169,15 @@ export class Durum {
     const buGun = this.gunler[this.gunler.length - 1]
     this.krizVar = !!buGun && buGun.kayitlar.some((k) => krizIsareti(k.metin, this.dil).var)
 
+    /*
+     * Ölçü GEÇİLMİYOR: sayfalama `SABIT_OLCU`yu kullanıyor ve böylece
+     * yapısal olarak cihazdan bağımsız. Buraya bir ölçüm bağlamak, sayfa
+     * numarasını yine ekrana bağlamak olurdu (KARARLAR.md · K-051).
+     */
     const akis = sayfalariKur({
       gunler: this.gunler,
       kenarlar: this.kenarlar,
       ekler: this.ekler,
-      olcu: this.olcu,
     })
     this.sayfalar = akis.sayfalar
     const ad = this.aktifDefter ? new Map([[1, this.aktifDefter.ad]]) : new Map<number, string>()

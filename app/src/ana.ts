@@ -17,7 +17,7 @@ import { kilidiBagla } from './ekran/kilit.js'
 import { ACILMADI, kilitEkraniBagla, type HesapDurum } from './ekran/kilitEkrani.js'
 import { kitapligiBagla } from './ekran/kitaplik.js'
 import { kapsuleBagla } from './ekran/kapsul.js'
-import { sayfaOlc, serimiKur } from './ekran/olcum.js'
+import { serimiKur, yaziOlceginiKur } from './ekran/olcum.js'
 import { dilKur } from './ekran/ortak.js'
 import { toreniBagla } from './ekran/toren.js'
 import { yakmayiBagla } from './ekran/yak.js'
@@ -671,35 +671,24 @@ async function baslat(): Promise<void> {
     arsiv.gecenYilCiz()
     await kapsul.ciz()
 
+    /**
+     * Ekran ölçüsü değişince: serimi kur, yazı ölçeğini kur, gerekiyorsa çiz.
+     *
+     * **Sayfalama artık burada tetiklenmiyor.** Sayfa ölçüsü sabit
+     * (`SABIT_OLCU`), yani pencereyi yeniden boyutlandırmak sayfa
+     * numaralarını kaydırmıyor — eskiden kaydırıyordu (KARARLAR.md · K-051).
+     *
+     * Serim ÖLÇEKTEN ÖNCE kuruluyor ve değiştiyse hemen çiziliyor: kaç
+     * sayfa çizildiği kağıdın genişliğini belirliyor, ölçek de o genişlikten
+     * çıkıyor (K-050).
+     */
     const olcVeYenile = async (): Promise<void> => {
-      /*
-       * Serim ÖLÇÜMDEN ÖNCE kuruluyor: kaç sayfa çizileceği kağıdın
-       * genişliğini belirliyor, kapasite de o genişlikten çıkıyor. Ters
-       * sırada tek sütun ölçülüp iki sütun çizilir ve sayfa taşardı
-       * (KARARLAR.md · K-050).
-       */
       const serim = serimiKur()
-      const serimDegisti = serim !== durum.sayfaBasi
-      durum.sayfaBasi = serim
-
-      const yeni = sayfaOlc()
-      const eski = durum.olcu
-      if (
-        !serimDegisti &&
-        yeni.hacim === eski.hacim &&
-        yeni.gunBasligi === eski.gunBasligi &&
-        yeni.kayitSabit === eski.kayitSabit &&
-        yeni.kenarSabit === eski.kenarSabit &&
-        yeni.soruSabit === eski.soruSabit &&
-        yeni.yazmaAlani === eski.yazmaAlani
-      )
-        return
-      durum.olcu = yeni
-      /* Son sayfa serimin sağ yarısında da olabilir. */
-      const sondaydi = durum.gorunenSayfalar.includes(durum.sonSayfa)
-      await durum.yenile()
-      if (sondaydi) durum.aktifSayfa = durum.sonSayfa
-      defter.ciz()
+      if (serim !== durum.sayfaBasi) {
+        durum.sayfaBasi = serim
+        defter.ciz()
+      }
+      yaziOlceginiKur()
     }
     await olcVeYenile()
 

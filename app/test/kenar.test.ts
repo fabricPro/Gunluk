@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { Depo } from '../src/veri/depo.js'
 import { defteriAc } from '../src/veri/db.js'
 import type { SqlSurucu } from '../src/veri/db.js'
-import { VARSAYILAN_OLCU, sayfalariKur } from '../src/cekirdek/sayfa.js'
+import { SABIT_OLCU, sayfalariKur } from '../src/cekirdek/sayfa.js'
 import type { Gun, KenarNotu } from '../src/cekirdek/tipler.js'
 import { markdownAktar } from '../src/cekirdek/disaAktar.js'
 import { testSurucusu } from './surucu.js'
@@ -91,7 +91,7 @@ describe('kenar notu · sayfa akışı', () => {
     const kenarlar = new Map([['k1', [not(1), not(2), not(3), not(4), not(5), not(6)]]])
     const { sayfalar } = sayfalariKur({ gunler: gun('kısa bir gün'), kenarlar })
     expect(sayfalar.length).toBeGreaterThan(1)
-    for (const s of sayfalar) expect(s.hacim).toBeLessThanOrEqual(VARSAYILAN_OLCU.hacim)
+    for (const s of sayfalar) expect(s.hacim).toBeLessThanOrEqual(SABIT_OLCU.hacim)
     /* Hiçbir not düşmemiş olmalı. */
     const basilan = sayfalar.flatMap((s) => s.ogeler).filter((o) => o.tip === 'kenar')
     expect(basilan).toHaveLength(6)
